@@ -1,0 +1,16 @@
+domain: netease.com
+repo: netease.com/k8s/kube-diagnoser
+resources:
+- group: diagnosis
+  kind: Abnormal
+  version: v1
+- group: diagnosis
+  kind: Diagnoser
+  version: v1
+- group: diagnosis
+  kind: InformationCollector
+  version: v1
+- group: diagnosis
+  kind: Recoverer
+  version: v1
+version: "2"

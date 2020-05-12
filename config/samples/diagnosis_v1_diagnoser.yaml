@@ -1,0 +1,7 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnoser
+metadata:
+  name: diagnoser-sample
+spec:
+  # Add fields here
+  foo: bar

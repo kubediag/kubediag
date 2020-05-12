@@ -1,0 +1,7 @@
+apiVersion: diagnosis.netease.com/v1
+kind: InformationCollector
+metadata:
+  name: informationcollector-sample
+spec:
+  # Add fields here
+  foo: bar
