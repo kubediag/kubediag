@@ -17,30 +17,62 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// RecovererSpec defines the desired state of Recoverer
+// RecovererSpec defines the desired state of Recoverer.
 type RecovererSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Recoverer. Edit Recoverer_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// IP is the serving ip of the recoverer.
+	IP string `json:"ip"`
+	// Port is the serving port of the recoverer.
+	Port string `json:"port"`
+	// Path is the serving http path of recoverer.
+	// +optional
+	Path string `json:"path,omitempty"`
+	// Scheme is the serving scheme of recoverer.
+	// +optional
+	Scheme string `json:"scheme,omitempty"`
+	// Periodic probe of recoverer liveness.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+	// Periodic probe of recoverer readiness.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// RecovererStatus defines the observed state of Recoverer
+// RecovererStatus defines the observed state of Recoverer.
 type RecovererStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Ready specifies whether the recoverer has passed its readiness probe.
+	Ready bool `json:"ready"`
+	// Healthy specifies whether the recoverer has passed its livenessProbe probe.
+	Healthy bool `json:"healthy"`
+	// LastRecovery contains details about last recovery executed by this recoverer.
+	// +optional
+	LastRecovery Recovery `json:"lastRecovery,omitempty"`
+}
+
+// Recovery contains details about a recovery.
+type Recovery struct {
+	// StartTime specifies the known start time for this recovery.
+	// +optional
+	StartTime metav1.Time `json:"startTime,omitempty"`
+	// EndTime specifies the known end time for this recovery.
+	// +optional
+	EndTime metav1.Time `json:"endTime,omitempty"`
+	// Abnormal specifies details about last abnormal which has been successfully recovered.
+	// +optional
+	Abnormal Abnormal `json:"abnormal,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
-// Recoverer is the Schema for the recoverers API
+// Recoverer is the Schema for the recoverers API.
 type Recoverer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -51,7 +83,7 @@ type Recoverer struct {
 
 // +kubebuilder:object:root=true
 
-// RecovererList contains a list of Recoverer
+// RecovererList contains a list of Recoverer.
 type RecovererList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

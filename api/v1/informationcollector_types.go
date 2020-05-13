@@ -17,30 +17,49 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// InformationCollectorSpec defines the desired state of InformationCollector
+// InformationCollectorSpec defines the desired state of InformationCollector.
 type InformationCollectorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of InformationCollector. Edit InformationCollector_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// IP is the serving ip of the information collector.
+	IP string `json:"ip"`
+	// Port is the serving port of the information collector.
+	Port string `json:"port"`
+	// Path is the serving http path of information collector.
+	// +optional
+	Path string `json:"path,omitempty"`
+	// MetricPath is the prometheus metric path of information collector.
+	// +optional
+	MetricPath string `json:"metricPath,omitempty"`
+	// Scheme is the serving scheme of information collector.
+	// +optional
+	Scheme string `json:"scheme,omitempty"`
+	// Periodic probe of information collector liveness.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+	// Periodic probe of information collector readiness.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// InformationCollectorStatus defines the observed state of InformationCollector
+// InformationCollectorStatus defines the observed state of InformationCollector.
 type InformationCollectorStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Ready specifies whether the information collector has passed its readiness probe.
+	Ready bool `json:"ready"`
+	// Healthy specifies whether the information collector has passed its livenessProbe probe.
+	Healthy bool `json:"healthy"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
-// InformationCollector is the Schema for the informationcollectors API
+// InformationCollector is the Schema for the informationcollectors API.
 type InformationCollector struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -51,7 +70,7 @@ type InformationCollector struct {
 
 // +kubebuilder:object:root=true
 
-// InformationCollectorList contains a list of InformationCollector
+// InformationCollectorList contains a list of InformationCollector.
 type InformationCollectorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
