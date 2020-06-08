@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: abnormal-sample
+spec:
+  source: Custom
+  skipInformationCollection: false
+  skipDiagnosis: true
+  skipRecovery: true

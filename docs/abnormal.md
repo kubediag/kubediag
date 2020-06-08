@@ -24,8 +24,8 @@ Abnormal 是故障诊断恢复平台中故障事件源、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | source | 故障的来源。该字段支持 Log、KubernetesEvent、PrometheusAlert、Probe 和 Custom。 | string | true |
 | log | 表示故障的日志详细信息，对应 source 字段的 Log。 | [Log](#log) | false |
-| kubernetesEvent | 表示故障的 Kubernetes Event 详细信息，对应 source 字段的 Log。 | [corev1.Event](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#event-v1-core) | false |
-| prometheusAlert | 表示故障的 Prometheus Alert 详细信息，对应 source 字段的 KubernetesEvent。 | [notifier.Alert](https://github.com/prometheus/prometheus/blob/v2.17.2/notifier/notifier.go#L62) | false |
+| kubernetesEvent | 表示故障的 Kubernetes Event 详细信息，对应 source 字段的 KubernetesEvent。 | [corev1.Event](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#event-v1-core) | false |
+| prometheusAlert | 表示故障的 Prometheus Alert 详细信息，对应 source 字段的 PrometheusAlert。 | [PrometheusAlert](#prometheusalert) | false |
 | nodeProbe | 用户自定义的节点故障探测 Probe，支持 Probe 类型故障。 | [NodeProbe](#nodeprobe) | false |
 | podProbe | 用户自定义的容器故障探测 Probe，支持 Probe 类型故障。 | [PodProbe](#podprobe) | false |
 | skipDiagnosis | 跳过故障分析步骤。 | bool | false |
@@ -43,14 +43,22 @@ Abnormal 是故障诊断恢复平台中故障事件源、故障分析链、故�
 | filePath | 日志文件的绝对路径。 | string | true |
 | logEntry | 日志中表示故障的条目。 | string | true |
 
+## PrometheusAlert
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| labels | Alert 的标签。 | [labels.Labels](https://github.com/prometheus/prometheus/blob/v2.17.2/pkg/labels/labels.go#L42) | true |
+| annotations | Alert 的注解。 | [labels.Labels](https://github.com/prometheus/prometheus/blob/v2.17.2/pkg/labels/labels.go#L42) | true |
+| startsAt | 告警的开始时间 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
+| endsAt | 告警的结束时间 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
+| generatorURL | 告警生成者的 URL | string | false |
+
 ## NodeProbe
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | 执行 Probe 的 Node。 | string | false |
+| name | 执行 Probe 的 Node。 | string | true |
 | timeoutSeconds | Probe 执行超时时间。 | int32 | false |
-| periodSeconds | Probe 执行间隔时间。 | int32 | false |
-| privileged | 是否在特权容器内执行。 | bool | false |
 | exec | Exec 命令。 | [corev1.ExecAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#execaction-v1-core) | false |
 | httpGet | HTTP 请求。 | [corev1.HTTPGetAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#httpgetaction-v1-core) | false |
 | tcpSocket | TCP 探活。 | [corev1.TCPSocketAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#tcpsocketaction-v1-core) | false |
@@ -59,12 +67,10 @@ Abnormal 是故障诊断恢复平台中故障事件源、故障分析链、故�
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| namespace | 执行 Probe 的 Pod 命名空间。 | string | false |
-| name | 执行 Probe 的 Pod。 | string | false |
+| namespace | 执行 Probe 的 Pod 命名空间。 | string | true |
+| name | 执行 Probe 的 Pod。 | string | true |
 | container | 执行 Probe 的容器。 | string | true |
 | timeoutSeconds | Probe 执行超时时间。 | int32 | false |
-| periodSeconds | Probe 执行间隔时间。 | int32 | false |
-| privileged | 是否在特权容器内执行。 | bool | false |
 | exec | Exec 命令。 | [corev1.ExecAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#execaction-v1-core) | false |
 | httpGet | HTTP 请求。 | [corev1.HTTPGetAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#httpgetaction-v1-core) | false |
 | tcpSocket | TCP 探活。 | [corev1.TCPSocketAction](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#tcpsocketaction-v1-core) | false |
@@ -75,14 +81,15 @@ Abnormal 是故障诊断恢复平台中故障事件源、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | identifiable | 表示该故障为可以被故障分析器识别的故障。 | bool | true |
 | recoverable | 表示该故障为可以被故障恢复器恢复的故障。 | bool | true |
-| conditions | 描述故障恢复流程中关键点的状况。 | [][AbnormalCondition](#abnormalcondition) | true |
-| phase | 故障的当前阶段。该字段支持 Pending、Identifying、Identified、Recovering、Succeeded、Failed、Unknown。 | string | true |
+| conditions | 描述故障恢复流程中关键点的状况。 | [][AbnormalCondition](#abnormalcondition) | false |
+| phase | 故障的当前阶段。该字段支持 Diagnosing、Recovering、Succeeded、Failed、Unknown。 | string | false |
 | message | 表示当前故障恢复阶段的可读信息。用于输出故障原因、故障恢复建议等。 | string | false |
 | reason | 表示当前故障恢复阶段的简短信息。 | string | false |
 | output | Exec 命令、HTTP 请求、TCP 探活的输出。 | string | false |
 | startTime | 表示当前故障开始被诊断的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| diagnoser | 成功执行的故障诊断器。 | string | false |
-| recoverer | 成功执行的故障恢复器。 | string | false |
+| diagnoser | 成功执行的故障诊断器。 | NamespacedName | false |
+| recoverer | 成功执行的故障恢复器。 | NamespacedName | false |
+| context | 用于扩展的上下文信息，支持 Custom 类型故障。 | map[string]string | false |
 
 ## AbnormalCondition
 

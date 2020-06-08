@@ -48,39 +48,39 @@ Kubernetes 故障诊断恢复平台分为 Master 和 Agent 组件：
 故障诊断恢复平台的 Master 和 Agent 均由下列部分组成：
 
 * 故障事件源（AbnormalSource）
-* 故障分析链（DiagnoseChain）
+* 故障分析链（DiagnoserChain）
 * 信息管理器（InformationManager）
-* 故障恢复链（RecoverChain）
+* 故障恢复链（RecovererChain）
 
 ```bash
-    ------------------             -----------------             ----------------
-    |                |  Abnormal   |               |  Abnormal   |              |
-    | AbnormalSource |------------>| DiagnoseChain |------------>| RecoverChain |
-    |                |             |               |             |              |
-    ------------------             -----------------             ----------------
-                                           |                             |
-                                           |                             |
-                                           |                             |
-                                          \|/                           \|/
-                                    ---------------               ---------------
-                                    |             |               |             |
-                                    | Diagnoser 1 |               | Recoverer 1 |
-                                    |             |               |             |
-                                    ---------------               ---------------
-                                           |                             |
-                                           |                             |
-                                           |                             |
-                                          \|/                           \|/
-  ----------------------            ---------------               ---------------
-  |                    |            |             |               |             |
-  | InformationManager |<-----------| Diagnoser 2 |               | Recoverer 2 |
-  |                    |            |             |               |             |
-  ----------------------            ---------------               ---------------
-            |                              |                             |
-            |                              |                             |
-            |                              |                             |
-           \|/                            \|/                           \|/
---------------------------              .......                       .......
+    ------------------             ------------------             ------------------
+    |                |  Abnormal   |                |  Abnormal   |                |
+    | AbnormalSource |------------>| DiagnoserChain |------------>| RecovererChain |
+    |                |             |                |             |                |
+    ------------------             ------------------             ------------------
+                                           |                              |
+                                           |                              |
+                                           |                              |
+                                          \|/                            \|/
+                                    ---------------                ---------------
+                                    |             |                |             |
+                                    | Diagnoser 1 |                | Recoverer 1 |
+                                    |             |                |             |
+                                    ---------------                ---------------
+                                           |                              |
+                                           |                              |
+                                           |                              |
+                                          \|/                            \|/
+  ----------------------            ---------------                ---------------
+  |                    |            |             |                |             |
+  | InformationManager |<-----------| Diagnoser 2 |                | Recoverer 2 |
+  |                    |            |             |                |             |
+  ----------------------            ---------------                ---------------
+            |                              |                              |
+            |                              |                              |
+            |                              |                              |
+           \|/                            \|/                            \|/
+--------------------------              .......                        .......
 |                        |
 | InformationCollector 1 |
 |                        |
@@ -99,36 +99,36 @@ Kubernetes 故障诊断恢复平台分为 Master 和 Agent 组件：
 故障诊断恢复平台的 Master 和 Agent 状态迁移图如下：
 
 ```bash
-                          Recover Successfully, Send Warning
-           -----------------------------------------------------------------
-           |                                                               |
-           |                                                   -------------------------
-           |                                                   |                       |
-          \|/                                                  |   Recover Abnormal    |--------------------------------------------------
-------------------------                                       |                       |                                                 |
-|                      |                                       -------------------------                                                 |
-| No Abnormal Detected |                                                  /|\                                                            |
-|                      |           Fetch Information, Recoverable Abnormal |                                                             |
-------------------------                                                   |                                                             |
-           |                                                   -------------------------                                                 |
-           | Abnormal Received         Identifiable Abnormal   |                       |                                                 |
-          \|/                       -------------------------->| Identifiable Abnormal |----                                             |
-------------------------            |                          |                       |   |                                             |
-|                      |-------------                          -------------------------   |                                             |
-|  Abnormal Detected   |                                                                   |                Recover Failed, Send Warning |
-|                      |-------------                          -------------------------   |                                             |
-------------------------            |                          |                       |   |                                             |
-                                    -------------------------->|   Need Intervention   |   |                                             |
-                                      Unidentifiable Abnormal  |                       |   | Fetch Information, Unrecoverable Abnormal   |
-                                                               -------------------------   |                                             |
-                                                                           |               |                                             |
-                                           Fetch Information, Send Warning |               |                                             |
-                                                                          \|/              |                                             |
-                                                               -------------------------   |                                             |
-                                                               |                       |   |                                             |
-                                                               |   Pending Abnormal    |<-------------------------------------------------
-                                                               |                       |
-                                                               -------------------------
+                              Recover Successfully, Send Warning
+               -----------------------------------------------------------------
+               |                                                               |
+               |                                                   -------------------------
+               |                                                   |                       |
+              \|/                                                  |   Recover Abnormal    |--------------------------------------------------
+    ------------------------                                       |                       |                                                 |
+    |                      |                                       -------------------------                                                 |
+--->| No Abnormal Detected |                                                  /|\                                                            |
+|   |                      |           Fetch Information, Recoverable Abnormal |                                                             |
+|   ------------------------                                                   |                                                             |
+|              |                                                   -------------------------                                                 |
+|              | Abnormal Received         Identifiable Abnormal   |                       |                                                 |
+|             \|/                       -------------------------->| Identifiable Abnormal |----                                             |
+|   ------------------------            |                          |                       |   |                                             |
+|   |                      |-------------                          -------------------------   |                                             |
+|   |  Abnormal Detected   |                                                                   |                Recover Failed, Send Warning |
+|   |                      |-------------                          -------------------------   |                                             |
+|   ------------------------            |                          |                       |   |                                             |
+|                                       -------------------------->|   Need Intervention   |   |                                             |
+|                                         Unidentifiable Abnormal  |                       |   | Fetch Information, Unrecoverable Abnormal   |
+|                                                                  -------------------------   |                                             |
+|                                                                              |               |                                             |
+|                                              Fetch Information, Send Warning |               |                                             |
+|                                                                             \|/              |                                             |
+|                                                                  -------------------------   |                                             |
+|                       Manual Recovery                            |                       |   |                                             |
+-------------------------------------------------------------------|    Recover Failed     |<-------------------------------------------------
+                                                                   |                       |
+                                                                   -------------------------
 ```
 
 故障诊断恢复平台的 Master 和 Agent 组件在状态转换和工作处理流程上基本一致，在功能细节上有以下区别：
@@ -186,11 +186,11 @@ Recoverer CRD 用于注册故障恢复器，故障恢复器的元数据记录在
 
 ```go
 type AbnormalSource interface {
-	// 运行故障事件源。
-	// 故障事件源可以读取日志、监听 Prometheus 报警、获取 Event、CRD 等，并通过消费故障事件生成 Abnormal。
-	Run() error
-	// 将故障发送到故障分析链。
-	SendAbnormal(abnormal Abnormal) (Abnormal, error)
+    // 运行故障事件源。
+    // 故障事件源可以读取日志、监听 Prometheus 报警、获取 Event、CRD 等，并通过消费故障事件生成 Abnormal。
+    Run() error
+    // 将故障发送到故障分析链。
+    SendAbnormal(abnormal Abnormal) (Abnormal, error)
 }
 ```
 
@@ -203,28 +203,28 @@ type AbnormalSource interface {
 故障分析链和故障分析器接口如下：
 
 ```go
-type DiagnoseChain interface {
-	// 运行故障分析链。
-	// 故障分析链会将 Abnormal 故障事件逐一传入被注册的故障分析器中，当 Abnormal 能够被某个故障分析器识别则中止调用并交由该逻辑进行处理。
-	Run() error
-	// 获取所有故障分析器。
-	ListDiagnosers() []Diagnoser
-	// 注册就绪的故障分析器。
-	// 故障分析器一般是一个 HTTP 服务器。
-	RegisterDiagnoser(diagnoser Diagnoser) error
-	// 解注册未就绪的故障分析器。
-	DeregisterDiagnoser(diagnoser Diagnoser) error
-	// 将故障发送到故障恢复链。
-	SendAbnormal(abnormal Abnormal) (Abnormal, error)
+type DiagnoserChain interface {
+    // 运行故障分析链。
+    // 故障分析链会将 Abnormal 故障事件逐一传入被注册的故障分析器中，当 Abnormal 能够被某个故障分析器识别则中止调用并交由该逻辑进行处理。
+    Run() error
+    // 获取所有故障分析器。
+    ListDiagnosers() []Diagnoser
+    // 注册就绪的故障分析器。
+    // 故障分析器一般是一个 HTTP 服务器。
+    RegisterDiagnoser(diagnoser Diagnoser) error
+    // 解注册未就绪的故障分析器。
+    DeregisterDiagnoser(diagnoser Diagnoser) error
+    // 将故障发送到故障恢复链。
+    SendAbnormal(abnormal Abnormal) (Abnormal, error)
 }
 
 type Diagnoser interface {
-	// 获取故障分析器名称。
-	Name() (string, error)
-	// 执行故障分析器。
-	Diagnose(abnormal Abnormal) (Abnormal, error)
-	// 设置信息采集器。
-	WithInformationCollector(namespace string, name string)
+    // 获取故障分析器名称。
+    Name() (string, error)
+    // 执行故障分析器。
+    Diagnose(abnormal Abnormal) (Abnormal, error)
+    // 设置信息采集器。
+    WithInformationCollector(namespace string, name string)
 }
 ```
 
@@ -238,23 +238,23 @@ type Diagnoser interface {
 
 ```go
 type InformationManager interface {
-	// 运行信息管理器。
-	// 信息管理器转发信息采集请求至被注册的信息采集器并返回信息。
-	Run() error
-	// 获取所有信息采集器。
-	ListInformationCollectors() []InformationCollector
-	// 注册就绪的信息采集器。
-	// 信息采集器一般是一个 HTTP 服务器。
-	RegisterInformationCollector(informationCollector InformationCollector) error
-	// 解注册未就绪的信息采集器。
-	DeregisterInformationCollector(informationCollector InformationCollector) error
+    // 运行信息管理器。
+    // 信息管理器转发信息采集请求至被注册的信息采集器并返回信息。
+    Run() error
+    // 获取所有信息采集器。
+    ListInformationCollectors() []InformationCollector
+    // 注册就绪的信息采集器。
+    // 信息采集器一般是一个 HTTP 服务器。
+    RegisterInformationCollector(informationCollector InformationCollector) error
+    // 解注册未就绪的信息采集器。
+    DeregisterInformationCollector(informationCollector InformationCollector) error
 }
 
 type InformationCollector interface {
-	// 获取信息采集器名称。
-	Name() (string, error)
-	// 采集信息。
-	Collect() ([]byte, error)
+    // 获取信息采集器名称。
+    Name() (string, error)
+    // 采集信息。
+    Collect() ([]byte, error)
 }
 ```
 
@@ -265,26 +265,26 @@ type InformationCollector interface {
 故障恢复链和故障恢复器接口如下：
 
 ```go
-type RecoverChain interface {
-	// 运行故障恢复链。
-	// 故障恢复链会将 Abnormal 故障事件逐一传入被注册的故障恢复器中，当 Abnormal 能够被某个故障恢复器识别则中止调用并交由该逻辑进行处理。
-	Run() error
-	// 获取所有故障恢复器。
-	ListRecoverers() []Recoverer
-	// 注册就绪的故障恢复器。
-	// 故障恢复器一般是一个 HTTP 服务器。
-	RegisterRecoverer(recoverer Recoverer) error
-	// 解注册未就绪的故障恢复器。
-	DeregisterRecoverer(recoverer Recoverer) error
+type RecovererChain interface {
+    // 运行故障恢复链。
+    // 故障恢复链会将 Abnormal 故障事件逐一传入被注册的故障恢复器中，当 Abnormal 能够被某个故障恢复器识别则中止调用并交由该逻辑进行处理。
+    Run() error
+    // 获取所有故障恢复器。
+    ListRecoverers() []Recoverer
+    // 注册就绪的故障恢复器。
+    // 故障恢复器一般是一个 HTTP 服务器。
+    RegisterRecoverer(recoverer Recoverer) error
+    // 解注册未就绪的故障恢复器。
+    DeregisterRecoverer(recoverer Recoverer) error
 }
 
 type Recoverer interface {
-	// 获取故障恢复器名称。
-	Name() (string, error)
-	// 执行故障恢复器。
-	Recover(abnormal Abnormal) error
-	// 设置信息采集器。
-	WithInformationCollector(namespace string, name string)
+    // 获取故障恢复器名称。
+    Name() (string, error)
+    // 执行故障恢复器。
+    Recover(abnormal Abnormal) error
+    // 设置信息采集器。
+    WithInformationCollector(namespace string, name string)
 }
 ```
 

@@ -1,0 +1,1017 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: diagnosers.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Diagnoser
+    listKind: DiagnoserList
+    plural: diagnosers
+    singular: diagnoser
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Diagnoser is the Schema for the diagnosers API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: DiagnoserSpec defines the desired state of Diagnoser.
+          properties:
+            ip:
+              description: IP is the serving ip of the diagnoser.
+              type: string
+            livenessProbe:
+              description: Periodic probe of diagnoser liveness.
+              properties:
+                exec:
+                  description: One and only one of the following should be specified.
+                    Exec specifies the action to take.
+                  properties:
+                    command:
+                      description: Command is the command line to execute inside the
+                        container, the working directory for the command  is root
+                        ('/') in the container's filesystem. The command is simply
+                        exec'd, it is not run inside a shell, so traditional shell
+                        instructions ('|', etc) won't work. To use a shell, you need
+                        to explicitly call out to that shell. Exit status of 0 is
+                        treated as live/healthy and non-zero is unhealthy.
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                failureThreshold:
+                  description: Minimum consecutive failures for the probe to be considered
+                    failed after having succeeded. Defaults to 3. Minimum value is
+                    1.
+                  format: int32
+                  type: integer
+                httpGet:
+                  description: HTTPGet specifies the http request to perform.
+                  properties:
+                    host:
+                      description: Host name to connect to, defaults to the pod IP.
+                        You probably want to set "Host" in httpHeaders instead.
+                      type: string
+                    httpHeaders:
+                      description: Custom headers to set in the request. HTTP allows
+                        repeated headers.
+                      items:
+                        description: HTTPHeader describes a custom header to be used
+                          in HTTP probes
+                        properties:
+                          name:
+                            description: The header field name
+                            type: string
+                          value:
+                            description: The header field value
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
+                    path:
+                      description: Path to access on the HTTP server.
+                      type: string
+                    port:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Name or number of the port to access on the container.
+                        Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                      x-kubernetes-int-or-string: true
+                    scheme:
+                      description: Scheme to use for connecting to the host. Defaults
+                        to HTTP.
+                      type: string
+                  required:
+                  - port
+                  type: object
+                initialDelaySeconds:
+                  description: 'Number of seconds after the container has started
+                    before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                  format: int32
+                  type: integer
+                periodSeconds:
+                  description: How often (in seconds) to perform the probe. Default
+                    to 10 seconds. Minimum value is 1.
+                  format: int32
+                  type: integer
+                successThreshold:
+                  description: Minimum consecutive successes for the probe to be considered
+                    successful after having failed. Defaults to 1. Must be 1 for liveness
+                    and startup. Minimum value is 1.
+                  format: int32
+                  type: integer
+                tcpSocket:
+                  description: 'TCPSocket specifies an action involving a TCP port.
+                    TCP hooks not yet supported TODO: implement a realistic TCP lifecycle
+                    hook'
+                  properties:
+                    host:
+                      description: 'Optional: Host name to connect to, defaults to
+                        the pod IP.'
+                      type: string
+                    port:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Number or name of the port to access on the container.
+                        Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                      x-kubernetes-int-or-string: true
+                  required:
+                  - port
+                  type: object
+                timeoutSeconds:
+                  description: 'Number of seconds after which the probe times out.
+                    Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                  format: int32
+                  type: integer
+              type: object
+            path:
+              description: Path is the serving http path of diagnoser.
+              type: string
+            port:
+              description: Port is the serving port of the diagnoser.
+              type: string
+            readinessProbe:
+              description: Periodic probe of diagnoser readiness.
+              properties:
+                exec:
+                  description: One and only one of the following should be specified.
+                    Exec specifies the action to take.
+                  properties:
+                    command:
+                      description: Command is the command line to execute inside the
+                        container, the working directory for the command  is root
+                        ('/') in the container's filesystem. The command is simply
+                        exec'd, it is not run inside a shell, so traditional shell
+                        instructions ('|', etc) won't work. To use a shell, you need
+                        to explicitly call out to that shell. Exit status of 0 is
+                        treated as live/healthy and non-zero is unhealthy.
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                failureThreshold:
+                  description: Minimum consecutive failures for the probe to be considered
+                    failed after having succeeded. Defaults to 3. Minimum value is
+                    1.
+                  format: int32
+                  type: integer
+                httpGet:
+                  description: HTTPGet specifies the http request to perform.
+                  properties:
+                    host:
+                      description: Host name to connect to, defaults to the pod IP.
+                        You probably want to set "Host" in httpHeaders instead.
+                      type: string
+                    httpHeaders:
+                      description: Custom headers to set in the request. HTTP allows
+                        repeated headers.
+                      items:
+                        description: HTTPHeader describes a custom header to be used
+                          in HTTP probes
+                        properties:
+                          name:
+                            description: The header field name
+                            type: string
+                          value:
+                            description: The header field value
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
+                    path:
+                      description: Path to access on the HTTP server.
+                      type: string
+                    port:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Name or number of the port to access on the container.
+                        Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                      x-kubernetes-int-or-string: true
+                    scheme:
+                      description: Scheme to use for connecting to the host. Defaults
+                        to HTTP.
+                      type: string
+                  required:
+                  - port
+                  type: object
+                initialDelaySeconds:
+                  description: 'Number of seconds after the container has started
+                    before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                  format: int32
+                  type: integer
+                periodSeconds:
+                  description: How often (in seconds) to perform the probe. Default
+                    to 10 seconds. Minimum value is 1.
+                  format: int32
+                  type: integer
+                successThreshold:
+                  description: Minimum consecutive successes for the probe to be considered
+                    successful after having failed. Defaults to 1. Must be 1 for liveness
+                    and startup. Minimum value is 1.
+                  format: int32
+                  type: integer
+                tcpSocket:
+                  description: 'TCPSocket specifies an action involving a TCP port.
+                    TCP hooks not yet supported TODO: implement a realistic TCP lifecycle
+                    hook'
+                  properties:
+                    host:
+                      description: 'Optional: Host name to connect to, defaults to
+                        the pod IP.'
+                      type: string
+                    port:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Number or name of the port to access on the container.
+                        Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                      x-kubernetes-int-or-string: true
+                  required:
+                  - port
+                  type: object
+                timeoutSeconds:
+                  description: 'Number of seconds after which the probe times out.
+                    Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                  format: int32
+                  type: integer
+              type: object
+            scheme:
+              description: Scheme is the serving scheme of diagnoser.
+              type: string
+            timeoutSeconds:
+              description: Number of seconds after which the probe times out. Defaults
+                to 1 second. Minimum value is 1.
+              format: int32
+              type: integer
+          required:
+          - ip
+          - port
+          type: object
+        status:
+          description: DiagnoserStatus defines the observed state of Diagnoser.
+          properties:
+            healthy:
+              description: Healthy specifies whether the diagnoser has passed its
+                livenessProbe probe.
+              type: boolean
+            lastDiagnosis:
+              description: LastDiagnosis contains details about last diagnosis executed
+                by this diagnoser.
+              properties:
+                abnormal:
+                  description: Abnormal specifies details about last abnormal which
+                    has been successfully diagnosed.
+                  properties:
+                    apiVersion:
+                      description: 'APIVersion defines the versioned schema of this
+                        representation of an object. Servers should convert recognized
+                        schemas to the latest internal value, and may reject unrecognized
+                        values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                      type: string
+                    kind:
+                      description: 'Kind is a string value representing the REST resource
+                        this object represents. Servers may infer this from the endpoint
+                        the client submits requests to. Cannot be updated. In CamelCase.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                      type: string
+                    metadata:
+                      type: object
+                    spec:
+                      description: AbnormalSpec defines the desired state of Abnormal.
+                      properties:
+                        assignedDiagnosers:
+                          description: AssignedDiagnosers is the list of diagnosers
+                            to execute diagnosing logics. Diagnosers would be executed
+                            in the specified sequence. All diagnosers will be executed
+                            until the abnormal is diagnosed if the list is empty.
+                          items:
+                            description: NamespacedName represents a kubernetes api
+                              resource.
+                            properties:
+                              name:
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
+                                type: string
+                              namespace:
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          type: array
+                        assignedInformationCollectors:
+                          description: AssignedInformationCollectors is the list of
+                            information collectors to execute information collecting
+                            logics. Information collectors would be executed in the
+                            specified sequence. No extra information collectors will
+                            be executed if the list is empty.
+                          items:
+                            description: NamespacedName represents a kubernetes api
+                              resource.
+                            properties:
+                              name:
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
+                                type: string
+                              namespace:
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          type: array
+                        assignedRecoverers:
+                          description: AssignedRecoverers is the list of recoverers
+                            to execute recovering logics. Recoverers would be executed
+                            in the specified sequence. All recoverers will be executed
+                            until the abnormal is recovered if the list is empty.
+                          items:
+                            description: NamespacedName represents a kubernetes api
+                              resource.
+                            properties:
+                              name:
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
+                                type: string
+                              namespace:
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          type: array
+                        context:
+                          description: Context is a blob of information about the
+                            abnormal, meant to be user-facing content and display
+                            instructions. This field may contain customized values
+                            for custom source.
+                          type: object
+                        kubernetesEvent:
+                          description: KubernetesEvent contains the kubernetes event
+                            about the abnormal from kubernetes event source. This
+                            must be specified if abnormal source is KubernetesEvent.
+                          properties:
+                            action:
+                              description: What action was taken/failed regarding
+                                to the Regarding object.
+                              type: string
+                            apiVersion:
+                              description: 'APIVersion defines the versioned schema
+                                of this representation of an object. Servers should
+                                convert recognized schemas to the latest internal
+                                value, and may reject unrecognized values. More info:
+                                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                              type: string
+                            count:
+                              description: The number of times this event has occurred.
+                              format: int32
+                              type: integer
+                            eventTime:
+                              description: Time when this Event was first observed.
+                              format: date-time
+                              type: string
+                            firstTimestamp:
+                              description: The time at which the event was first recorded.
+                                (Time of server receipt is in TypeMeta.)
+                              format: date-time
+                              type: string
+                            involvedObject:
+                              description: The object that this event is about.
+                              properties:
+                                apiVersion:
+                                  description: API version of the referent.
+                                  type: string
+                                fieldPath:
+                                  description: 'If referring to a piece of an object
+                                    instead of an entire object, this string should
+                                    contain a valid JSON/Go field access statement,
+                                    such as desiredState.manifest.containers[2]. For
+                                    example, if the object reference is to a container
+                                    within a pod, this would take on a value like:
+                                    "spec.containers{name}" (where "name" refers to
+                                    the name of the container that triggered the event)
+                                    or if no container name is specified "spec.containers[2]"
+                                    (container with index 2 in this pod). This syntax
+                                    is chosen only to have some well-defined way of
+                                    referencing a part of an object. TODO: this design
+                                    is not final and this field is subject to change
+                                    in the future.'
+                                  type: string
+                                kind:
+                                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                  type: string
+                                namespace:
+                                  description: 'Namespace of the referent. More info:
+                                    https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                                  type: string
+                                resourceVersion:
+                                  description: 'Specific resourceVersion to which
+                                    this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                                  type: string
+                                uid:
+                                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                                  type: string
+                              type: object
+                            kind:
+                              description: 'Kind is a string value representing the
+                                REST resource this object represents. Servers may
+                                infer this from the endpoint the client submits requests
+                                to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                              type: string
+                            lastTimestamp:
+                              description: The time at which the most recent occurrence
+                                of this event was recorded.
+                              format: date-time
+                              type: string
+                            message:
+                              description: 'A human-readable description of the status
+                                of this operation. TODO: decide on maximum length.'
+                              type: string
+                            metadata:
+                              description: 'Standard object''s metadata. More info:
+                                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                              type: object
+                            reason:
+                              description: 'This should be a short, machine understandable
+                                string that gives the reason for the transition into
+                                the object''s current status. TODO: provide exact
+                                specification for format.'
+                              type: string
+                            related:
+                              description: Optional secondary object for more complex
+                                actions.
+                              properties:
+                                apiVersion:
+                                  description: API version of the referent.
+                                  type: string
+                                fieldPath:
+                                  description: 'If referring to a piece of an object
+                                    instead of an entire object, this string should
+                                    contain a valid JSON/Go field access statement,
+                                    such as desiredState.manifest.containers[2]. For
+                                    example, if the object reference is to a container
+                                    within a pod, this would take on a value like:
+                                    "spec.containers{name}" (where "name" refers to
+                                    the name of the container that triggered the event)
+                                    or if no container name is specified "spec.containers[2]"
+                                    (container with index 2 in this pod). This syntax
+                                    is chosen only to have some well-defined way of
+                                    referencing a part of an object. TODO: this design
+                                    is not final and this field is subject to change
+                                    in the future.'
+                                  type: string
+                                kind:
+                                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                  type: string
+                                namespace:
+                                  description: 'Namespace of the referent. More info:
+                                    https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                                  type: string
+                                resourceVersion:
+                                  description: 'Specific resourceVersion to which
+                                    this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                                  type: string
+                                uid:
+                                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                                  type: string
+                              type: object
+                            reportingComponent:
+                              description: Name of the controller that emitted this
+                                Event, e.g. `kubernetes.io/kubelet`.
+                              type: string
+                            reportingInstance:
+                              description: ID of the controller instance, e.g. `kubelet-xyzf`.
+                              type: string
+                            series:
+                              description: Data about the Event series this event
+                                represents or nil if it's a singleton Event.
+                              properties:
+                                count:
+                                  description: Number of occurrences in this series
+                                    up to the last heartbeat time
+                                  format: int32
+                                  type: integer
+                                lastObservedTime:
+                                  description: Time of the last occurrence observed
+                                  format: date-time
+                                  type: string
+                                state:
+                                  description: 'State of this Series: Ongoing or Finished
+                                    Deprecated. Planned removal for 1.18'
+                                  type: string
+                              type: object
+                            source:
+                              description: The component reporting this event. Should
+                                be a short machine understandable string.
+                              properties:
+                                component:
+                                  description: Component from which the event is generated.
+                                  type: string
+                                host:
+                                  description: Node name on which the event is generated.
+                                  type: string
+                              type: object
+                            type:
+                              description: Type of this event (Normal, Warning), new
+                                types could be added in the future
+                              type: string
+                          required:
+                          - involvedObject
+                          - metadata
+                          type: object
+                        log:
+                          description: Log contains details for accessing the log
+                            from log source. This must be specified if abnormal source
+                            is Log.
+                          properties:
+                            filePath:
+                              description: Absolute path of log file.
+                              type: string
+                            logEntry:
+                              description: Log entry for the abnormal.
+                              type: string
+                          required:
+                          - filePath
+                          - logEntry
+                          type: object
+                        nodeName:
+                          description: NodeName is a specific node which the abnormal
+                            is on.
+                          type: string
+                        nodeProbe:
+                          description: NodeProbe contains details of node probe action
+                            from probe source. Either NodeProbe or PodProbe must be
+                            specified if abnormal source is Probe.
+                          properties:
+                            exec:
+                              description: Exec specifies the action to take.
+                              properties:
+                                command:
+                                  description: Command is the command line to execute
+                                    inside the container, the working directory for
+                                    the command  is root ('/') in the container's
+                                    filesystem. The command is simply exec'd, it is
+                                    not run inside a shell, so traditional shell instructions
+                                    ('|', etc) won't work. To use a shell, you need
+                                    to explicitly call out to that shell. Exit status
+                                    of 0 is treated as live/healthy and non-zero is
+                                    unhealthy.
+                                  items:
+                                    type: string
+                                  type: array
+                              type: object
+                            httpGet:
+                              description: HTTPGet specifies the http request to perform.
+                              properties:
+                                host:
+                                  description: Host name to connect to, defaults to
+                                    the pod IP. You probably want to set "Host" in
+                                    httpHeaders instead.
+                                  type: string
+                                httpHeaders:
+                                  description: Custom headers to set in the request.
+                                    HTTP allows repeated headers.
+                                  items:
+                                    description: HTTPHeader describes a custom header
+                                      to be used in HTTP probes
+                                    properties:
+                                      name:
+                                        description: The header field name
+                                        type: string
+                                      value:
+                                        description: The header field value
+                                        type: string
+                                    required:
+                                    - name
+                                    - value
+                                    type: object
+                                  type: array
+                                path:
+                                  description: Path to access on the HTTP server.
+                                  type: string
+                                port:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Name or number of the port to access
+                                    on the container. Number must be in the range
+                                    1 to 65535. Name must be an IANA_SVC_NAME.
+                                  x-kubernetes-int-or-string: true
+                                scheme:
+                                  description: Scheme to use for connecting to the
+                                    host. Defaults to HTTP.
+                                  type: string
+                              required:
+                              - port
+                              type: object
+                            name:
+                              description: Name specifies the node name which probe
+                                action is executing on.
+                              type: string
+                            tcpSocket:
+                              description: TCPSocket specifies an action involving
+                                a TCP port.
+                              properties:
+                                host:
+                                  description: 'Optional: Host name to connect to,
+                                    defaults to the pod IP.'
+                                  type: string
+                                port:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Number or name of the port to access
+                                    on the container. Number must be in the range
+                                    1 to 65535. Name must be an IANA_SVC_NAME.
+                                  x-kubernetes-int-or-string: true
+                              required:
+                              - port
+                              type: object
+                            timeoutSeconds:
+                              description: Number of seconds after which the probe
+                                times out. Defaults to 5 second. Minimum value is
+                                1.
+                              format: int32
+                              type: integer
+                          required:
+                          - name
+                          type: object
+                        podProbe:
+                          description: PodProbe contains details of pod probe action
+                            from probe source. Either NodeProbe or PodProbe must be
+                            specified if abnormal source is Probe.
+                          properties:
+                            container:
+                              description: Container specifies the container which
+                                probe action is executing in.
+                              type: string
+                            exec:
+                              description: Exec specifies the action to take.
+                              properties:
+                                command:
+                                  description: Command is the command line to execute
+                                    inside the container, the working directory for
+                                    the command  is root ('/') in the container's
+                                    filesystem. The command is simply exec'd, it is
+                                    not run inside a shell, so traditional shell instructions
+                                    ('|', etc) won't work. To use a shell, you need
+                                    to explicitly call out to that shell. Exit status
+                                    of 0 is treated as live/healthy and non-zero is
+                                    unhealthy.
+                                  items:
+                                    type: string
+                                  type: array
+                              type: object
+                            httpGet:
+                              description: HTTPGet specifies the http request to perform.
+                              properties:
+                                host:
+                                  description: Host name to connect to, defaults to
+                                    the pod IP. You probably want to set "Host" in
+                                    httpHeaders instead.
+                                  type: string
+                                httpHeaders:
+                                  description: Custom headers to set in the request.
+                                    HTTP allows repeated headers.
+                                  items:
+                                    description: HTTPHeader describes a custom header
+                                      to be used in HTTP probes
+                                    properties:
+                                      name:
+                                        description: The header field name
+                                        type: string
+                                      value:
+                                        description: The header field value
+                                        type: string
+                                    required:
+                                    - name
+                                    - value
+                                    type: object
+                                  type: array
+                                path:
+                                  description: Path to access on the HTTP server.
+                                  type: string
+                                port:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Name or number of the port to access
+                                    on the container. Number must be in the range
+                                    1 to 65535. Name must be an IANA_SVC_NAME.
+                                  x-kubernetes-int-or-string: true
+                                scheme:
+                                  description: Scheme to use for connecting to the
+                                    host. Defaults to HTTP.
+                                  type: string
+                              required:
+                              - port
+                              type: object
+                            name:
+                              description: Name specifies the pod name which probe
+                                action is executing in.
+                              type: string
+                            namespace:
+                              description: Namespace specifies the pod namespace which
+                                probe action is executing in.
+                              type: string
+                            tcpSocket:
+                              description: TCPSocket specifies an action involving
+                                a TCP port.
+                              properties:
+                                host:
+                                  description: 'Optional: Host name to connect to,
+                                    defaults to the pod IP.'
+                                  type: string
+                                port:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Number or name of the port to access
+                                    on the container. Number must be in the range
+                                    1 to 65535. Name must be an IANA_SVC_NAME.
+                                  x-kubernetes-int-or-string: true
+                              required:
+                              - port
+                              type: object
+                            timeoutSeconds:
+                              description: Number of seconds after which the probe
+                                times out. Defaults to 5 second. Minimum value is
+                                1.
+                              format: int32
+                              type: integer
+                          required:
+                          - container
+                          - name
+                          - namespace
+                          type: object
+                        prometheusAlert:
+                          description: PrometheusAlert contains the prometheus alert
+                            about the abnormal from prometheus alert source. This
+                            must be specified if abnormal source is PrometheusAlert.
+                          properties:
+                            annotations:
+                              description: Annotations contains extra key/value information
+                                which does not define alert identity.
+                              items:
+                                description: Label is a key/value pair of strings
+                                  about prometheus alert.
+                                properties:
+                                  name:
+                                    description: Name is the name of prometheus alert
+                                      label.
+                                    type: string
+                                  value:
+                                    description: Value is the value of prometheus
+                                      alert label.
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              type: array
+                            endsAt:
+                              description: EndsAt specifies the known end time for
+                                this alert.
+                              format: date-time
+                              type: string
+                            generatorURL:
+                              description: GeneratorURL specifies the url of alert
+                                generator.
+                              type: string
+                            labels:
+                              description: Labels contains label value pairs for purpose
+                                of aggregation, matching, and disposition dispatching.
+                                This must minimally include an "alertname" label.
+                              items:
+                                description: Label is a key/value pair of strings
+                                  about prometheus alert.
+                                properties:
+                                  name:
+                                    description: Name is the name of prometheus alert
+                                      label.
+                                    type: string
+                                  value:
+                                    description: Value is the value of prometheus
+                                      alert label.
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              type: array
+                            startsAt:
+                              description: StartsAt specifies the known start time
+                                for this alert.
+                              format: date-time
+                              type: string
+                          required:
+                          - annotations
+                          - labels
+                          type: object
+                        skipDiagnosis:
+                          description: SkipDiagnosis indicates whether the diagnosis
+                            should be skipped.
+                          type: boolean
+                        skipInformationCollection:
+                          description: SkipInformationCollection indicates whether
+                            the information collection should be skipped.
+                          type: boolean
+                        skipRecovery:
+                          description: SkipRecovery indicates whether the recovery
+                            should be skipped.
+                          type: boolean
+                        source:
+                          description: Source is the abnormal source. Valid sources
+                            are Log, KubernetesEvent, PrometheusAlert, Probe and Custom.
+                          type: string
+                      required:
+                      - source
+                      type: object
+                    status:
+                      description: AbnormalStatus defines the observed state of Abnormal.
+                      properties:
+                        conditions:
+                          description: Conditions contains current service state of
+                            abnormal.
+                          items:
+                            description: AbnormalCondition contains details for the
+                              current condition of this abnormal.
+                            properties:
+                              lastTransitionTime:
+                                description: LastTransitionTime specifies last time
+                                  the condition transitioned from one status to another.
+                                format: date-time
+                                type: string
+                              message:
+                                description: Message is a human readable message indicating
+                                  details about last transition.
+                                type: string
+                              reason:
+                                description: Reason is a unique, one-word, CamelCase
+                                  reason for the condition's last transition.
+                                type: string
+                              status:
+                                description: Status is the status of the condition.
+                                  Can be True, False, Unknown.
+                                type: string
+                              type:
+                                description: Type is the type of the condition.
+                                type: string
+                            required:
+                            - status
+                            - type
+                            type: object
+                          type: array
+                        context:
+                          description: Context is a blob of information about the
+                            abnormal, meant to be user-facing content and display
+                            instructions. This field may contain customized values
+                            for custom source.
+                          type: object
+                        diagnoser:
+                          description: Diagnoser indicates the diagnoser which has
+                            identified the abnormal successfully.
+                          properties:
+                            name:
+                              description: Name specifies the name of a kubernetes
+                                api resource.
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of a
+                                kubernetes api resource.
+                              type: string
+                          required:
+                          - name
+                          - namespace
+                          type: object
+                        identifiable:
+                          description: Identifiable indicates if the abnormal could
+                            be identified by the diagnoser chain.
+                          type: boolean
+                        message:
+                          description: Message is a human readable message indicating
+                            details about why the abnormal is in this condition.
+                          type: string
+                        output:
+                          description: Output contains node or pod probe output.
+                          type: string
+                        phase:
+                          description: "Phase is a simple, high-level summary of where
+                            the abnormal is in its lifecycle. The conditions array,
+                            the reason and message fields contain more detail about
+                            the pod's status. There are six possible phase values:
+                            \n Pending: The abnormal has been accepted by the system,
+                            but diagnosis and recovery have not been started. Diagnosing:
+                            The abnormal has been passed to diagnoser chain and some
+                            of the diagnosers have been started. At least one diagnoser
+                            is still running. Recovering: The abnormal has been passed
+                            to recoverer chain and some of the recoverers have been
+                            started. At least one recoverer is still running. Succeeded:
+                            The abnormal has been successfully recovered by some of
+                            the recoverers. Failed: All diagnosers and recoverers
+                            have been executed, and none of diagnosers and recoverers
+                            is able to diagnose and recover the abnormal. Unknown:
+                            For some reason the state of the abnormal could not be
+                            obtained."
+                          type: string
+                        reason:
+                          description: Reason is a brief CamelCase message indicating
+                            details about why the abnormal is in this state.
+                          type: string
+                        recoverable:
+                          description: Recoverable indicates if the abnormal could
+                            be recovered by the recoverer chain.
+                          type: boolean
+                        recoverer:
+                          description: Recoverer indicates the recoverer which has
+                            recovered the abnormal successfully.
+                          properties:
+                            name:
+                              description: Name specifies the name of a kubernetes
+                                api resource.
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of a
+                                kubernetes api resource.
+                              type: string
+                          required:
+                          - name
+                          - namespace
+                          type: object
+                        startTime:
+                          description: StartTime is RFC 3339 date and time at which
+                            the object was acknowledged by the system.
+                          format: date-time
+                          type: string
+                      required:
+                      - identifiable
+                      - recoverable
+                      type: object
+                  type: object
+                endTime:
+                  description: EndTime specifies the known end time for this diagnosis.
+                  format: date-time
+                  type: string
+                startTime:
+                  description: StartTime specifies the known start time for this diagnosis.
+                  format: date-time
+                  type: string
+              type: object
+            ready:
+              description: Ready specifies whether the diagnoser has passed its readiness
+                probe.
+              type: boolean
+          required:
+          - healthy
+          - ready
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

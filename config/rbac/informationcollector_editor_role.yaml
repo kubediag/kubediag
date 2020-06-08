@@ -1,0 +1,24 @@
+# permissions for end users to edit informationcollectors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: informationcollector-editor-role
+rules:
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - informationcollectors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - informationcollectors/status
+  verbs:
+  - get

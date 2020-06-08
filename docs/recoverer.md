@@ -42,5 +42,5 @@ Recoverer 用于表示故障恢复器实例。
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | startTime | 恢复开始的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| duration | 恢复消耗的时间。 | [time.Duration](https://golang.org/pkg/time/#Duration) | false |
+| endTime | 恢复结束的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
 | abnormal | 恢复的故障。 | [Abnormal](#abnormal) | false |

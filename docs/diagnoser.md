@@ -42,5 +42,5 @@ Diagnoser 用于表示故障分析器实例。
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | startTime | 分析开始的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| duration | 分析消耗的时间。 | [time.Duration](https://golang.org/pkg/time/#Duration) | false |
+| endTime | 分析结束的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
 | abnormal | 分析的故障。 | [Abnormal](#abnormal) | false |
