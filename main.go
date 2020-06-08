@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	"fmt"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,8 +26,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/controllers"
+	"netease.com/k8s/kube-diagnoser/pkg/abnormalsource"
+	"netease.com/k8s/kube-diagnoser/pkg/controllers"
+	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
+	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
+	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -35,6 +41,18 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+// KubeDiagnoserMasterOptions is the main context object for the kube diagnoser master.
+type KubeDiagnoserMasterOptions struct {
+	// Address is the address on which to advertise.
+	Address string
+	// NodeName specifies the node name.
+	NodeName string
+	// MetricsAddress is the address the metric endpoint binds to.
+	MetricsAddress string
+	// EnableLeaderElection enables leader election for kube diagnoser master.
+	EnableLeaderElection bool
+}
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -44,65 +62,172 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.Parse()
+	opts := NewKubeDiagnoserMasterOptions()
 
+	cmd := &cobra.Command{
+		Use: "kube-diagnoser-agent",
+		Long: `The Kubernetes diagnoser agent runs on each node. This watches Abnormals
+and executes information collection, diagnosis and recovery according to specification
+of an Abnormal.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			setupLog.Error(opts.Run(), "failed to run kube diagnoser master")
+			os.Exit(1)
+		},
+	}
+
+	opts.AddFlags(cmd.Flags())
+
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// NewKubeDiagnoserMasterOptions creates a new KubeDiagnoserMasterOptions with a default config.
+func NewKubeDiagnoserMasterOptions() *KubeDiagnoserMasterOptions {
+	return &KubeDiagnoserMasterOptions{
+		Address:              "0.0.0.0:8090",
+		MetricsAddress:       "0.0.0.0:10357",
+		EnableLeaderElection: false,
+	}
+}
+
+// Run setuos all controllers and starts the manager.
+func (opts *KubeDiagnoserMasterOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
+		MetricsBindAddress: opts.MetricsAddress,
 		Port:               9443,
-		LeaderElection:     enableLeaderElection,
+		LeaderElection:     opts.EnableLeaderElection,
 		LeaderElectionID:   "8a2b2861.netease.com",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		return fmt.Errorf("unable to start manager: %v", err)
 	}
 
-	if err = (&controllers.AbnormalReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Abnormal"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
+	abnormalSourceCh := make(chan diagnosisv1.Abnormal, 1000)
+	informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+	diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
+	recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
+	stopCh := make(chan struct{})
+
+	// Run abnormal source, information manager, diagnoser chain and recoverer chain.
+	abnormalSource := abnormalsource.NewAbnormalSource(
+		mgr.GetClient(),
+		ctrl.Log.WithName("abnormalsource"),
+		mgr.GetScheme(),
+		mgr.GetCache(),
+		abnormalSourceCh,
+		informationManagerCh,
+		stopCh,
+	)
+	go func() {
+		err := abnormalSource.Run()
+		if err != nil {
+			setupLog.Error(err, "unable to start abnormal source")
+		}
+	}()
+	informationManager := informationmanager.NewInformationManager(
+		mgr.GetClient(),
+		ctrl.Log.WithName("informationmanager"),
+		mgr.GetScheme(),
+		mgr.GetCache(),
+		informationManagerCh,
+		diagnoserChainCh,
+		stopCh,
+	)
+	go func() {
+		err := informationManager.Run()
+		if err != nil {
+			setupLog.Error(err, "unable to start information manager")
+		}
+	}()
+	diagnoserChain := diagnoserchain.NewDiagnoserChain(
+		mgr.GetClient(),
+		ctrl.Log.WithName("diagnoserchain"),
+		mgr.GetScheme(),
+		mgr.GetCache(),
+		diagnoserChainCh,
+		recovererChainCh,
+		stopCh,
+	)
+	go func() {
+		err := diagnoserChain.Run()
+		if err != nil {
+			setupLog.Error(err, "unable to start diagnoser chain")
+		}
+	}()
+	recovererChain := recovererchain.NewRecovererChain(
+		mgr.GetClient(),
+		ctrl.Log.WithName("recovererchain"),
+		mgr.GetScheme(),
+		mgr.GetCache(),
+		recovererChainCh,
+		stopCh,
+	)
+	go func() {
+		err := recovererChain.Run()
+		if err != nil {
+			setupLog.Error(err, "unable to start recoverer chain")
+		}
+	}()
+
+	// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.
+	if err = (controllers.NewAbnormalReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Abnormal"),
+		mgr.GetScheme(),
+		abnormalSourceCh,
+	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
-		os.Exit(1)
+		return fmt.Errorf("unable to create controller for Abnormal: %v", err)
 	}
-	if err = (&controllers.DiagnoserReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Diagnoser"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
-		os.Exit(1)
-	}
-	if err = (&controllers.InformationCollectorReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("InformationCollector"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = (controllers.NewInformationCollectorReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("InformationCollector"),
+		mgr.GetScheme(),
+		informationManagerCh,
+	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
-		os.Exit(1)
+		return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
 	}
-	if err = (&controllers.RecovererReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Recoverer"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = (controllers.NewDiagnoserReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Diagnoser"),
+		mgr.GetScheme(),
+		diagnoserChainCh,
+	)).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
+		return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
+	}
+	if err = (controllers.NewRecovererReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("Recoverer"),
+		mgr.GetScheme(),
+		recovererChainCh,
+	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
-		os.Exit(1)
+		return fmt.Errorf("unable to create controller for Recoverer: %v", err)
 	}
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		return fmt.Errorf("problem running manager: %v", err)
 	}
+
+	return nil
+}
+
+// AddFlags adds flags to fs and binds them to options.
+func (opts *KubeDiagnoserMasterOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
+	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
+	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
+	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 }

@@ -32,6 +32,22 @@ type RecovererReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	recovererChainCh chan diagnosisv1.Abnormal
+}
+
+func NewRecovererReconciler(
+	cli client.Client,
+	log logr.Logger,
+	scheme *runtime.Scheme,
+	recovererChainCh chan diagnosisv1.Abnormal,
+) *RecovererReconciler {
+	return &RecovererReconciler{
+		Client:           cli,
+		Log:              log,
+		Scheme:           scheme,
+		recovererChainCh: recovererChainCh,
+	}
 }
 
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=recoverers,verbs=get;list;watch;create;update;patch;delete

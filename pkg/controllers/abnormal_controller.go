@@ -32,16 +32,38 @@ type AbnormalReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	abnormalSourceCh chan diagnosisv1.Abnormal
+}
+
+func NewAbnormalReconciler(
+	cli client.Client,
+	log logr.Logger,
+	scheme *runtime.Scheme,
+	abnormalSourceCh chan diagnosisv1.Abnormal,
+) *AbnormalReconciler {
+	return &AbnormalReconciler{
+		Client:           cli,
+		Log:              log,
+		Scheme:           scheme,
+		abnormalSourceCh: abnormalSourceCh,
+	}
 }
 
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals/status,verbs=get;update;patch
 
 func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("abnormal", req.NamespacedName)
+	ctx := context.Background()
+	log := r.Log.WithValues("abnormal", req.NamespacedName)
 
-	// your logic here
+	var abnormal diagnosisv1.Abnormal
+	if err := r.Get(ctx, req.NamespacedName, &abnormal); err != nil {
+		log.Error(err, "unable to fetch Abnormal")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	r.abnormalSourceCh <- abnormal
 
 	return ctrl.Result{}, nil
 }
