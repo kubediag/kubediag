@@ -3,5 +3,7 @@ kind: Abnormal
 metadata:
   name: abnormal-sample
 spec:
-  # Add fields here
-  foo: bar
+  source: Custom
+  skipInformationCollection: false
+  skipDiagnosis: true
+  skipRecovery: true

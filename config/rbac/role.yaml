@@ -1,0 +1,88 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormals
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormals/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnosers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnosers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - informationcollectors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - informationcollectors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - recoverers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - recoverers/status
+  verbs:
+  - get
+  - patch
+  - update
