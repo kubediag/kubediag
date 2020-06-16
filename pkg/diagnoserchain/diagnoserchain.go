@@ -244,6 +244,9 @@ func (dc *diagnoserChainImpl) RunDiagnosis(ctx context.Context, log logr.Logger,
 					log.Info("assigned diagnoser matched", "diagnoser", client.ObjectKey{
 						Name:      diagnoser.Name,
 						Namespace: diagnoser.Namespace,
+					}, "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
 					})
 					matched = true
 					break
@@ -270,9 +273,12 @@ func (dc *diagnoserChainImpl) RunDiagnosis(ctx context.Context, log logr.Logger,
 		// Send http request to the diagnosers with payload of abnormal.
 		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
-			log.Error(err, "failed to do http request to diagnoser", diagnoser, client.ObjectKey{
+			log.Error(err, "failed to do http request to diagnoser", "diagnoser", client.ObjectKey{
 				Name:      diagnoser.Name,
 				Namespace: diagnoser.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
@@ -280,13 +286,17 @@ func (dc *diagnoserChainImpl) RunDiagnosis(ctx context.Context, log logr.Logger,
 		// Validate an abnormal after processed by a diagnoser.
 		err = util.ValidateAbnormalResult(result, abnormal)
 		if err != nil {
-			log.Error(err, "invalid result from diagnoser", diagnoser, client.ObjectKey{
+			log.Error(err, "invalid result from diagnoser", "diagnoser", client.ObjectKey{
 				Name:      diagnoser.Name,
 				Namespace: diagnoser.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
 
+		abnormal.Status = result.Status
 		abnormal.Status.Diagnoser = diagnosisv1.NamespacedName{
 			Name:      diagnoser.Name,
 			Namespace: diagnoser.Namespace,

@@ -172,21 +172,29 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 
 	switch abnormal.Status.Phase {
 	case diagnosisv1.InformationCollecting:
-		informationCollectors, err := im.ListInformationCollectors(ctx, log)
-		if err != nil {
-			log.Error(err, "failed to list InformationCollectors")
-			im.informationManagerCh <- abnormal
-			return abnormal, err
-		}
+		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
+		if condition != nil {
+			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		} else {
+			informationCollectors, err := im.ListInformationCollectors(ctx, log)
+			if err != nil {
+				log.Error(err, "failed to list InformationCollectors")
+				im.informationManagerCh <- abnormal
+				return abnormal, err
+			}
 
-		abnormal, err := im.RunInformationCollection(ctx, log, informationCollectors, abnormal)
-		if err != nil {
-			log.Error(err, "failed to run collection")
-			im.informationManagerCh <- abnormal
-			return abnormal, err
-		}
+			abnormal, err := im.RunInformationCollection(ctx, log, informationCollectors, abnormal)
+			if err != nil {
+				log.Error(err, "failed to run collection")
+				im.informationManagerCh <- abnormal
+				return abnormal, err
+			}
 
-		return abnormal, nil
+			return abnormal, nil
+		}
 	case diagnosisv1.AbnormalDiagnosing:
 		log.Info("ignoring Abnormal in phase Diagnosing", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
@@ -244,6 +252,9 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 					log.Info("assigned collector matched", "collector", client.ObjectKey{
 						Name:      collector.Name,
 						Namespace: collector.Namespace,
+					}, "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
 					})
 					matched = true
 					break
@@ -269,9 +280,12 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 		// Send http request to the information collector with payload of abnormal.
 		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
-			log.Error(err, "failed to do http request to collector", collector, client.ObjectKey{
+			log.Error(err, "failed to do http request to collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
 				Namespace: collector.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
@@ -279,12 +293,17 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 		// Validate an abnormal after processed by an information collector.
 		err = util.ValidateAbnormalResult(result, abnormal)
 		if err != nil {
-			log.Error(err, "invalid result from collector", collector, client.ObjectKey{
+			log.Error(err, "invalid result from collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
 				Namespace: collector.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
+
+		abnormal.Status = result.Status
 	}
 
 	// Send abnormal to diagnoser chain if SkipDiagnosis or SkipRecovery is not true.
@@ -293,6 +312,15 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 		if err != nil {
 			return abnormal, err
 		}
+	}
+
+	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
+		Type:   diagnosisv1.InformationCollected,
+		Status: corev1.ConditionTrue,
+	})
+	if err := im.Status().Update(ctx, &abnormal); err != nil {
+		log.Error(err, "unable to update Abnormal")
+		return abnormal, err
 	}
 
 	return abnormal, nil

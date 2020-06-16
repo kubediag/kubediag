@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 )
@@ -104,7 +106,12 @@ func FormatURL(scheme string, host string, port string, path string) *url.URL {
 
 // DoHTTPRequestWithAbnormal sends a http request to diagnoser, recoverer or information collector with payload of abnormal.
 func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli http.Client, log logr.Logger) (diagnosisv1.Abnormal, error) {
-	req, err := http.NewRequest("POST", url.String(), nil)
+	data, err := json.Marshal(abnormal)
+	if err != nil {
+		return abnormal, err
+	}
+
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return abnormal, err
 	}
@@ -128,6 +135,10 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 			return abnormal, err
 		}
 
+		log.Info("succeed to complete http request", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		}, "statuscode", res.StatusCode)
 		return abnormal, nil
 	}
 

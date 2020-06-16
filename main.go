@@ -42,15 +42,15 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// KubeDiagnoserMasterOptions is the main context object for the kube diagnoser master.
-type KubeDiagnoserMasterOptions struct {
+// KubeDiagnoserAgentOptions is the main context object for the kube diagnoser agent.
+type KubeDiagnoserAgentOptions struct {
 	// Address is the address on which to advertise.
 	Address string
 	// NodeName specifies the node name.
 	NodeName string
 	// MetricsAddress is the address the metric endpoint binds to.
 	MetricsAddress string
-	// EnableLeaderElection enables leader election for kube diagnoser master.
+	// EnableLeaderElection enables leader election for kube diagnoser agent.
 	EnableLeaderElection bool
 }
 
@@ -62,7 +62,7 @@ func init() {
 }
 
 func main() {
-	opts := NewKubeDiagnoserMasterOptions()
+	opts := NewKubeDiagnoserAgentOptions()
 
 	cmd := &cobra.Command{
 		Use: "kube-diagnoser-agent",
@@ -70,7 +70,7 @@ func main() {
 and executes information collection, diagnosis and recovery according to specification
 of an Abnormal.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			setupLog.Error(opts.Run(), "failed to run kube diagnoser master")
+			setupLog.Error(opts.Run(), "failed to run kube diagnoser agent")
 			os.Exit(1)
 		},
 	}
@@ -83,9 +83,9 @@ of an Abnormal.`,
 	}
 }
 
-// NewKubeDiagnoserMasterOptions creates a new KubeDiagnoserMasterOptions with a default config.
-func NewKubeDiagnoserMasterOptions() *KubeDiagnoserMasterOptions {
-	return &KubeDiagnoserMasterOptions{
+// NewKubeDiagnoserAgentOptions creates a new KubeDiagnoserAgentOptions with a default config.
+func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
+	return &KubeDiagnoserAgentOptions{
 		Address:              "0.0.0.0:8090",
 		MetricsAddress:       "0.0.0.0:10357",
 		EnableLeaderElection: false,
@@ -93,7 +93,7 @@ func NewKubeDiagnoserMasterOptions() *KubeDiagnoserMasterOptions {
 }
 
 // Run setuos all controllers and starts the manager.
-func (opts *KubeDiagnoserMasterOptions) Run() error {
+func (opts *KubeDiagnoserAgentOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -225,9 +225,9 @@ func (opts *KubeDiagnoserMasterOptions) Run() error {
 }
 
 // AddFlags adds flags to fs and binds them to options.
-func (opts *KubeDiagnoserMasterOptions) AddFlags(fs *pflag.FlagSet) {
+func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
-	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
+	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser agent.")
 }

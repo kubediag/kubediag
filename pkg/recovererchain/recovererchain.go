@@ -240,6 +240,9 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 					log.Info("assigned recoverer matched", "recoverer", client.ObjectKey{
 						Name:      recoverer.Name,
 						Namespace: recoverer.Namespace,
+					}, "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
 					})
 					matched = true
 					break
@@ -266,9 +269,12 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 		// Send http request to the recoverers with payload of abnormal.
 		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
-			log.Error(err, "failed to do http request to recoverer", recoverer, client.ObjectKey{
+			log.Error(err, "failed to do http request to recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
 				Namespace: recoverer.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
@@ -276,13 +282,17 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 		// Validate an abnormal after processed by a recoverer.
 		err = util.ValidateAbnormalResult(result, abnormal)
 		if err != nil {
-			log.Error(err, "invalid result from recoverer", recoverer, client.ObjectKey{
+			log.Error(err, "invalid result from recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
 				Namespace: recoverer.Namespace,
+			}, "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
 			})
 			continue
 		}
 
+		abnormal.Status = result.Status
 		abnormal.Status.Recoverer = diagnosisv1.NamespacedName{
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
