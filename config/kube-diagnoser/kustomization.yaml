@@ -1,0 +1,8 @@
+resources:
+- kube-diagnoser.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: kube-diagnoser
+  newName: hub.c.163.com/combk8s/kube-diagnoser
+  newTag: 6f3af6a

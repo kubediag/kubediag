@@ -65,7 +65,7 @@ func main() {
 	opts := NewKubeDiagnoserAgentOptions()
 
 	cmd := &cobra.Command{
-		Use: "kube-diagnoser-agent",
+		Use: "kube-diagnoser",
 		Long: `The Kubernetes diagnoser agent runs on each node. This watches Abnormals
 and executes information collection, diagnosis and recovery according to specification
 of an Abnormal.`,

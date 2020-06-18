@@ -4,13 +4,13 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: controller-manager
-  name: controller-manager-metrics-monitor
-  namespace: system
+    control-plane: kube-diagnoser
+  name: kube-diagnoser-metrics-monitor
+  namespace: kube-diagnoser
 spec:
   endpoints:
     - path: /metrics
       port: https
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: kube-diagnoser
