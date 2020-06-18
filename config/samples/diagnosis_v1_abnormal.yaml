@@ -5,5 +5,5 @@ metadata:
 spec:
   source: Custom
   skipInformationCollection: false
-  skipDiagnosis: true
-  skipRecovery: true
+  skipDiagnosis: false
+  skipRecovery: false

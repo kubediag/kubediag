@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: manager-rolebinding
+  name: kube-diagnoser-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: manager-role
+  name: kube-diagnoser-role
 subjects:
 - kind: ServiceAccount
-  name: default
-  namespace: system
+  name: kube-diagnoser
+  namespace: kube-diagnoser
