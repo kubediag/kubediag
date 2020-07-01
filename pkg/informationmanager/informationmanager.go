@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ import (
 // InformationManager manages information collectors in the system.
 type InformationManager interface {
 	Run() error
+	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	ListInformationCollectors(ctx context.Context, log logr.Logger) ([]diagnosisv1.InformationCollector, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
@@ -139,6 +141,19 @@ func (im *informationManagerImpl) Run() error {
 	return nil
 }
 
+// GetAbnormal gets an Abnormal.
+func (im *informationManagerImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
+	var abnormal diagnosisv1.Abnormal
+	if err := im.Cache.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}, &abnormal); err != nil {
+		return diagnosisv1.Abnormal{}, err
+	}
+
+	return abnormal, nil
+}
+
 // ListAbnormals lists Abnormals from cache.
 func (im *informationManagerImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
 	log.Info("listing Abnormals")
@@ -170,6 +185,16 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 		Namespace: abnormal.Namespace,
 	})
 
+	abnormal, err := im.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			im.addAbnormalToInformationManagerQueue(abnormal)
+			return abnormal, err
+		}
+
+		return abnormal, nil
+	}
+
 	switch abnormal.Status.Phase {
 	case diagnosisv1.InformationCollecting:
 		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
@@ -182,14 +207,14 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 			informationCollectors, err := im.ListInformationCollectors(ctx, log)
 			if err != nil {
 				log.Error(err, "failed to list InformationCollectors")
-				im.informationManagerCh <- abnormal
+				im.addAbnormalToInformationManagerQueue(abnormal)
 				return abnormal, err
 			}
 
-			abnormal, err := im.RunInformationCollection(ctx, log, informationCollectors, abnormal)
+			abnormal, err := im.runInformationCollection(ctx, log, informationCollectors, abnormal)
 			if err != nil {
 				log.Error(err, "failed to run collection")
-				im.informationManagerCh <- abnormal
+				im.addAbnormalToInformationManagerQueue(abnormal)
 				return abnormal, err
 			}
 
@@ -225,15 +250,17 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 	return abnormal, nil
 }
 
-// RunInformationCollection collects information from information collectors.
-func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, log logr.Logger, informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// runInformationCollection collects information from information collectors.
+func (im *informationManagerImpl) runInformationCollection(ctx context.Context, log logr.Logger, informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	deepCopy := *abnormal.DeepCopy()
+
 	// Skip collection if SkipInformationCollection is true.
 	if abnormal.Spec.SkipInformationCollection {
 		log.Info("skipping collection", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
-		abnormal, err := im.SendAbnormalToDiagnoserChain(ctx, log, abnormal)
+		abnormal, err := im.sendAbnormalToDiagnoserChain(ctx, log, abnormal)
 		if err != nil {
 			return abnormal, err
 		}
@@ -278,7 +305,7 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 		}
 
 		// Send http request to the information collector with payload of abnormal.
-		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
+		result, retry, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
 			log.Error(err, "failed to do http request to collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
@@ -304,14 +331,35 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 		}
 
 		abnormal.Status = result.Status
+		if retry {
+			if reflect.DeepEqual(deepCopy, abnormal) {
+				log.Info("skip updating abnormal for not modified by information collector", "collector", client.ObjectKey{
+					Name:      collector.Name,
+					Namespace: collector.Namespace,
+				}, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			} else {
+				if err := im.Status().Update(ctx, &abnormal); err != nil {
+					log.Error(err, "unable to update Abnormal")
+					return abnormal, err
+				}
+			}
+
+			go util.QueueAbnormalWithTimer(ctx, abnormal, im.addAbnormalToInformationManagerQueue)
+			return abnormal, nil
+		}
 	}
 
 	// Send abnormal to diagnoser chain if SkipDiagnosis or SkipRecovery is not true.
 	if !abnormal.Spec.SkipDiagnosis || !abnormal.Spec.SkipRecovery {
-		abnormal, err := im.SendAbnormalToDiagnoserChain(ctx, log, abnormal)
+		abnormal, err := im.sendAbnormalToDiagnoserChain(ctx, log, abnormal)
 		if err != nil {
 			return abnormal, err
 		}
+
+		return abnormal, nil
 	}
 
 	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
@@ -326,8 +374,8 @@ func (im *informationManagerImpl) RunInformationCollection(ctx context.Context, 
 	return abnormal, nil
 }
 
-// SendAbnormalToDiagnoserChain sends Abnormal to diagnoser chain.
-func (im *informationManagerImpl) SendAbnormalToDiagnoserChain(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// sendAbnormalToDiagnoserChain sends Abnormal to diagnoser chain.
+func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	log.Info("sending Abnormal to diagnoser chain", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
@@ -343,6 +391,16 @@ func (im *informationManagerImpl) SendAbnormalToDiagnoserChain(ctx context.Conte
 		return abnormal, err
 	}
 
-	im.diagnoserChainCh <- abnormal
+	im.addAbnormalToDiagnoserChainQueue(abnormal)
 	return abnormal, nil
+}
+
+// addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
+func (im *informationManagerImpl) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
+	im.informationManagerCh <- abnormal
+}
+
+// addAbnormalToDiagnoserChainQueue adds Abnormal to the queue processed by diagnoser chain.
+func (im *informationManagerImpl) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.Abnormal) {
+	im.diagnoserChainCh <- abnormal
 }
