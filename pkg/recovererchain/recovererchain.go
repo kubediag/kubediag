@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ import (
 // RecovererChain manages recoverer in the system.
 type RecovererChain interface {
 	Run() error
+	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	ListRecoverers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Recoverer, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
@@ -135,6 +137,19 @@ func (rc *recovererChainImpl) Run() error {
 	return nil
 }
 
+// GetAbnormal gets an Abnormal.
+func (rc *recovererChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
+	var abnormal diagnosisv1.Abnormal
+	if err := rc.Cache.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}, &abnormal); err != nil {
+		return diagnosisv1.Abnormal{}, err
+	}
+
+	return abnormal, nil
+}
+
 // ListAbnormals lists Abnormals from cache.
 func (rc *recovererChainImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
 	log.Info("listing Abnormals")
@@ -166,6 +181,16 @@ func (rc *recovererChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 		Namespace: abnormal.Namespace,
 	})
 
+	abnormal, err := rc.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			rc.addAbnormalToRecovererChainQueue(abnormal)
+			return abnormal, err
+		}
+
+		return abnormal, nil
+	}
+
 	switch abnormal.Status.Phase {
 	case diagnosisv1.InformationCollecting:
 		log.Info("ignoring Abnormal in phase InformationCollecting", "abnormal", client.ObjectKey{
@@ -181,14 +206,14 @@ func (rc *recovererChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 		recoverers, err := rc.ListRecoverers(ctx, log)
 		if err != nil {
 			log.Error(err, "failed to list Recoverers")
-			rc.recovererChainCh <- abnormal
+			rc.addAbnormalToRecovererChainQueue(abnormal)
 			return abnormal, err
 		}
 
-		abnormal, err := rc.RunRecovery(ctx, log, recoverers, abnormal)
+		abnormal, err := rc.runRecovery(ctx, log, recoverers, abnormal)
 		if err != nil {
 			log.Error(err, "failed to run recovery")
-			rc.recovererChainCh <- abnormal
+			rc.addAbnormalToRecovererChainQueue(abnormal)
 			return abnormal, err
 		}
 
@@ -213,15 +238,17 @@ func (rc *recovererChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 	return abnormal, nil
 }
 
-// RunRecovery recovers an abnormal with recoverers.
-func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, recoverers []diagnosisv1.Recoverer, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// runRecovery recovers an abnormal with recoverers.
+func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, recoverers []diagnosisv1.Recoverer, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	deepCopy := *abnormal.DeepCopy()
+
 	// Skip recovery if SkipRecovery is true.
 	if abnormal.Spec.SkipRecovery {
 		log.Info("skipping recovery", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
-		abnormal, err := rc.SetAbnormalSucceeded(ctx, log, abnormal)
+		abnormal, err := rc.setAbnormalSucceeded(ctx, log, abnormal)
 		if err != nil {
 			return abnormal, err
 		}
@@ -267,7 +294,7 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 		}
 
 		// Send http request to the recoverers with payload of abnormal.
-		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
+		result, retry, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
 			log.Error(err, "failed to do http request to recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
@@ -297,15 +324,33 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
 		}
-		abnormal, err := rc.SetAbnormalSucceeded(ctx, log, abnormal)
-		if err != nil {
-			return abnormal, err
+		if retry {
+			if reflect.DeepEqual(deepCopy, abnormal) {
+				log.Info("skip updating abnormal for not modified by recoverer", "recoverer", client.ObjectKey{
+					Name:      recoverer.Name,
+					Namespace: recoverer.Namespace,
+				}, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			} else {
+				if err := rc.Status().Update(ctx, &abnormal); err != nil {
+					log.Error(err, "unable to update Abnormal")
+					return abnormal, err
+				}
+			}
+			go util.QueueAbnormalWithTimer(ctx, abnormal, rc.addAbnormalToRecovererChainQueue)
+		} else {
+			abnormal, err := rc.setAbnormalSucceeded(ctx, log, abnormal)
+			if err != nil {
+				return abnormal, err
+			}
 		}
 
 		return abnormal, nil
 	}
 
-	abnormal, err := rc.SetAbnormalFailed(ctx, log, abnormal)
+	abnormal, err := rc.setAbnormalFailed(ctx, log, abnormal)
 	if err != nil {
 		return abnormal, err
 	}
@@ -313,8 +358,8 @@ func (rc *recovererChainImpl) RunRecovery(ctx context.Context, log logr.Logger, 
 	return abnormal, nil
 }
 
-// SetAbnormalFailed sets abnormal phase to Succeeded.
-func (rc *recovererChainImpl) SetAbnormalSucceeded(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// setAbnormalSucceeded sets abnormal phase to Succeeded.
+func (rc *recovererChainImpl) setAbnormalSucceeded(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	log.Info("setting Abnormal phase to succeeded", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
@@ -334,8 +379,8 @@ func (rc *recovererChainImpl) SetAbnormalSucceeded(ctx context.Context, log logr
 	return abnormal, nil
 }
 
-// SetAbnormalFailed sets abnormal phase to Failed.
-func (rc *recovererChainImpl) SetAbnormalFailed(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// setAbnormalFailed sets abnormal phase to Failed.
+func (rc *recovererChainImpl) setAbnormalFailed(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	log.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
@@ -353,4 +398,9 @@ func (rc *recovererChainImpl) SetAbnormalFailed(ctx context.Context, log logr.Lo
 	}
 
 	return abnormal, nil
+}
+
+// addAbnormalToRecovererChainQueue adds Abnormal to the queue processed by recoverer chain.
+func (rc *recovererChainImpl) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.Abnormal) {
+	rc.recovererChainCh <- abnormal
 }

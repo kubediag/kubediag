@@ -18,6 +18,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -25,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,45 +107,64 @@ func FormatURL(scheme string, host string, port string, path string) *url.URL {
 }
 
 // DoHTTPRequestWithAbnormal sends a http request to diagnoser, recoverer or information collector with payload of abnormal.
-func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli http.Client, log logr.Logger) (diagnosisv1.Abnormal, error) {
+// It returns an Abnormal, a bool and an error as results:
+//
+// Abnormal: The result abnormal after http request.
+// Bool: The bool indicates whether the calling routine should retain in current stage and retry. It returns true if a
+// retry is required, otherwise false.
+// Error: The error of doing http request.
+func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli http.Client, log logr.Logger) (diagnosisv1.Abnormal, bool, error) {
 	data, err := json.Marshal(abnormal)
 	if err != nil {
-		return abnormal, err
+		return abnormal, false, err
 	}
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
-		return abnormal, err
+		return abnormal, false, err
 	}
 
 	res, err := cli.Do(req)
 	if err != nil {
-		return abnormal, err
+		return abnormal, false, err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Error(err, "failed to read http response body", "response", body)
-		return abnormal, err
+		return abnormal, false, err
 	}
 
-	if res.StatusCode >= http.StatusOK && res.StatusCode < http.StatusBadRequest {
+	switch res.StatusCode {
+	case http.StatusOK:
 		err = json.Unmarshal(body, &abnormal)
 		if err != nil {
 			log.Error(err, "failed to marshal response body", "response", body)
-			return abnormal, err
+			return abnormal, false, err
 		}
 
 		log.Info("succeed to complete http request", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
-		}, "statuscode", res.StatusCode)
-		return abnormal, nil
+		}, "status", res.Status)
+		return abnormal, false, nil
+	case http.StatusPartialContent:
+		err = json.Unmarshal(body, &abnormal)
+		if err != nil {
+			log.Error(err, "failed to marshal response body", "response", body)
+			return abnormal, false, err
+		}
+
+		log.Info("succeed to complete http request", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		}, "status", res.Status)
+		return abnormal, true, nil
 	}
 
-	log.Info("failed to complete http request", "statuscode", res.StatusCode)
-	return abnormal, fmt.Errorf("failed with statuscode %d", res.StatusCode)
+	log.Info("failed to complete http request", "status", res.Status)
+	return abnormal, false, fmt.Errorf("failed with status: %s", res.Status)
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
@@ -183,4 +204,15 @@ func ValidateAbnormalResult(result diagnosisv1.Abnormal, curr diagnosisv1.Abnorm
 	}
 
 	return nil
+}
+
+// QueueAbnormalWithTimer adds an abnormal to a queue after a timer expires.
+func QueueAbnormalWithTimer(ctx context.Context, abnormal diagnosisv1.Abnormal, queueFunc func(diagnosisv1.Abnormal)) {
+	timer := time.NewTimer(30 * time.Second)
+	select {
+	case <-ctx.Done():
+		return
+	case <-timer.C:
+		queueFunc(abnormal)
+	}
 }

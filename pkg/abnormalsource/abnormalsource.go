@@ -32,6 +32,7 @@ import (
 // AbnormalSource manages abnormals in the system.
 type AbnormalSource interface {
 	Run() error
+	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -122,6 +123,19 @@ func (as *abnormalSourceImpl) Run() error {
 	return nil
 }
 
+// GetAbnormal gets an Abnormal.
+func (as *abnormalSourceImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
+	var abnormal diagnosisv1.Abnormal
+	if err := as.Cache.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}, &abnormal); err != nil {
+		return diagnosisv1.Abnormal{}, err
+	}
+
+	return abnormal, nil
+}
+
 // ListAbnormals lists Abnormals from cache.
 func (as *abnormalSourceImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
 	log.Info("listing Abnormals")
@@ -140,6 +154,16 @@ func (as *abnormalSourceImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
+
+	abnormal, err := as.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			as.addAbnormalToAbnormalSourceQueue(abnormal)
+			return abnormal, err
+		}
+
+		return abnormal, nil
+	}
 
 	switch abnormal.Status.Phase {
 	case diagnosisv1.InformationCollecting:
@@ -173,9 +197,9 @@ func (as *abnormalSourceImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 			Namespace: abnormal.Namespace,
 		})
 	default:
-		abnormal, err := as.SendAbnormalToInformationManager(ctx, log, abnormal)
+		abnormal, err := as.sendAbnormalToInformationManager(ctx, log, abnormal)
 		if err != nil {
-			as.abnormalSourceCh <- abnormal
+			as.addAbnormalToAbnormalSourceQueue(abnormal)
 			return abnormal, err
 		}
 
@@ -185,8 +209,8 @@ func (as *abnormalSourceImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 	return abnormal, nil
 }
 
-// SendAbnormalToInformationManager sends Abnormal to information manager.
-func (as *abnormalSourceImpl) SendAbnormalToInformationManager(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// sendAbnormalToInformationManager sends Abnormal to information manager.
+func (as *abnormalSourceImpl) sendAbnormalToInformationManager(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	log.Info("sending Abnormal to information manager", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
@@ -199,6 +223,16 @@ func (as *abnormalSourceImpl) SendAbnormalToInformationManager(ctx context.Conte
 		return abnormal, err
 	}
 
-	as.informationManagerCh <- abnormal
+	as.addAbnormalToInformationManagerQueue(abnormal)
 	return abnormal, nil
+}
+
+// addAbnormalToAbnormalSourceQueue adds Abnormal to the queue processed by abnormal source.
+func (as *abnormalSourceImpl) addAbnormalToAbnormalSourceQueue(abnormal diagnosisv1.Abnormal) {
+	as.abnormalSourceCh <- abnormal
+}
+
+// addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
+func (as *abnormalSourceImpl) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
+	as.informationManagerCh <- abnormal
 }
