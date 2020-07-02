@@ -40,7 +40,6 @@ import (
 type DiagnoserChain interface {
 	Run() error
 	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
-	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	ListDiagnosers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Diagnoser, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -105,26 +104,6 @@ func (dc *diagnoserChainImpl) Run() error {
 		return fmt.Errorf("falied to sync cache")
 	}
 
-	// List abnormals on start.
-	abnormals, err := dc.ListAbnormals(ctx, log)
-	if err != nil {
-		log.Error(err, "failed to list Abnormals")
-		return err
-	}
-
-	// Sync all abnormals on start.
-	for _, abnormal := range abnormals {
-		abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
-
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	}
-
 	// Process abnormals queuing in diagnoser chain channel.
 	for abnormal := range dc.diagnoserChainCh {
 		abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
@@ -141,10 +120,10 @@ func (dc *diagnoserChainImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal.
+// GetAbnormal gets an Abnormal from apiserver.
 func (dc *diagnoserChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
 	var abnormal diagnosisv1.Abnormal
-	if err := dc.Cache.Get(ctx, client.ObjectKey{
+	if err := dc.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
 	}, &abnormal); err != nil {
@@ -152,18 +131,6 @@ func (dc *diagnoserChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, 
 	}
 
 	return abnormal, nil
-}
-
-// ListAbnormals lists Abnormals from cache.
-func (dc *diagnoserChainImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
-	log.Info("listing Abnormals")
-
-	var abnormalList diagnosisv1.AbnormalList
-	if err := dc.Cache.List(ctx, &abnormalList); err != nil {
-		return nil, err
-	}
-
-	return abnormalList.Items, nil
 }
 
 // ListDiagnosers lists Diagnosers from cache.
@@ -330,7 +297,7 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 		}
 		if retry {
 			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not modified by diagnoser", "diagnoser", client.ObjectKey{
+				log.Info("skip updating abnormal for not being modified by diagnoser", "diagnoser", client.ObjectKey{
 					Name:      diagnoser.Name,
 					Namespace: diagnoser.Namespace,
 				}, "abnormal", client.ObjectKey{

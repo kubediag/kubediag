@@ -40,7 +40,6 @@ import (
 type InformationManager interface {
 	Run() error
 	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
-	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	ListInformationCollectors(ctx context.Context, log logr.Logger) ([]diagnosisv1.InformationCollector, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -105,26 +104,6 @@ func (im *informationManagerImpl) Run() error {
 		return fmt.Errorf("falied to sync cache")
 	}
 
-	// List abnormals on start.
-	abnormals, err := im.ListAbnormals(ctx, log)
-	if err != nil {
-		log.Error(err, "failed to list Abnormals")
-		return err
-	}
-
-	// Sync all abnormals on start.
-	for _, abnormal := range abnormals {
-		abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
-
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	}
-
 	// Process abnormals queuing in information manager channel.
 	for abnormal := range im.informationManagerCh {
 		abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
@@ -141,10 +120,10 @@ func (im *informationManagerImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal.
+// GetAbnormal gets an Abnormal from apiserver.
 func (im *informationManagerImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
 	var abnormal diagnosisv1.Abnormal
-	if err := im.Cache.Get(ctx, client.ObjectKey{
+	if err := im.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
 	}, &abnormal); err != nil {
@@ -152,18 +131,6 @@ func (im *informationManagerImpl) GetAbnormal(ctx context.Context, log logr.Logg
 	}
 
 	return abnormal, nil
-}
-
-// ListAbnormals lists Abnormals from cache.
-func (im *informationManagerImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
-	log.Info("listing Abnormals")
-
-	var abnormalList diagnosisv1.AbnormalList
-	if err := im.Cache.List(ctx, &abnormalList); err != nil {
-		return nil, err
-	}
-
-	return abnormalList.Items, nil
 }
 
 // ListInformationCollectors lists InformationCollectors from cache.
@@ -333,7 +300,7 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 		abnormal.Status = result.Status
 		if retry {
 			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not modified by information collector", "collector", client.ObjectKey{
+				log.Info("skip updating abnormal for not being modified by information collector", "collector", client.ObjectKey{
 					Name:      collector.Name,
 					Namespace: collector.Namespace,
 				}, "abnormal", client.ObjectKey{

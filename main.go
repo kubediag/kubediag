@@ -182,6 +182,9 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		ctrl.Log.WithName("controllers").WithName("Abnormal"),
 		mgr.GetScheme(),
 		abnormalSourceCh,
+		informationManagerCh,
+		diagnoserChainCh,
+		recovererChainCh,
 	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
 		return fmt.Errorf("unable to create controller for Abnormal: %v", err)
