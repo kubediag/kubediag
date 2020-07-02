@@ -40,7 +40,6 @@ import (
 type RecovererChain interface {
 	Run() error
 	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
-	ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error)
 	ListRecoverers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Recoverer, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -101,26 +100,6 @@ func (rc *recovererChainImpl) Run() error {
 		return fmt.Errorf("falied to sync cache")
 	}
 
-	// List abnormals on start.
-	abnormals, err := rc.ListAbnormals(ctx, log)
-	if err != nil {
-		log.Error(err, "failed to list Abnormals")
-		return err
-	}
-
-	// Sync all abnormals on start.
-	for _, abnormal := range abnormals {
-		abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
-
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	}
-
 	// Process abnormals queuing in recoverer chain channel.
 	for abnormal := range rc.recovererChainCh {
 		abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
@@ -137,10 +116,10 @@ func (rc *recovererChainImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal.
+// GetAbnormal gets an Abnormal from apiserver.
 func (rc *recovererChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
 	var abnormal diagnosisv1.Abnormal
-	if err := rc.Cache.Get(ctx, client.ObjectKey{
+	if err := rc.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
 	}, &abnormal); err != nil {
@@ -148,18 +127,6 @@ func (rc *recovererChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, 
 	}
 
 	return abnormal, nil
-}
-
-// ListAbnormals lists Abnormals from cache.
-func (rc *recovererChainImpl) ListAbnormals(ctx context.Context, log logr.Logger) ([]diagnosisv1.Abnormal, error) {
-	log.Info("listing Abnormals")
-
-	var abnormalList diagnosisv1.AbnormalList
-	if err := rc.Cache.List(ctx, &abnormalList); err != nil {
-		return nil, err
-	}
-
-	return abnormalList.Items, nil
 }
 
 // ListRecoverers lists Recoverers from cache.
@@ -326,7 +293,7 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 		}
 		if retry {
 			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not modified by recoverer", "recoverer", client.ObjectKey{
+				log.Info("skip updating abnormal for not being modified by recoverer", "recoverer", client.ObjectKey{
 					Name:      recoverer.Name,
 					Namespace: recoverer.Namespace,
 				}, "abnormal", client.ObjectKey{

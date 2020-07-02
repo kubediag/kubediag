@@ -33,7 +33,10 @@ type AbnormalReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	abnormalSourceCh chan diagnosisv1.Abnormal
+	abnormalSourceCh     chan diagnosisv1.Abnormal
+	informationManagerCh chan diagnosisv1.Abnormal
+	diagnoserChainCh     chan diagnosisv1.Abnormal
+	recovererChainCh     chan diagnosisv1.Abnormal
 }
 
 func NewAbnormalReconciler(
@@ -41,12 +44,18 @@ func NewAbnormalReconciler(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	abnormalSourceCh chan diagnosisv1.Abnormal,
+	informationManagerCh chan diagnosisv1.Abnormal,
+	diagnoserChainCh chan diagnosisv1.Abnormal,
+	recovererChainCh chan diagnosisv1.Abnormal,
 ) *AbnormalReconciler {
 	return &AbnormalReconciler{
-		Client:           cli,
-		Log:              log,
-		Scheme:           scheme,
-		abnormalSourceCh: abnormalSourceCh,
+		Client:               cli,
+		Log:                  log,
+		Scheme:               scheme,
+		abnormalSourceCh:     abnormalSourceCh,
+		informationManagerCh: informationManagerCh,
+		diagnoserChainCh:     diagnoserChainCh,
+		recovererChainCh:     recovererChainCh,
 	}
 }
 
@@ -64,6 +73,9 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	r.abnormalSourceCh <- abnormal
+	r.informationManagerCh <- abnormal
+	r.diagnoserChainCh <- abnormal
+	r.recovererChainCh <- abnormal
 
 	return ctrl.Result{}, nil
 }
