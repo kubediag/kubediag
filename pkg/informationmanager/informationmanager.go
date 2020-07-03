@@ -54,6 +54,8 @@ type informationManagerImpl struct {
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
+	// NodeName specifies the node name.
+	NodeName string
 
 	// Transport for sending http requests to information collectors.
 	transport *http.Transport
@@ -71,6 +73,7 @@ func NewInformationManager(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
+	nodeName string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 	stopCh chan struct{},
@@ -87,6 +90,7 @@ func NewInformationManager(
 		Log:                  log,
 		Scheme:               scheme,
 		Cache:                cache,
+		NodeName:             nodeName,
 		transport:            transport,
 		informationManagerCh: informationManagerCh,
 		diagnoserChainCh:     diagnoserChainCh,
@@ -106,15 +110,17 @@ func (im *informationManagerImpl) Run() error {
 
 	// Process abnormals queuing in information manager channel.
 	for abnormal := range im.informationManagerCh {
-		abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
+		if util.IsAbnormalNodeNameMatched(abnormal, im.NodeName) {
+			abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
+			if err != nil {
+				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+			}
 
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
 	}
 
 	return nil

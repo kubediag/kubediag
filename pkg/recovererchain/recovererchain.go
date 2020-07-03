@@ -54,6 +54,8 @@ type recovererChainImpl struct {
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
+	// NodeName specifies the node name.
+	NodeName string
 
 	// Transport for sending http requests to information collectors.
 	transport *http.Transport
@@ -69,6 +71,7 @@ func NewRecovererChain(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
+	nodeName string,
 	recovererChainCh chan diagnosisv1.Abnormal,
 	stopCh chan struct{},
 ) RecovererChain {
@@ -84,6 +87,7 @@ func NewRecovererChain(
 		Log:              log,
 		Scheme:           scheme,
 		Cache:            cache,
+		NodeName:         nodeName,
 		transport:        transport,
 		recovererChainCh: recovererChainCh,
 		stopCh:           stopCh,
@@ -102,15 +106,17 @@ func (rc *recovererChainImpl) Run() error {
 
 	// Process abnormals queuing in recoverer chain channel.
 	for abnormal := range rc.recovererChainCh {
-		abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
+		if util.IsAbnormalNodeNameMatched(abnormal, rc.NodeName) {
+			abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
+			if err != nil {
+				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+			}
 
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
 	}
 
 	return nil

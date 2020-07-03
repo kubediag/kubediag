@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
 // SourceManager manages abnormals in the system.
@@ -46,6 +47,8 @@ type sourceManagerImpl struct {
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
+	// NodeName specifies the node name.
+	NodeName string
 
 	// Channel for queuing Abnormals to be processed by source manager.
 	sourceManagerCh chan diagnosisv1.Abnormal
@@ -61,6 +64,7 @@ func NewSourceManager(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
+	nodeName string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 	informationManagerCh chan diagnosisv1.Abnormal,
 	stopCh chan struct{},
@@ -70,6 +74,7 @@ func NewSourceManager(
 		Log:                  log,
 		Scheme:               scheme,
 		Cache:                cache,
+		NodeName:             nodeName,
 		sourceManagerCh:      sourceManagerCh,
 		informationManagerCh: informationManagerCh,
 		stopCh:               stopCh,
@@ -88,15 +93,17 @@ func (sm *sourceManagerImpl) Run() error {
 
 	// Process abnormals queuing in source manager channel.
 	for abnormal := range sm.sourceManagerCh {
-		abnormal, err := sm.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
+		if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
+			abnormal, err := sm.SyncAbnormal(ctx, log, abnormal)
+			if err != nil {
+				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+			}
 
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
 	}
 
 	return nil
