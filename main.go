@@ -29,11 +29,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/abnormalsource"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
+	"netease.com/k8s/kube-diagnoser/pkg/sourcemanager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -92,7 +92,7 @@ func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 	}
 }
 
-// Run setuos all controllers and starts the manager.
+// Run setups all controllers and starts the manager.
 func (opts *KubeDiagnoserAgentOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -109,26 +109,26 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	}
 
 	// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
-	abnormalSourceCh := make(chan diagnosisv1.Abnormal, 1000)
+	sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 	informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 	diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
 	recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
 	stopCh := make(chan struct{})
 
-	// Run abnormal source, information manager, diagnoser chain and recoverer chain.
-	abnormalSource := abnormalsource.NewAbnormalSource(
+	// Run source manager, information manager, diagnoser chain and recoverer chain.
+	sourceManager := sourcemanager.NewSourceManager(
 		mgr.GetClient(),
-		ctrl.Log.WithName("abnormalsource"),
+		ctrl.Log.WithName("sourcemanager"),
 		mgr.GetScheme(),
 		mgr.GetCache(),
-		abnormalSourceCh,
+		sourceManagerCh,
 		informationManagerCh,
 		stopCh,
 	)
 	go func() {
-		err := abnormalSource.Run()
+		err := sourceManager.Run()
 		if err != nil {
-			setupLog.Error(err, "unable to start abnormal source")
+			setupLog.Error(err, "unable to start source manager")
 		}
 	}()
 	informationManager := informationmanager.NewInformationManager(
@@ -181,7 +181,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("Abnormal"),
 		mgr.GetScheme(),
-		abnormalSourceCh,
+		sourceManagerCh,
 		informationManagerCh,
 		diagnoserChainCh,
 		recovererChainCh,
