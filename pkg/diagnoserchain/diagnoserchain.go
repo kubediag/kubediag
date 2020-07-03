@@ -54,6 +54,8 @@ type diagnoserChainImpl struct {
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
+	// NodeName specifies the node name.
+	NodeName string
 
 	// Transport for sending http requests to information collectors.
 	transport *http.Transport
@@ -71,6 +73,7 @@ func NewDiagnoserChain(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
+	nodeName string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 	recovererChainCh chan diagnosisv1.Abnormal,
 	stopCh chan struct{},
@@ -87,6 +90,7 @@ func NewDiagnoserChain(
 		Log:              log,
 		Scheme:           scheme,
 		Cache:            cache,
+		NodeName:         nodeName,
 		transport:        transport,
 		diagnoserChainCh: diagnoserChainCh,
 		recovererChainCh: recovererChainCh,
@@ -106,15 +110,17 @@ func (dc *diagnoserChainImpl) Run() error {
 
 	// Process abnormals queuing in diagnoser chain channel.
 	for abnormal := range dc.diagnoserChainCh {
-		abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
-		if err != nil {
-			log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-		}
+		if util.IsAbnormalNodeNameMatched(abnormal, dc.NodeName) {
+			abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
+			if err != nil {
+				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+			}
 
-		log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
 	}
 
 	return nil
