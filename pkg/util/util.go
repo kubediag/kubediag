@@ -217,8 +217,8 @@ func QueueAbnormalWithTimer(ctx context.Context, abnormal diagnosisv1.Abnormal, 
 	}
 }
 
-// IsAbnormalNodeNameMatched checks if the abnoraml is on the specific node.
+// IsAbnormalNodeNameMatched checks if the abnormal is on the specific node.
 // It returns true if node name of the abnormal is empty or matches provided node name, otherwise false.
-func IsAbnormalNodeNameMatched(abnoraml diagnosisv1.Abnormal, nodeName string) bool {
-	return abnoraml.Spec.NodeName == "" || abnoraml.Spec.NodeName == nodeName
+func IsAbnormalNodeNameMatched(abnormal diagnosisv1.Abnormal, nodeName string) bool {
+	return abnormal.Spec.NodeName == "" || abnormal.Spec.NodeName == nodeName
 }

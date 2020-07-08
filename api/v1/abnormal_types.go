@@ -68,23 +68,23 @@ type AbnormalSpec struct {
 	// Log contains details for accessing the log from log source. This must be specified
 	// if abnormal source is Log.
 	// +optional
-	Log Log `json:"log,omitempty"`
+	Log *Log `json:"log,omitempty"`
 	// KubernetesEvent contains the kubernetes event about the abnormal from kubernetes
 	// event source. This must be specified if abnormal source is KubernetesEvent.
 	// +optional
-	KubernetesEvent corev1.Event `json:"kubernetesEvent,omitempty"`
+	KubernetesEvent *corev1.Event `json:"kubernetesEvent,omitempty"`
 	// PrometheusAlert contains the prometheus alert about the abnormal from prometheus
 	// alert source. This must be specified if abnormal source is PrometheusAlert.
 	// +optional
-	PrometheusAlert PrometheusAlert `json:"prometheusAlert,omitempty"`
+	PrometheusAlert *PrometheusAlert `json:"prometheusAlert,omitempty"`
 	// NodeProbe contains details of node probe action from probe source. Either NodeProbe
 	// or PodProbe must be specified if abnormal source is Probe.
 	// +optional
-	NodeProbe NodeProbe `json:"nodeProbe,omitempty"`
+	NodeProbe *NodeProbe `json:"nodeProbe,omitempty"`
 	// PodProbe contains details of pod probe action from probe source. Either NodeProbe
 	// or PodProbe must be specified if abnormal source is Probe.
 	// +optional
-	PodProbe PodProbe `json:"podProbe,omitempty"`
+	PodProbe *PodProbe `json:"podProbe,omitempty"`
 	// SkipInformationCollection indicates whether the information collection should be skipped.
 	// +optional
 	SkipInformationCollection bool `json:"skipInformationCollection,omitempty"`
