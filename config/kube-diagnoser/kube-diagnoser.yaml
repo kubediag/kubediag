@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - command:
-        - /manager
+        - /kube-diagnoser
         args:
         - --address=0.0.0.0:8090
         - --metrics-address=0.0.0.0:10357
@@ -34,7 +34,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        name: manager
+        name: kube-diagnoser
         resources:
           limits:
             cpu: 400m
