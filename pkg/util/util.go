@@ -132,7 +132,7 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Error(err, "failed to read http response body", "response", body)
+		log.Error(err, "failed to read http response body", "response", string(body))
 		return abnormal, false, err
 	}
 
@@ -140,7 +140,7 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 	case http.StatusOK:
 		err = json.Unmarshal(body, &abnormal)
 		if err != nil {
-			log.Error(err, "failed to marshal response body", "response", body)
+			log.Error(err, "failed to marshal response body", "response", string(body))
 			return abnormal, false, err
 		}
 
@@ -152,7 +152,7 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 	case http.StatusPartialContent:
 		err = json.Unmarshal(body, &abnormal)
 		if err != nil {
-			log.Error(err, "failed to marshal response body", "response", body)
+			log.Error(err, "failed to marshal response body", "response", string(body))
 			return abnormal, false, err
 		}
 
@@ -163,7 +163,7 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 		return abnormal, true, nil
 	}
 
-	log.Info("failed to complete http request", "status", res.Status)
+	log.Info("failed to complete http request", "status", res.Status, "response", string(body))
 	return abnormal, false, fmt.Errorf("failed with status: %s", res.Status)
 }
 
