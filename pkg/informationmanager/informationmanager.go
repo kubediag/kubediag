@@ -39,7 +39,6 @@ import (
 // InformationManager manages information collectors in the system.
 type InformationManager interface {
 	Run() error
-	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListInformationCollectors(ctx context.Context, log logr.Logger) ([]diagnosisv1.InformationCollector, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -126,19 +125,6 @@ func (im *informationManagerImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal from apiserver.
-func (im *informationManagerImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
-	var abnormal diagnosisv1.Abnormal
-	if err := im.Get(ctx, client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}, &abnormal); err != nil {
-		return diagnosisv1.Abnormal{}, err
-	}
-
-	return abnormal, nil
-}
-
 // ListInformationCollectors lists InformationCollectors from cache.
 func (im *informationManagerImpl) ListInformationCollectors(ctx context.Context, log logr.Logger) ([]diagnosisv1.InformationCollector, error) {
 	log.Info("listing InformationCollectors")
@@ -158,66 +144,26 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 		Namespace: abnormal.Namespace,
 	})
 
-	abnormal, err := im.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			im.addAbnormalToInformationManagerQueue(abnormal)
+	_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
+	if condition != nil {
+		log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	} else {
+		informationCollectors, err := im.ListInformationCollectors(ctx, log)
+		if err != nil {
+			log.Error(err, "failed to list InformationCollectors")
+			im.addAbnormalToInformationManagerQueue(ctx, log, abnormal)
 			return abnormal, err
 		}
 
-		return abnormal, nil
-	}
-
-	switch abnormal.Status.Phase {
-	case diagnosisv1.InformationCollecting:
-		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
-		if condition != nil {
-			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
-		} else {
-			informationCollectors, err := im.ListInformationCollectors(ctx, log)
-			if err != nil {
-				log.Error(err, "failed to list InformationCollectors")
-				im.addAbnormalToInformationManagerQueue(abnormal)
-				return abnormal, err
-			}
-
-			abnormal, err := im.runInformationCollection(ctx, log, informationCollectors, abnormal)
-			if err != nil {
-				log.Error(err, "failed to run collection")
-				im.addAbnormalToInformationManagerQueue(abnormal)
-				return abnormal, err
-			}
-
-			return abnormal, nil
+		abnormal, err := im.runInformationCollection(ctx, log, informationCollectors, abnormal)
+		if err != nil {
+			log.Error(err, "failed to run collection")
+			im.addAbnormalToInformationManagerQueue(ctx, log, abnormal)
+			return abnormal, err
 		}
-	case diagnosisv1.AbnormalDiagnosing:
-		log.Info("ignoring Abnormal in phase Diagnosing", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalRecovering:
-		log.Info("ignoring Abnormal in phase Recovering", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
 	}
 
 	return abnormal, nil
@@ -261,9 +207,18 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 				}
 			}
 		}
+
 		if !matched {
 			continue
 		}
+
+		log.Info("running collection", "collector", client.ObjectKey{
+			Name:      collector.Name,
+			Namespace: collector.Namespace,
+		}, "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
 
 		scheme := strings.ToLower(string(collector.Spec.Scheme))
 		host := collector.Spec.IP
@@ -320,7 +275,7 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 				}
 			}
 
-			go util.QueueAbnormalWithTimer(ctx, abnormal, im.addAbnormalToInformationManagerQueue)
+			go im.addAbnormalToInformationManagerQueueWithTimer(ctx, log, abnormal)
 			return abnormal, nil
 		}
 	}
@@ -364,16 +319,27 @@ func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(ctx context.Conte
 		return abnormal, err
 	}
 
-	im.addAbnormalToDiagnoserChainQueue(abnormal)
 	return abnormal, nil
 }
 
 // addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
-func (im *informationManagerImpl) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
-	im.informationManagerCh <- abnormal
+func (im *informationManagerImpl) addAbnormalToInformationManagerQueue(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(ctx, im.informationManagerCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }
 
-// addAbnormalToDiagnoserChainQueue adds Abnormal to the queue processed by diagnoser chain.
-func (im *informationManagerImpl) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.Abnormal) {
-	im.diagnoserChainCh <- abnormal
+// addAbnormalToInformationManagerQueueWithTimer adds Abnormal to the queue processed by information manager with a timer.
+func (im *informationManagerImpl) addAbnormalToInformationManagerQueueWithTimer(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(ctx, 30*time.Second, im.informationManagerCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }

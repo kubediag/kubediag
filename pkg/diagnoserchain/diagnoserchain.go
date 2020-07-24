@@ -39,7 +39,6 @@ import (
 // DiagnoserChain manages diagnoser in the system.
 type DiagnoserChain interface {
 	Run() error
-	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListDiagnosers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Diagnoser, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -126,19 +125,6 @@ func (dc *diagnoserChainImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal from apiserver.
-func (dc *diagnoserChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
-	var abnormal diagnosisv1.Abnormal
-	if err := dc.Get(ctx, client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}, &abnormal); err != nil {
-		return diagnosisv1.Abnormal{}, err
-	}
-
-	return abnormal, nil
-}
-
 // ListDiagnosers lists Diagnosers from cache.
 func (dc *diagnoserChainImpl) ListDiagnosers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Diagnoser, error) {
 	log.Info("listing Diagnosers")
@@ -158,58 +144,18 @@ func (dc *diagnoserChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 		Namespace: abnormal.Namespace,
 	})
 
-	abnormal, err := dc.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	diagnosers, err := dc.ListDiagnosers(ctx, log)
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			dc.addAbnormalToDiagnoserChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
+		log.Error(err, "failed to list Diagnosers")
+		dc.addAbnormalToDiagnoserChainQueue(ctx, log, abnormal)
+		return abnormal, err
 	}
 
-	switch abnormal.Status.Phase {
-	case diagnosisv1.InformationCollecting:
-		log.Info("ignoring Abnormal in phase InformationCollecting", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalDiagnosing:
-		diagnosers, err := dc.ListDiagnosers(ctx, log)
-		if err != nil {
-			log.Error(err, "failed to list Diagnosers")
-			dc.addAbnormalToDiagnoserChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		abnormal, err := dc.runDiagnosis(ctx, log, diagnosers, abnormal)
-		if err != nil {
-			log.Error(err, "failed to run diagnosis")
-			dc.addAbnormalToDiagnoserChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
-	case diagnosisv1.AbnormalRecovering:
-		log.Info("ignoring Abnormal in phase Recovering", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+	abnormal, err = dc.runDiagnosis(ctx, log, diagnosers, abnormal)
+	if err != nil {
+		log.Error(err, "failed to run diagnosis")
+		dc.addAbnormalToDiagnoserChainQueue(ctx, log, abnormal)
+		return abnormal, err
 	}
 
 	return abnormal, nil
@@ -257,6 +203,14 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 		if !matched {
 			continue
 		}
+
+		log.Info("running diagnosis", "diagnoser", client.ObjectKey{
+			Name:      diagnoser.Name,
+			Namespace: diagnoser.Namespace,
+		}, "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
 
 		scheme := strings.ToLower(string(diagnoser.Spec.Scheme))
 		host := diagnoser.Spec.IP
@@ -316,7 +270,7 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 					return abnormal, err
 				}
 			}
-			go util.QueueAbnormalWithTimer(ctx, abnormal, dc.addAbnormalToDiagnoserChainQueue)
+			go dc.addAbnormalToDiagnoserChainQueueWithTimer(ctx, log, abnormal)
 		} else {
 			abnormal, err := dc.sendAbnormalToRecovererChain(ctx, log, abnormal)
 			if err != nil {
@@ -353,7 +307,6 @@ func (dc *diagnoserChainImpl) sendAbnormalToRecovererChain(ctx context.Context, 
 		return abnormal, err
 	}
 
-	dc.addAbnormalToRecovererChainQueue(abnormal)
 	return abnormal, nil
 }
 
@@ -379,11 +332,23 @@ func (dc *diagnoserChainImpl) setAbnormalFailed(ctx context.Context, log logr.Lo
 }
 
 // addAbnormalToDiagnoserChainQueue adds Abnormal to the queue processed by diagnoser chain.
-func (dc *diagnoserChainImpl) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.Abnormal) {
-	dc.diagnoserChainCh <- abnormal
+func (dc *diagnoserChainImpl) addAbnormalToDiagnoserChainQueue(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(ctx, dc.diagnoserChainCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }
 
-// addAbnormalToRecovererChainQueue adds Abnormal to the queue processed by recoverer chain.
-func (dc *diagnoserChainImpl) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.Abnormal) {
-	dc.recovererChainCh <- abnormal
+// addAbnormalToDiagnoserChainQueueWithTimer adds Abnormal to the queue processed by diagnoser chain with a timer.
+func (dc *diagnoserChainImpl) addAbnormalToDiagnoserChainQueueWithTimer(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(ctx, 30*time.Second, dc.diagnoserChainCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }

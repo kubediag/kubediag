@@ -19,6 +19,7 @@ package sourcemanager
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,6 @@ import (
 // SourceManager manages abnormals in the system.
 type SourceManager interface {
 	Run() error
-	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
 
@@ -109,19 +109,6 @@ func (sm *sourceManagerImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal from apiserver.
-func (sm *sourceManagerImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
-	var abnormal diagnosisv1.Abnormal
-	if err := sm.Get(ctx, client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}, &abnormal); err != nil {
-		return diagnosisv1.Abnormal{}, err
-	}
-
-	return abnormal, nil
-}
-
 // SyncAbnormal syncs abnormals.
 func (sm *sourceManagerImpl) SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	log.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
@@ -129,55 +116,10 @@ func (sm *sourceManagerImpl) SyncAbnormal(ctx context.Context, log logr.Logger, 
 		Namespace: abnormal.Namespace,
 	})
 
-	abnormal, err := sm.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	abnormal, err := sm.sendAbnormalToInformationManager(ctx, log, abnormal)
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			sm.addAbnormalToSourceManagerQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
-	}
-
-	switch abnormal.Status.Phase {
-	case diagnosisv1.InformationCollecting:
-		log.Info("ignoring Abnormal in phase InformationCollecting", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalDiagnosing:
-		log.Info("ignoring Abnormal in phase Diagnosing", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalRecovering:
-		log.Info("ignoring Abnormal in phase Recovering", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	default:
-		abnormal, err := sm.sendAbnormalToInformationManager(ctx, log, abnormal)
-		if err != nil {
-			sm.addAbnormalToSourceManagerQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
+		sm.addAbnormalToSourceManagerQueue(ctx, log, abnormal)
+		return abnormal, err
 	}
 
 	return abnormal, nil
@@ -197,16 +139,27 @@ func (sm *sourceManagerImpl) sendAbnormalToInformationManager(ctx context.Contex
 		return abnormal, err
 	}
 
-	sm.addAbnormalToInformationManagerQueue(abnormal)
 	return abnormal, nil
 }
 
 // addAbnormalToSourceManagerQueue adds Abnormal to the queue processed by source manager.
-func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
-	sm.sourceManagerCh <- abnormal
+func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueue(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(ctx, sm.informationManagerCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }
 
-// addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
-func (sm *sourceManagerImpl) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
-	sm.informationManagerCh <- abnormal
+// addAbnormalToSourceManagerQueueWithTimer adds Abnormal to the queue processed by source manager with a timer.
+func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueueWithTimer(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(ctx, 30*time.Second, sm.informationManagerCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }
