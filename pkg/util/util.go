@@ -206,14 +206,26 @@ func ValidateAbnormalResult(result diagnosisv1.Abnormal, curr diagnosisv1.Abnorm
 	return nil
 }
 
-// QueueAbnormalWithTimer adds an abnormal to a queue after a timer expires.
-func QueueAbnormalWithTimer(ctx context.Context, abnormal diagnosisv1.Abnormal, queueFunc func(diagnosisv1.Abnormal)) {
-	timer := time.NewTimer(30 * time.Second)
+// QueueAbnormal sends an abnormal to a channel. It returns an error if the channel is blocked.
+func QueueAbnormal(ctx context.Context, channel chan diagnosisv1.Abnormal, abnormal diagnosisv1.Abnormal) error {
 	select {
 	case <-ctx.Done():
-		return
+		return nil
+	case channel <- abnormal:
+		return nil
+	default:
+		return fmt.Errorf("channel is blocked")
+	}
+}
+
+// QueueAbnormalWithTimer sends an abnormal to a channel after a timer expires.
+func QueueAbnormalWithTimer(ctx context.Context, duration time.Duration, channel chan diagnosisv1.Abnormal, abnormal diagnosisv1.Abnormal) error {
+	timer := time.NewTimer(duration)
+	select {
+	case <-ctx.Done():
+		return nil
 	case <-timer.C:
-		queueFunc(abnormal)
+		return QueueAbnormal(ctx, channel, abnormal)
 	}
 }
 

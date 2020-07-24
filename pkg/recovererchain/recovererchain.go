@@ -39,7 +39,6 @@ import (
 // RecovererChain manages recoverer in the system.
 type RecovererChain interface {
 	Run() error
-	GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error)
 	ListRecoverers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Recoverer, error)
 	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
@@ -122,19 +121,6 @@ func (rc *recovererChainImpl) Run() error {
 	return nil
 }
 
-// GetAbnormal gets an Abnormal from apiserver.
-func (rc *recovererChainImpl) GetAbnormal(ctx context.Context, log logr.Logger, namespace string, name string) (diagnosisv1.Abnormal, error) {
-	var abnormal diagnosisv1.Abnormal
-	if err := rc.Get(ctx, client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}, &abnormal); err != nil {
-		return diagnosisv1.Abnormal{}, err
-	}
-
-	return abnormal, nil
-}
-
 // ListRecoverers lists Recoverers from cache.
 func (rc *recovererChainImpl) ListRecoverers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Recoverer, error) {
 	log.Info("listing Recoverers")
@@ -154,58 +140,18 @@ func (rc *recovererChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 		Namespace: abnormal.Namespace,
 	})
 
-	abnormal, err := rc.GetAbnormal(ctx, log, abnormal.Namespace, abnormal.Name)
+	recoverers, err := rc.ListRecoverers(ctx, log)
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			rc.addAbnormalToRecovererChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
+		log.Error(err, "failed to list Recoverers")
+		rc.addAbnormalToRecovererChainQueue(ctx, log, abnormal)
+		return abnormal, err
 	}
 
-	switch abnormal.Status.Phase {
-	case diagnosisv1.InformationCollecting:
-		log.Info("ignoring Abnormal in phase InformationCollecting", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalDiagnosing:
-		log.Info("ignoring Abnormal in phase Diagnosing", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalRecovering:
-		recoverers, err := rc.ListRecoverers(ctx, log)
-		if err != nil {
-			log.Error(err, "failed to list Recoverers")
-			rc.addAbnormalToRecovererChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		abnormal, err := rc.runRecovery(ctx, log, recoverers, abnormal)
-		if err != nil {
-			log.Error(err, "failed to run recovery")
-			rc.addAbnormalToRecovererChainQueue(abnormal)
-			return abnormal, err
-		}
-
-		return abnormal, nil
-	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
-	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+	abnormal, err = rc.runRecovery(ctx, log, recoverers, abnormal)
+	if err != nil {
+		log.Error(err, "failed to run recovery")
+		rc.addAbnormalToRecovererChainQueue(ctx, log, abnormal)
+		return abnormal, err
 	}
 
 	return abnormal, nil
@@ -253,6 +199,14 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 		if !matched {
 			continue
 		}
+
+		log.Info("running recovery", "recoverer", client.ObjectKey{
+			Name:      recoverer.Name,
+			Namespace: recoverer.Namespace,
+		}, "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
 
 		scheme := strings.ToLower(string(recoverer.Spec.Scheme))
 		host := recoverer.Spec.IP
@@ -312,7 +266,7 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 					return abnormal, err
 				}
 			}
-			go util.QueueAbnormalWithTimer(ctx, abnormal, rc.addAbnormalToRecovererChainQueue)
+			go rc.addAbnormalToRecovererChainQueueWithTimer(ctx, log, abnormal)
 		} else {
 			abnormal, err := rc.setAbnormalSucceeded(ctx, log, abnormal)
 			if err != nil {
@@ -374,6 +328,23 @@ func (rc *recovererChainImpl) setAbnormalFailed(ctx context.Context, log logr.Lo
 }
 
 // addAbnormalToRecovererChainQueue adds Abnormal to the queue processed by recoverer chain.
-func (rc *recovererChainImpl) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.Abnormal) {
-	rc.recovererChainCh <- abnormal
+func (rc *recovererChainImpl) addAbnormalToRecovererChainQueue(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(ctx, rc.recovererChainCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
+}
+
+// addAbnormalToRecovererChainQueueWithTimer adds Abnormal to the queue processed by recoverer chain with a timer.
+func (rc *recovererChainImpl) addAbnormalToRecovererChainQueueWithTimer(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(ctx, 30*time.Second, rc.recovererChainCh, abnormal)
+	if err != nil {
+		log.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	}
 }

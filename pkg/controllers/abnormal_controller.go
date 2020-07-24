@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
 // AbnormalReconciler reconciles a Abnormal object
@@ -66,20 +67,79 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("abnormal", req.NamespacedName)
 
+	log.Info("reconciling Abnormal", "abnormal", client.ObjectKey{
+		Name:      req.Name,
+		Namespace: req.Namespace,
+	})
+
 	var abnormal diagnosisv1.Abnormal
 	if err := r.Get(ctx, req.NamespacedName, &abnormal); err != nil {
 		log.Error(err, "unable to fetch Abnormal")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	r.sourceManagerCh <- abnormal
-	r.informationManagerCh <- abnormal
-	r.diagnoserChainCh <- abnormal
-	r.recovererChainCh <- abnormal
+	switch abnormal.Status.Phase {
+	case diagnosisv1.InformationCollecting:
+		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
+		if condition != nil {
+			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		} else {
+			err := util.QueueAbnormal(ctx, r.informationManagerCh, abnormal)
+			if err != nil {
+				log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
+		}
+	case diagnosisv1.AbnormalDiagnosing:
+		err := util.QueueAbnormal(ctx, r.diagnoserChainCh, abnormal)
+		if err != nil {
+			log.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
+	case diagnosisv1.AbnormalRecovering:
+		err := util.QueueAbnormal(ctx, r.recovererChainCh, abnormal)
+		if err != nil {
+			log.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
+	case diagnosisv1.AbnormalSucceeded:
+		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	case diagnosisv1.AbnormalFailed:
+		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	case diagnosisv1.AbnormalUnknown:
+		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+	default:
+		err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
+		if err != nil {
+			log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager setups AbnormalReconciler with the provided manager.
 func (r *AbnormalReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.Abnormal{}).
