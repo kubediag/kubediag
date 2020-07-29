@@ -15,11 +15,18 @@ COPY vendor/ vendor/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -mod vendor -o kube-diagnoser main.go
 
-# Use distroless as minimal base image to package the kube-diagnoser binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+# Use ubuntu as base image to package the kube-diagnoser binary with diagnosing tools
+FROM ubuntu:20.04
+
+WORKDIR /usr/bin/
+# Copy diagnosing tools
+COPY tools/ctr .
+COPY tools/docker .
+
 WORKDIR /
+# Copy kube-diagnoser binary
 COPY --from=builder /workspace/kube-diagnoser .
-USER nonroot:nonroot
+
+USER root:root
 
 ENTRYPOINT ["/kube-diagnoser"]

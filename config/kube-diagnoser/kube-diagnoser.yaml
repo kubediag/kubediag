@@ -42,7 +42,27 @@ spec:
           requests:
             cpu: 200m
             memory: 200Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-sock
+        - mountPath: /var/lib/docker
+          name: docker-data
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: docker-data
+        hostPath:
+          path: /var/lib/docker
+          type: Directory
       hostNetwork: true
+      hostPID: true
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
       serviceAccountName: kube-diagnoser
       terminationGracePeriodSeconds: 10
 ---
