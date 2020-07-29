@@ -3,5 +3,17 @@ kind: Recoverer
 metadata:
   name: recoverer-sample
 spec:
-  # Add fields here
-  foo: bar
+  ip: 0.0.0.0
+  port: "8090"
+  path: /recoverer
+  readinessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /healthz
+      port: 8090
+      scheme: http
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  scheme: http
+  timeoutSeconds: 30
