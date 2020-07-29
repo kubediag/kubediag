@@ -557,89 +557,10 @@ spec:
                           - involvedObject
                           - metadata
                           type: object
-                        log:
-                          description: Log contains details for accessing the log
-                            from log source. This must be specified if abnormal source
-                            is Log.
-                          properties:
-                            filePath:
-                              description: Absolute path of log file.
-                              type: string
-                            logEntry:
-                              description: Log entry for the abnormal.
-                              type: string
-                          required:
-                          - filePath
-                          - logEntry
-                          type: object
                         nodeName:
                           description: NodeName is a specific node which the abnormal
                             is on.
                           type: string
-                        prometheusAlert:
-                          description: PrometheusAlert contains the prometheus alert
-                            about the abnormal from prometheus alert source. This
-                            must be specified if abnormal source is PrometheusAlert.
-                          properties:
-                            annotations:
-                              description: Annotations contains extra key/value information
-                                which does not define alert identity.
-                              items:
-                                description: Label is a key/value pair of strings
-                                  about prometheus alert.
-                                properties:
-                                  name:
-                                    description: Name is the name of prometheus alert
-                                      label.
-                                    type: string
-                                  value:
-                                    description: Value is the value of prometheus
-                                      alert label.
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
-                            endsAt:
-                              description: EndsAt specifies the known end time for
-                                this alert.
-                              format: date-time
-                              type: string
-                            generatorURL:
-                              description: GeneratorURL specifies the url of alert
-                                generator.
-                              type: string
-                            labels:
-                              description: Labels contains label value pairs for purpose
-                                of aggregation, matching, and disposition dispatching.
-                                This must minimally include an "alertname" label.
-                              items:
-                                description: Label is a key/value pair of strings
-                                  about prometheus alert.
-                                properties:
-                                  name:
-                                    description: Name is the name of prometheus alert
-                                      label.
-                                    type: string
-                                  value:
-                                    description: Value is the value of prometheus
-                                      alert label.
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
-                            startsAt:
-                              description: StartsAt specifies the known start time
-                                for this alert.
-                              format: date-time
-                              type: string
-                          required:
-                          - annotations
-                          - labels
-                          type: object
                         skipDiagnosis:
                           description: SkipDiagnosis indicates whether the diagnosis
                             should be skipped.
@@ -654,7 +575,7 @@ spec:
                           type: boolean
                         source:
                           description: Source is the abnormal source. Valid sources
-                            are Log, KubernetesEvent, PrometheusAlert, Probe and Custom.
+                            are KubernetesEvent and Custom.
                           type: string
                       required:
                       - source
@@ -723,9 +644,6 @@ spec:
                         message:
                           description: Message is a human readable message indicating
                             details about why the abnormal is in this condition.
-                          type: string
-                        output:
-                          description: Output contains node or pod probe output.
                           type: string
                         phase:
                           description: "Phase is a simple, high-level summary of where
