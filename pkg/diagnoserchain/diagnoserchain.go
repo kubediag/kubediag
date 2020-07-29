@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
@@ -163,8 +162,6 @@ func (dc *diagnoserChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 
 // runDiagnosis diagnoses an abnormal with diagnosers.
 func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger, diagnosers []diagnosisv1.Diagnoser, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	deepCopy := *abnormal.DeepCopy()
-
 	// Skip diagnosis if SkipDiagnosis is true.
 	if abnormal.Spec.SkipDiagnosis {
 		log.Info("skipping diagnosis", "abnormal", client.ObjectKey{
@@ -225,7 +222,7 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 		}
 
 		// Send http request to the diagnosers with payload of abnormal.
-		result, retry, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
+		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
 			log.Error(err, "failed to do http request to diagnoser", "diagnoser", client.ObjectKey{
 				Name:      diagnoser.Name,
@@ -255,27 +252,9 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 			Name:      diagnoser.Name,
 			Namespace: diagnoser.Namespace,
 		}
-		if retry {
-			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not being modified by diagnoser", "diagnoser", client.ObjectKey{
-					Name:      diagnoser.Name,
-					Namespace: diagnoser.Namespace,
-				}, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
-			} else {
-				if err := dc.Status().Update(ctx, &abnormal); err != nil {
-					log.Error(err, "unable to update Abnormal")
-					return abnormal, err
-				}
-			}
-			go dc.addAbnormalToDiagnoserChainQueueWithTimer(ctx, log, abnormal)
-		} else {
-			abnormal, err := dc.sendAbnormalToRecovererChain(ctx, log, abnormal)
-			if err != nil {
-				return abnormal, err
-			}
+		abnormal, err := dc.sendAbnormalToRecovererChain(ctx, log, abnormal)
+		if err != nil {
+			return abnormal, err
 		}
 
 		return abnormal, nil

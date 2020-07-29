@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
@@ -171,8 +170,6 @@ func (im *informationManagerImpl) SyncAbnormal(ctx context.Context, log logr.Log
 
 // runInformationCollection collects information from information collectors.
 func (im *informationManagerImpl) runInformationCollection(ctx context.Context, log logr.Logger, informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	deepCopy := *abnormal.DeepCopy()
-
 	// Skip collection if SkipInformationCollection is true.
 	if abnormal.Spec.SkipInformationCollection {
 		log.Info("skipping collection", "abnormal", client.ObjectKey{
@@ -233,7 +230,7 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 		}
 
 		// Send http request to the information collector with payload of abnormal.
-		result, retry, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
+		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
 			log.Error(err, "failed to do http request to collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
@@ -259,29 +256,6 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 		}
 
 		abnormal.Status = result.Status
-		if retry {
-			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not being modified by information collector", "collector", client.ObjectKey{
-					Name:      collector.Name,
-					Namespace: collector.Namespace,
-				}, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
-			} else {
-				if err := im.Status().Update(ctx, &abnormal); err != nil {
-					log.Error(err, "unable to update Abnormal")
-					return abnormal, err
-				}
-			}
-
-			go im.addAbnormalToInformationManagerQueueWithTimer(ctx, log, abnormal)
-			return abnormal, nil
-		}
-	}
-
-	// Send abnormal to diagnoser chain if SkipDiagnosis or SkipRecovery is not true.
-	if !abnormal.Spec.SkipDiagnosis || !abnormal.Spec.SkipRecovery {
 		abnormal, err := im.sendAbnormalToDiagnoserChain(ctx, log, abnormal)
 		if err != nil {
 			return abnormal, err
@@ -290,12 +264,8 @@ func (im *informationManagerImpl) runInformationCollection(ctx context.Context, 
 		return abnormal, nil
 	}
 
-	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
-		Type:   diagnosisv1.InformationCollected,
-		Status: corev1.ConditionTrue,
-	})
-	if err := im.Status().Update(ctx, &abnormal); err != nil {
-		log.Error(err, "unable to update Abnormal")
+	abnormal, err := im.setAbnormalFailed(ctx, log, abnormal)
+	if err != nil {
 		return abnormal, err
 	}
 
@@ -313,6 +283,26 @@ func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(ctx context.Conte
 	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
 		Type:   diagnosisv1.InformationCollected,
 		Status: corev1.ConditionTrue,
+	})
+	if err := im.Status().Update(ctx, &abnormal); err != nil {
+		log.Error(err, "unable to update Abnormal")
+		return abnormal, err
+	}
+
+	return abnormal, nil
+}
+
+// setAbnormalFailed sets abnormal phase to Failed.
+func (im *informationManagerImpl) setAbnormalFailed(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	log.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
+		Name:      abnormal.Name,
+		Namespace: abnormal.Namespace,
+	})
+
+	abnormal.Status.Phase = diagnosisv1.AbnormalFailed
+	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
+		Type:   diagnosisv1.InformationCollected,
+		Status: corev1.ConditionFalse,
 	})
 	if err := im.Status().Update(ctx, &abnormal); err != nil {
 		log.Error(err, "unable to update Abnormal")
