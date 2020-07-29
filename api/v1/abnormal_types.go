@@ -77,14 +77,6 @@ type AbnormalSpec struct {
 	// alert source. This must be specified if abnormal source is PrometheusAlert.
 	// +optional
 	PrometheusAlert *PrometheusAlert `json:"prometheusAlert,omitempty"`
-	// NodeProbe contains details of node probe action from probe source. Either NodeProbe
-	// or PodProbe must be specified if abnormal source is Probe.
-	// +optional
-	NodeProbe *NodeProbe `json:"nodeProbe,omitempty"`
-	// PodProbe contains details of pod probe action from probe source. Either NodeProbe
-	// or PodProbe must be specified if abnormal source is Probe.
-	// +optional
-	PodProbe *PodProbe `json:"podProbe,omitempty"`
 	// SkipInformationCollection indicates whether the information collection should be skipped.
 	// +optional
 	SkipInformationCollection bool `json:"skipInformationCollection,omitempty"`
@@ -155,48 +147,6 @@ type Label struct {
 	Name string `json:"name"`
 	// Value is the value of prometheus alert label.
 	Value string `json:"value"`
-}
-
-// NodeProbe contains details of node probe action from probe source.
-type NodeProbe struct {
-	// Name specifies the node name which probe action is executing on.
-	Name string `json:"name"`
-	// Number of seconds after which the probe times out.
-	// Defaults to 5 second. Minimum value is 1.
-	// +optional
-	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
-	// Exec specifies the action to take.
-	// +optional
-	Exec *corev1.ExecAction `json:"exec,omitempty"`
-	// HTTPGet specifies the http request to perform.
-	// +optional
-	HTTPGet *corev1.HTTPGetAction `json:"httpGet,omitempty"`
-	// TCPSocket specifies an action involving a TCP port.
-	// +optional
-	TCPSocket *corev1.TCPSocketAction `json:"tcpSocket,omitempty"`
-}
-
-// PodProbe contains details of pod probe action from probe source.
-type PodProbe struct {
-	// Namespace specifies the pod namespace which probe action is executing in.
-	Namespace string `json:"namespace"`
-	// Name specifies the pod name which probe action is executing in.
-	Name string `json:"name"`
-	// Container specifies the container which probe action is executing in.
-	Container string `json:"container"`
-	// Number of seconds after which the probe times out.
-	// Defaults to 5 second. Minimum value is 1.
-	// +optional
-	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
-	// Exec specifies the action to take.
-	// +optional
-	Exec *corev1.ExecAction `json:"exec,omitempty"`
-	// HTTPGet specifies the http request to perform.
-	// +optional
-	HTTPGet *corev1.HTTPGetAction `json:"httpGet,omitempty"`
-	// TCPSocket specifies an action involving a TCP port.
-	// +optional
-	TCPSocket *corev1.TCPSocketAction `json:"tcpSocket,omitempty"`
 }
 
 // NamespacedName represents a kubernetes api resource.
