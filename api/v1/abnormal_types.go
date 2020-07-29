@@ -23,14 +23,8 @@ import (
 )
 
 const (
-	// LogSource means that the abnormal is detected via log.
-	LogSource AbnormalSource = "Log"
 	// KubernetesEventSource means that the abnormal is detected via kubernetes event.
 	KubernetesEventSource AbnormalSource = "KubernetesEvent"
-	// PrometheusAlertSource means that the abnormal is detected via prometheus alert.
-	PrometheusAlertSource AbnormalSource = "PrometheusAlert"
-	// ProbeSource means that the abnormal is created for running a probe command.
-	ProbeSource AbnormalSource = "Probe"
 	// CustomSource means that the abnormal is a customized abnormal created by user.
 	CustomSource AbnormalSource = "Custom"
 
@@ -62,21 +56,12 @@ const (
 
 // AbnormalSpec defines the desired state of Abnormal.
 type AbnormalSpec struct {
-	// Source is the abnormal source. Valid sources are Log, KubernetesEvent, PrometheusAlert,
-	// Probe and Custom.
+	// Source is the abnormal source. Valid sources are KubernetesEvent and Custom.
 	Source AbnormalSource `json:"source"`
-	// Log contains details for accessing the log from log source. This must be specified
-	// if abnormal source is Log.
-	// +optional
-	Log *Log `json:"log,omitempty"`
 	// KubernetesEvent contains the kubernetes event about the abnormal from kubernetes
 	// event source. This must be specified if abnormal source is KubernetesEvent.
 	// +optional
 	KubernetesEvent *corev1.Event `json:"kubernetesEvent,omitempty"`
-	// PrometheusAlert contains the prometheus alert about the abnormal from prometheus
-	// alert source. This must be specified if abnormal source is PrometheusAlert.
-	// +optional
-	PrometheusAlert *PrometheusAlert `json:"prometheusAlert,omitempty"`
 	// SkipInformationCollection indicates whether the information collection should be skipped.
 	// +optional
 	SkipInformationCollection bool `json:"skipInformationCollection,omitempty"`
@@ -114,32 +99,6 @@ type AbnormalSpec struct {
 
 // AbnormalSource is the source of abnormals.
 type AbnormalSource string
-
-// Log contains details for accessing the log from log source.
-type Log struct {
-	// Absolute path of log file.
-	FilePath string `json:"filePath"`
-	// Log entry for the abnormal.
-	LogEntry string `json:"logEntry"`
-}
-
-// PrometheusAlert is a generic representation of an alert in the Prometheus eco-system.
-type PrometheusAlert struct {
-	// Labels contains label value pairs for purpose of aggregation, matching, and disposition
-	// dispatching. This must minimally include an "alertname" label.
-	Labels []Label `json:"labels"`
-	// Annotations contains extra key/value information which does not define alert identity.
-	Annotations []Label `json:"annotations"`
-	// StartsAt specifies the known start time for this alert.
-	// +optional
-	StartsAt metav1.Time `json:"startsAt,omitempty"`
-	// EndsAt specifies the known end time for this alert.
-	// +optional
-	EndsAt metav1.Time `json:"endsAt,omitempty"`
-	// GeneratorURL specifies the url of alert generator.
-	// +optional
-	GeneratorURL string `json:"generatorURL,omitempty"`
-}
 
 // Label is a key/value pair of strings about prometheus alert.
 type Label struct {
@@ -191,9 +150,6 @@ type AbnormalStatus struct {
 	// this state.
 	// +optional
 	Reason string `json:"reason,omitempty"`
-	// Output contains node or pod probe output.
-	// +optional
-	Output string `json:"output,omitempty"`
 	// StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
 	// +optional
 	StartTime metav1.Time `json:"startTime,omitempty"`

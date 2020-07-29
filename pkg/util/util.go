@@ -172,9 +172,6 @@ func ValidateAbnormalResult(result diagnosisv1.Abnormal, curr diagnosisv1.Abnorm
 	if !reflect.DeepEqual(result.Status.Reason, curr.Status.Reason) {
 		return fmt.Errorf("reason filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Output, curr.Status.Output) {
-		return fmt.Errorf("output filed of Abnormal must not be modified")
-	}
 	if !reflect.DeepEqual(result.Status.StartTime, curr.Status.StartTime) {
 		return fmt.Errorf("startTime filed of Abnormal must not be modified")
 	}
