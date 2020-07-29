@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
@@ -159,8 +158,6 @@ func (rc *recovererChainImpl) SyncAbnormal(ctx context.Context, log logr.Logger,
 
 // runRecovery recovers an abnormal with recoverers.
 func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, recoverers []diagnosisv1.Recoverer, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	deepCopy := *abnormal.DeepCopy()
-
 	// Skip recovery if SkipRecovery is true.
 	if abnormal.Spec.SkipRecovery {
 		log.Info("skipping recovery", "abnormal", client.ObjectKey{
@@ -221,7 +218,7 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 		}
 
 		// Send http request to the recoverers with payload of abnormal.
-		result, retry, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
+		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, log)
 		if err != nil {
 			log.Error(err, "failed to do http request to recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
@@ -251,27 +248,9 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
 		}
-		if retry {
-			if reflect.DeepEqual(deepCopy, abnormal) {
-				log.Info("skip updating abnormal for not being modified by recoverer", "recoverer", client.ObjectKey{
-					Name:      recoverer.Name,
-					Namespace: recoverer.Namespace,
-				}, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
-			} else {
-				if err := rc.Status().Update(ctx, &abnormal); err != nil {
-					log.Error(err, "unable to update Abnormal")
-					return abnormal, err
-				}
-			}
-			go rc.addAbnormalToRecovererChainQueueWithTimer(ctx, log, abnormal)
-		} else {
-			abnormal, err := rc.setAbnormalSucceeded(ctx, log, abnormal)
-			if err != nil {
-				return abnormal, err
-			}
+		abnormal, err := rc.setAbnormalSucceeded(ctx, log, abnormal)
+		if err != nil {
+			return abnormal, err
 		}
 
 		return abnormal, nil

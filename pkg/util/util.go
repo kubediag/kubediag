@@ -107,64 +107,46 @@ func FormatURL(scheme string, host string, port string, path string) *url.URL {
 }
 
 // DoHTTPRequestWithAbnormal sends a http request to diagnoser, recoverer or information collector with payload of abnormal.
-// It returns an Abnormal, a bool and an error as results:
-//
-// Abnormal: The result abnormal after http request.
-// Bool: The bool indicates whether the calling routine should retain in current stage and retry. It returns true if a
-// retry is required, otherwise false.
-// Error: The error of doing http request.
-func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli http.Client, log logr.Logger) (diagnosisv1.Abnormal, bool, error) {
+// It returns an Abnormal and an error as results.
+func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli http.Client, log logr.Logger) (diagnosisv1.Abnormal, error) {
 	data, err := json.Marshal(abnormal)
 	if err != nil {
-		return abnormal, false, err
+		return abnormal, err
 	}
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(data))
 	if err != nil {
-		return abnormal, false, err
+		return abnormal, err
 	}
 
 	res, err := cli.Do(req)
 	if err != nil {
-		return abnormal, false, err
+		return abnormal, err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Error(err, "failed to read http response body", "response", string(body))
-		return abnormal, false, err
+		return abnormal, err
 	}
 
-	switch res.StatusCode {
-	case http.StatusOK:
+	if res.StatusCode == http.StatusOK {
 		err = json.Unmarshal(body, &abnormal)
 		if err != nil {
 			log.Error(err, "failed to marshal response body", "response", string(body))
-			return abnormal, false, err
+			return abnormal, err
 		}
 
 		log.Info("succeed to complete http request", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		}, "status", res.Status)
-		return abnormal, false, nil
-	case http.StatusPartialContent:
-		err = json.Unmarshal(body, &abnormal)
-		if err != nil {
-			log.Error(err, "failed to marshal response body", "response", string(body))
-			return abnormal, false, err
-		}
-
-		log.Info("succeed to complete http request", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		}, "status", res.Status)
-		return abnormal, true, nil
+		return abnormal, nil
 	}
 
 	log.Info("failed to complete http request", "status", res.Status, "response", string(body))
-	return abnormal, false, fmt.Errorf("failed with status: %s", res.Status)
+	return abnormal, fmt.Errorf("failed with status: %s", res.Status)
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
