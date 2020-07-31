@@ -33,9 +33,6 @@ type DiagnoserSpec struct {
 	// Scheme is the serving scheme of diagnoser.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Periodic probe of diagnoser liveness.
-	// +optional
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 	// Periodic probe of diagnoser readiness.
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
@@ -49,11 +46,9 @@ type DiagnoserSpec struct {
 type DiagnoserStatus struct {
 	// Ready specifies whether the diagnoser has passed its readiness probe.
 	Ready bool `json:"ready"`
-	// Healthy specifies whether the diagnoser has passed its livenessProbe probe.
-	Healthy bool `json:"healthy"`
 	// LastDiagnosis contains details about last diagnosis executed by this diagnoser.
 	// +optional
-	LastDiagnosis Diagnosis `json:"lastDiagnosis,omitempty"`
+	LastDiagnosis *Diagnosis `json:"lastDiagnosis,omitempty"`
 }
 
 // Diagnosis contains details about a diagnosis.

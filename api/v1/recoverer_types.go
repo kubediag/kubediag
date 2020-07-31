@@ -33,9 +33,6 @@ type RecovererSpec struct {
 	// Scheme is the serving scheme of recoverer.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Periodic probe of recoverer liveness.
-	// +optional
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 	// Periodic probe of recoverer readiness.
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
@@ -49,11 +46,9 @@ type RecovererSpec struct {
 type RecovererStatus struct {
 	// Ready specifies whether the recoverer has passed its readiness probe.
 	Ready bool `json:"ready"`
-	// Healthy specifies whether the recoverer has passed its livenessProbe probe.
-	Healthy bool `json:"healthy"`
 	// LastRecovery contains details about last recovery executed by this recoverer.
 	// +optional
-	LastRecovery Recovery `json:"lastRecovery,omitempty"`
+	LastRecovery *Recovery `json:"lastRecovery,omitempty"`
 }
 
 // Recovery contains details about a recovery.

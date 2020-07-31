@@ -36,9 +36,6 @@ type InformationCollectorSpec struct {
 	// Scheme is the serving scheme of information collector.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Periodic probe of information collector liveness.
-	// +optional
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 	// Periodic probe of information collector readiness.
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
@@ -52,8 +49,6 @@ type InformationCollectorSpec struct {
 type InformationCollectorStatus struct {
 	// Ready specifies whether the information collector has passed its readiness probe.
 	Ready bool `json:"ready"`
-	// Healthy specifies whether the information collector has passed its livenessProbe probe.
-	Healthy bool `json:"healthy"`
 }
 
 // +kubebuilder:object:root=true
