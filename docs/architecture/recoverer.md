@@ -24,7 +24,6 @@ Recoverer 用于表示故障恢复器实例。
 | ip | 故障恢复器的监听 IP。 | string | true |
 | port | 故障恢复器的监听端口。 | string | true |
 | path | 故障恢复器的 HTTP 路径。 | string | false |
-| livenessProbe | 故障恢复器的健康检查探针，探测失败时不会重建故障恢复器。 | [v1core.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#probe-v1-core) | false |
 | readinessProbe | 故障恢复器的就绪检查探针，探测失败时不会发送请求到故障恢复器。 | [v1core.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#probe-v1-core) | false |
 | scheme | 故障恢复器的 HTTP 协议。 | string | false |
 | timeoutSeconds | 故障恢复器执行超时时间。 | int32 | false |
@@ -34,7 +33,6 @@ Recoverer 用于表示故障恢复器实例。
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | ready | 故障恢复器是否就绪。 | bool | true |
-| healthy | 故障恢复器是否健康。 | bool | true |
 | lastRecovery | 故障恢复器上次进行恢复详情。 | [Recovery](#recovery) | false |
 
 ## Recovery
