@@ -155,10 +155,10 @@ type AbnormalStatus struct {
 	StartTime metav1.Time `json:"startTime,omitempty"`
 	// Diagnoser indicates the diagnoser which has identified the abnormal successfully.
 	// +optional
-	Diagnoser NamespacedName `json:"diagnoser,omitempty"`
+	Diagnoser *NamespacedName `json:"diagnoser,omitempty"`
 	// Recoverer indicates the recoverer which has recovered the abnormal successfully.
 	// +optional
-	Recoverer NamespacedName `json:"recoverer,omitempty"`
+	Recoverer *NamespacedName `json:"recoverer,omitempty"`
 	// Context is a blob of information about the abnormal, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
