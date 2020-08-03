@@ -151,8 +151,16 @@ func (in *AbnormalStatus) DeepCopyInto(out *AbnormalStatus) {
 		}
 	}
 	in.StartTime.DeepCopyInto(&out.StartTime)
-	out.Diagnoser = in.Diagnoser
-	out.Recoverer = in.Recoverer
+	if in.Diagnoser != nil {
+		in, out := &in.Diagnoser, &out.Diagnoser
+		*out = new(NamespacedName)
+		**out = **in
+	}
+	if in.Recoverer != nil {
+		in, out := &in.Recoverer, &out.Recoverer
+		*out = new(NamespacedName)
+		**out = **in
+	}
 	if in.Context != nil {
 		in, out := &in.Context, &out.Context
 		*out = new(runtime.RawExtension)
