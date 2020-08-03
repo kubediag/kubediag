@@ -244,7 +244,7 @@ func (rc *recovererChainImpl) runRecovery(ctx context.Context, log logr.Logger, 
 		}
 
 		abnormal.Status = result.Status
-		abnormal.Status.Recoverer = diagnosisv1.NamespacedName{
+		abnormal.Status.Recoverer = &diagnosisv1.NamespacedName{
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
 		}

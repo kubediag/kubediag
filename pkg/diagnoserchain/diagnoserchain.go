@@ -248,7 +248,7 @@ func (dc *diagnoserChainImpl) runDiagnosis(ctx context.Context, log logr.Logger,
 		}
 
 		abnormal.Status = result.Status
-		abnormal.Status.Diagnoser = diagnosisv1.NamespacedName{
+		abnormal.Status.Diagnoser = &diagnosisv1.NamespacedName{
 			Name:      diagnoser.Name,
 			Namespace: diagnoser.Namespace,
 		}

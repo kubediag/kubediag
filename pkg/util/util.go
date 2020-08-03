@@ -150,35 +150,35 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
-func ValidateAbnormalResult(result diagnosisv1.Abnormal, curr diagnosisv1.Abnormal) error {
-	if !reflect.DeepEqual(result.Spec, curr.Spec) {
+func ValidateAbnormalResult(result diagnosisv1.Abnormal, current diagnosisv1.Abnormal) error {
+	if !reflect.DeepEqual(result.Spec, current.Spec) {
 		return fmt.Errorf("spec field of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Identifiable, curr.Status.Identifiable) {
+	if !reflect.DeepEqual(result.Status.Identifiable, current.Status.Identifiable) {
 		return fmt.Errorf("identifiable filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Recoverable, curr.Status.Recoverable) {
+	if !reflect.DeepEqual(result.Status.Recoverable, current.Status.Recoverable) {
 		return fmt.Errorf("recoverable filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Phase, curr.Status.Phase) {
+	if !reflect.DeepEqual(result.Status.Phase, current.Status.Phase) {
 		return fmt.Errorf("phase filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Conditions, curr.Status.Conditions) {
+	if !reflect.DeepEqual(result.Status.Conditions, current.Status.Conditions) {
 		return fmt.Errorf("conditions filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Message, curr.Status.Message) {
+	if !reflect.DeepEqual(result.Status.Message, current.Status.Message) {
 		return fmt.Errorf("message filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Reason, curr.Status.Reason) {
+	if !reflect.DeepEqual(result.Status.Reason, current.Status.Reason) {
 		return fmt.Errorf("reason filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.StartTime, curr.Status.StartTime) {
+	if !reflect.DeepEqual(result.Status.StartTime, current.Status.StartTime) {
 		return fmt.Errorf("startTime filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Diagnoser, curr.Status.Diagnoser) {
+	if !reflect.DeepEqual(result.Status.Diagnoser, current.Status.Diagnoser) {
 		return fmt.Errorf("diagnoser filed of Abnormal must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Recoverer, curr.Status.Recoverer) {
+	if !reflect.DeepEqual(result.Status.Recoverer, current.Status.Recoverer) {
 		return fmt.Errorf("recoverer filed of Abnormal must not be modified")
 	}
 
