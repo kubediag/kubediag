@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/go-logr/logr v0.1.0
+	github.com/gorilla/mux v1.7.4
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	github.com/spf13/cobra v0.0.5
