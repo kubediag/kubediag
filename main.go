@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -135,6 +136,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 
 	// Run source manager, information manager, diagnoser chain and recoverer chain.
 	sourceManager := sourcemanager.NewSourceManager(
+		context.Background(),
 		mgr.GetClient(),
 		ctrl.Log.WithName("sourcemanager"),
 		mgr.GetScheme(),
@@ -147,6 +149,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		sourceManager.Run(stopCh)
 	}(stopCh)
 	informationManager := informationmanager.NewInformationManager(
+		context.Background(),
 		mgr.GetClient(),
 		ctrl.Log.WithName("informationmanager"),
 		mgr.GetScheme(),
@@ -159,6 +162,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		informationManager.Run(stopCh)
 	}(stopCh)
 	diagnoserChain := diagnoserchain.NewDiagnoserChain(
+		context.Background(),
 		mgr.GetClient(),
 		ctrl.Log.WithName("diagnoserchain"),
 		mgr.GetScheme(),
@@ -171,6 +175,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		diagnoserChain.Run(stopCh)
 	}(stopCh)
 	recovererChain := recovererchain.NewRecovererChain(
+		context.Background(),
 		mgr.GetClient(),
 		ctrl.Log.WithName("recovererchain"),
 		mgr.GetScheme(),
