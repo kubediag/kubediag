@@ -19,7 +19,6 @@ package diagnoserchain
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -37,9 +36,9 @@ import (
 
 // DiagnoserChain manages diagnoser in the system.
 type DiagnoserChain interface {
-	Run() error
-	ListDiagnosers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Diagnoser, error)
-	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Run(<-chan struct{})
+	ListDiagnosers(context.Context, logr.Logger) ([]diagnosisv1.Diagnoser, error)
+	SyncAbnormal(context.Context, logr.Logger, diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
 
 // diagnoserChainImpl implements DiagnoserChain interface.
@@ -61,8 +60,6 @@ type diagnoserChainImpl struct {
 	diagnoserChainCh chan diagnosisv1.Abnormal
 	// Channel for queuing Abnormals to be processed by recoverer chain.
 	recovererChainCh chan diagnosisv1.Abnormal
-	// Channel for notifying stop signal.
-	stopCh chan struct{}
 }
 
 // NewDiagnoserChain creates a new DiagnoserChain.
@@ -74,7 +71,6 @@ func NewDiagnoserChain(
 	nodeName string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 	recovererChainCh chan diagnosisv1.Abnormal,
-	stopCh chan struct{},
 ) DiagnoserChain {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
@@ -92,36 +88,39 @@ func NewDiagnoserChain(
 		transport:        transport,
 		diagnoserChainCh: diagnoserChainCh,
 		recovererChainCh: recovererChainCh,
-		stopCh:           stopCh,
 	}
 }
 
 // Run runs the diagnoser chain.
-func (dc *diagnoserChainImpl) Run() error {
+func (dc *diagnoserChainImpl) Run(stopCh <-chan struct{}) {
 	ctx := context.Background()
 	log := dc.Log.WithValues("component", "diagnoserchain")
 
 	// Wait for all caches to sync before processing.
-	if !dc.Cache.WaitForCacheSync(dc.stopCh) {
-		return fmt.Errorf("falied to sync cache")
+	if !dc.Cache.WaitForCacheSync(stopCh) {
+		return
 	}
 
-	// Process abnormals queuing in diagnoser chain channel.
-	for abnormal := range dc.diagnoserChainCh {
-		if util.IsAbnormalNodeNameMatched(abnormal, dc.NodeName) {
-			abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
-			if err != nil {
-				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-			}
+	for {
+		select {
+		// Process abnormals queuing in diagnoser chain channel.
+		case abnormal := <-dc.diagnoserChainCh:
+			if util.IsAbnormalNodeNameMatched(abnormal, dc.NodeName) {
+				abnormal, err := dc.SyncAbnormal(ctx, log, abnormal)
+				if err != nil {
+					log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+				}
 
-			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+				log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
+		// Stop diagnoser chain on stop signal.
+		case <-stopCh:
+			return
 		}
 	}
-
-	return nil
 }
 
 // ListDiagnosers lists Diagnosers from cache.

@@ -19,7 +19,6 @@ package informationmanager
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -37,9 +36,9 @@ import (
 
 // InformationManager manages information collectors in the system.
 type InformationManager interface {
-	Run() error
-	ListInformationCollectors(ctx context.Context, log logr.Logger) ([]diagnosisv1.InformationCollector, error)
-	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Run(<-chan struct{})
+	ListInformationCollectors(context.Context, logr.Logger) ([]diagnosisv1.InformationCollector, error)
+	SyncAbnormal(context.Context, logr.Logger, diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
 
 // informationManagerImpl implements InformationManager interface.
@@ -61,8 +60,6 @@ type informationManagerImpl struct {
 	informationManagerCh chan diagnosisv1.Abnormal
 	// Channel for queuing Abnormals to be processed by diagnoser chain.
 	diagnoserChainCh chan diagnosisv1.Abnormal
-	// Channel for notifying stop signal.
-	stopCh chan struct{}
 }
 
 // NewInformationManager creates a new InformationManager.
@@ -74,7 +71,6 @@ func NewInformationManager(
 	nodeName string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
-	stopCh chan struct{},
 ) InformationManager {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
@@ -92,36 +88,39 @@ func NewInformationManager(
 		transport:            transport,
 		informationManagerCh: informationManagerCh,
 		diagnoserChainCh:     diagnoserChainCh,
-		stopCh:               stopCh,
 	}
 }
 
-// Run runs the information collector.
-func (im *informationManagerImpl) Run() error {
+// Run runs the information manager.
+func (im *informationManagerImpl) Run(stopCh <-chan struct{}) {
 	ctx := context.Background()
 	log := im.Log.WithValues("component", "informationmanager")
 
 	// Wait for all caches to sync before processing.
-	if !im.Cache.WaitForCacheSync(im.stopCh) {
-		return fmt.Errorf("falied to sync cache")
+	if !im.Cache.WaitForCacheSync(stopCh) {
+		return
 	}
 
-	// Process abnormals queuing in information manager channel.
-	for abnormal := range im.informationManagerCh {
-		if util.IsAbnormalNodeNameMatched(abnormal, im.NodeName) {
-			abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
-			if err != nil {
-				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-			}
+	for {
+		select {
+		// Process abnormals queuing in information manager channel.
+		case abnormal := <-im.informationManagerCh:
+			if util.IsAbnormalNodeNameMatched(abnormal, im.NodeName) {
+				abnormal, err := im.SyncAbnormal(ctx, log, abnormal)
+				if err != nil {
+					log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+				}
 
-			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+				log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
+		// Stop information manager on stop signal.
+		case <-stopCh:
+			return
 		}
 	}
-
-	return nil
 }
 
 // ListInformationCollectors lists InformationCollectors from cache.

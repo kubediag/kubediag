@@ -18,8 +18,13 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/gorilla/mux"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -108,12 +113,25 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		return fmt.Errorf("unable to start manager: %v", err)
 	}
 
+	stopCh := SetupSignalHandler()
+
+	// Start http server.
+	go func(stopCh chan struct{}) {
+		r := mux.NewRouter()
+
+		// Start pprof server.
+		r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+		if err := http.ListenAndServe(opts.Address, r); err != nil {
+			setupLog.Error(err, "unable to start http server")
+			close(stopCh)
+		}
+	}(stopCh)
+
 	// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
 	sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 	informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 	diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
 	recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
-	stopCh := make(chan struct{})
 
 	// Run source manager, information manager, diagnoser chain and recoverer chain.
 	sourceManager := sourcemanager.NewSourceManager(
@@ -124,14 +142,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		opts.NodeName,
 		sourceManagerCh,
 		informationManagerCh,
-		stopCh,
 	)
-	go func() {
-		err := sourceManager.Run()
-		if err != nil {
-			setupLog.Error(err, "unable to start source manager")
-		}
-	}()
+	go func(stopCh chan struct{}) {
+		sourceManager.Run(stopCh)
+	}(stopCh)
 	informationManager := informationmanager.NewInformationManager(
 		mgr.GetClient(),
 		ctrl.Log.WithName("informationmanager"),
@@ -140,14 +154,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		opts.NodeName,
 		informationManagerCh,
 		diagnoserChainCh,
-		stopCh,
 	)
-	go func() {
-		err := informationManager.Run()
-		if err != nil {
-			setupLog.Error(err, "unable to start information manager")
-		}
-	}()
+	go func(stopCh chan struct{}) {
+		informationManager.Run(stopCh)
+	}(stopCh)
 	diagnoserChain := diagnoserchain.NewDiagnoserChain(
 		mgr.GetClient(),
 		ctrl.Log.WithName("diagnoserchain"),
@@ -156,14 +166,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		opts.NodeName,
 		diagnoserChainCh,
 		recovererChainCh,
-		stopCh,
 	)
-	go func() {
-		err := diagnoserChain.Run()
-		if err != nil {
-			setupLog.Error(err, "unable to start diagnoser chain")
-		}
-	}()
+	go func(stopCh chan struct{}) {
+		diagnoserChain.Run(stopCh)
+	}(stopCh)
 	recovererChain := recovererchain.NewRecovererChain(
 		mgr.GetClient(),
 		ctrl.Log.WithName("recovererchain"),
@@ -171,14 +177,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		mgr.GetCache(),
 		opts.NodeName,
 		recovererChainCh,
-		stopCh,
 	)
-	go func() {
-		err := recovererChain.Run()
-		if err != nil {
-			setupLog.Error(err, "unable to start recoverer chain")
-		}
-	}()
+	go func(stopCh chan struct{}) {
+		recovererChain.Run(stopCh)
+	}(stopCh)
 
 	// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.
 	if err = (controllers.NewAbnormalReconciler(
@@ -223,7 +225,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(stopCh); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return fmt.Errorf("problem running manager: %v", err)
 	}
@@ -237,4 +239,24 @@ func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser agent.")
+}
+
+// SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned
+// which is closed on one of these signals. If a second signal is caught, the program
+// is terminated with exit code 1.
+func SetupSignalHandler() chan struct{} {
+	stopCh := make(chan struct{})
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-c
+		setupLog.Info("stop signal received")
+		close(stopCh)
+		// Exit directly on the second signal.
+		<-c
+		setupLog.Info("exit directly on the second signal")
+		os.Exit(1)
+	}()
+
+	return stopCh
 }

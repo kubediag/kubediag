@@ -18,7 +18,6 @@ package sourcemanager
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,8 +32,8 @@ import (
 
 // SourceManager manages abnormals in the system.
 type SourceManager interface {
-	Run() error
-	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Run(<-chan struct{})
+	SyncAbnormal(context.Context, logr.Logger, diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
 
 // sourceManagerImpl implements SourceManager interface.
@@ -54,8 +53,6 @@ type sourceManagerImpl struct {
 	sourceManagerCh chan diagnosisv1.Abnormal
 	// Channel for queuing Abnormals to be processed by information manager.
 	informationManagerCh chan diagnosisv1.Abnormal
-	// Channel for notifying stop signal.
-	stopCh chan struct{}
 }
 
 // NewSourceManager creates a new SourceManager.
@@ -67,7 +64,6 @@ func NewSourceManager(
 	nodeName string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 	informationManagerCh chan diagnosisv1.Abnormal,
-	stopCh chan struct{},
 ) SourceManager {
 	return &sourceManagerImpl{
 		Client:               cli,
@@ -77,36 +73,39 @@ func NewSourceManager(
 		NodeName:             nodeName,
 		sourceManagerCh:      sourceManagerCh,
 		informationManagerCh: informationManagerCh,
-		stopCh:               stopCh,
 	}
 }
 
 // Run runs the source manager.
-func (sm *sourceManagerImpl) Run() error {
+func (sm *sourceManagerImpl) Run(stopCh <-chan struct{}) {
 	ctx := context.Background()
 	log := sm.Log.WithValues("component", "sourcemanager")
 
 	// Wait for all caches to sync before processing.
-	if !sm.Cache.WaitForCacheSync(sm.stopCh) {
-		return fmt.Errorf("falied to sync cache")
+	if !sm.Cache.WaitForCacheSync(stopCh) {
+		return
 	}
 
-	// Process abnormals queuing in source manager channel.
-	for abnormal := range sm.sourceManagerCh {
-		if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
-			abnormal, err := sm.SyncAbnormal(ctx, log, abnormal)
-			if err != nil {
-				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-			}
+	for {
+		select {
+		// Process abnormals queuing in source manager channel.
+		case abnormal := <-sm.sourceManagerCh:
+			if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
+				abnormal, err := sm.SyncAbnormal(ctx, log, abnormal)
+				if err != nil {
+					log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+				}
 
-			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+				log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
+		// Stop source manager on stop signal.
+		case <-stopCh:
+			return
 		}
 	}
-
-	return nil
 }
 
 // SyncAbnormal syncs abnormals.

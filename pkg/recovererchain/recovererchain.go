@@ -19,7 +19,6 @@ package recovererchain
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -37,9 +36,9 @@ import (
 
 // RecovererChain manages recoverer in the system.
 type RecovererChain interface {
-	Run() error
-	ListRecoverers(ctx context.Context, log logr.Logger) ([]diagnosisv1.Recoverer, error)
-	SyncAbnormal(ctx context.Context, log logr.Logger, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Run(<-chan struct{})
+	ListRecoverers(context.Context, logr.Logger) ([]diagnosisv1.Recoverer, error)
+	SyncAbnormal(context.Context, logr.Logger, diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
 }
 
 // recovererChainImpl implements RecovererChain interface.
@@ -59,8 +58,6 @@ type recovererChainImpl struct {
 	transport *http.Transport
 	// Channel for queuing Abnormals to be processed by recoverer chain.
 	recovererChainCh chan diagnosisv1.Abnormal
-	// Channel for notifying stop signal.
-	stopCh chan struct{}
 }
 
 // NewRecovererChain creates a new RecovererChain.
@@ -71,7 +68,6 @@ func NewRecovererChain(
 	cache cache.Cache,
 	nodeName string,
 	recovererChainCh chan diagnosisv1.Abnormal,
-	stopCh chan struct{},
 ) RecovererChain {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
@@ -88,36 +84,39 @@ func NewRecovererChain(
 		NodeName:         nodeName,
 		transport:        transport,
 		recovererChainCh: recovererChainCh,
-		stopCh:           stopCh,
 	}
 }
 
 // Run runs the recoverer chain.
-func (rc *recovererChainImpl) Run() error {
+func (rc *recovererChainImpl) Run(stopCh <-chan struct{}) {
 	ctx := context.Background()
 	log := rc.Log.WithValues("component", "recovererchain")
 
 	// Wait for all caches to sync before processing.
-	if !rc.Cache.WaitForCacheSync(rc.stopCh) {
-		return fmt.Errorf("falied to sync cache")
+	if !rc.Cache.WaitForCacheSync(stopCh) {
+		return
 	}
 
-	// Process abnormals queuing in recoverer chain channel.
-	for abnormal := range rc.recovererChainCh {
-		if util.IsAbnormalNodeNameMatched(abnormal, rc.NodeName) {
-			abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
-			if err != nil {
-				log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-			}
+	for {
+		select {
+		// Process abnormals queuing in recoverer chain channel.
+		case abnormal := <-rc.recovererChainCh:
+			if util.IsAbnormalNodeNameMatched(abnormal, rc.NodeName) {
+				abnormal, err := rc.SyncAbnormal(ctx, log, abnormal)
+				if err != nil {
+					log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+				}
 
-			log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+				log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
+		// Stop recoverer chain on stop signal.
+		case <-stopCh:
+			return
 		}
 	}
-
-	return nil
 }
 
 // ListRecoverers lists Recoverers from cache.
