@@ -67,10 +67,7 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("abnormal", req.NamespacedName)
 
-	log.Info("reconciling Abnormal", "abnormal", client.ObjectKey{
-		Name:      req.Name,
-		Namespace: req.Namespace,
-	})
+	log.Info("reconciling Abnormal")
 
 	var abnormal diagnosisv1.Abnormal
 	if err := r.Get(ctx, req.NamespacedName, &abnormal); err != nil {
@@ -82,57 +79,33 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	case diagnosisv1.InformationCollecting:
 		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
 		if condition != nil {
-			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected")
 		} else {
 			err := util.QueueAbnormal(ctx, r.informationManagerCh, abnormal)
 			if err != nil {
-				log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
+				log.Error(err, "failed to send abnormal to information manager queue")
 			}
 		}
 	case diagnosisv1.AbnormalDiagnosing:
 		err := util.QueueAbnormal(ctx, r.diagnoserChainCh, abnormal)
 		if err != nil {
-			log.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+			log.Error(err, "failed to send abnormal to diagnoser chain queue")
 		}
 	case diagnosisv1.AbnormalRecovering:
 		err := util.QueueAbnormal(ctx, r.recovererChainCh, abnormal)
 		if err != nil {
-			log.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+			log.Error(err, "failed to send abnormal to recoverer chain queue")
 		}
 	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+		log.Info("ignoring Abnormal in phase Succeeded")
 	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+		log.Info("ignoring Abnormal in phase Failed")
 	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
-		})
+		log.Info("ignoring Abnormal in phase Unknown")
 	default:
 		err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
 		if err != nil {
-			log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+			log.Error(err, "failed to send abnormal to source manager queue")
 		}
 	}
 

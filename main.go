@@ -116,18 +116,6 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 
 	stopCh := SetupSignalHandler()
 
-	// Start http server.
-	go func(stopCh chan struct{}) {
-		r := mux.NewRouter()
-
-		// Start pprof server.
-		r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
-		if err := http.ListenAndServe(opts.Address, r); err != nil {
-			setupLog.Error(err, "unable to start http server")
-			close(stopCh)
-		}
-	}(stopCh)
-
 	// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
 	sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 	informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
@@ -185,6 +173,21 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	)
 	go func(stopCh chan struct{}) {
 		recovererChain.Run(stopCh)
+	}(stopCh)
+
+	// Start http server.
+	go func(stopCh chan struct{}) {
+		r := mux.NewRouter()
+		r.HandleFunc("/informationcollector", informationManager.Handler)
+		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
+		r.HandleFunc("/recoverer", recovererChain.Handler)
+
+		// Start pprof server.
+		r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+		if err := http.ListenAndServe(opts.Address, r); err != nil {
+			setupLog.Error(err, "unable to start http server")
+			close(stopCh)
+		}
 	}(stopCh)
 
 	// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.

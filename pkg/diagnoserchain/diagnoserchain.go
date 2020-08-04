@@ -19,6 +19,8 @@ package diagnoserchain
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +41,7 @@ type DiagnoserChain interface {
 	Run(<-chan struct{})
 	ListDiagnosers() ([]diagnosisv1.Diagnoser, error)
 	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Handler(http.ResponseWriter, *http.Request)
 }
 
 // diagnoserChainImpl implements DiagnoserChain interface.
@@ -158,6 +161,29 @@ func (dc *diagnoserChainImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagn
 	}
 
 	return abnormal, nil
+}
+
+// Handler handles http requests and response with diagnosers.
+func (dc *diagnoserChainImpl) Handler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		diagnosers, err := dc.ListDiagnosers()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to list diagnosers: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		data, err := json.Marshal(diagnosers)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosers: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+	default:
+		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+	}
 }
 
 // runDiagnosis diagnoses an abnormal with diagnosers.

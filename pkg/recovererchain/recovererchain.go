@@ -19,6 +19,8 @@ package recovererchain
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +41,7 @@ type RecovererChain interface {
 	Run(<-chan struct{})
 	ListRecoverers() ([]diagnosisv1.Recoverer, error)
 	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Handler(http.ResponseWriter, *http.Request)
 }
 
 // recovererChainImpl implements RecovererChain interface.
@@ -154,6 +157,29 @@ func (rc *recovererChainImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagn
 	}
 
 	return abnormal, nil
+}
+
+// Handler handles http requests and response with recoverers.
+func (rc *recovererChainImpl) Handler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		recoverers, err := rc.ListRecoverers()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to list recoverers: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		data, err := json.Marshal(recoverers)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal recoverers: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+	default:
+		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+	}
 }
 
 // runRecovery recovers an abnormal with recoverers.

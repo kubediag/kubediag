@@ -19,6 +19,8 @@ package informationmanager
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +41,7 @@ type InformationManager interface {
 	Run(<-chan struct{})
 	ListInformationCollectors() ([]diagnosisv1.InformationCollector, error)
 	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	Handler(http.ResponseWriter, *http.Request)
 }
 
 // informationManagerImpl implements InformationManager interface.
@@ -166,6 +169,29 @@ func (im *informationManagerImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (d
 	}
 
 	return abnormal, nil
+}
+
+// Handler handles http requests and response with information collectors.
+func (im *informationManagerImpl) Handler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		informationCollectors, err := im.ListInformationCollectors()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to list information collectors: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		data, err := json.Marshal(informationCollectors)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal information collectors: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+	default:
+		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+	}
 }
 
 // runInformationCollection collects information from information collectors.
