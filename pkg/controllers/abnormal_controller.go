@@ -61,9 +61,10 @@ func NewAbnormalReconciler(
 	}
 }
 
-// Reconcile synchronizes a Abnormal object according to the phase.
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals/status,verbs=get;update;patch
+
+// Reconcile synchronizes a Abnormal object according to the phase.
 func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("abnormal", req.NamespacedName)
