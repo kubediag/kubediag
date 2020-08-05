@@ -21,8 +21,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,6 +46,8 @@ type sourceManagerImpl struct {
 	Client client.Client
 	// Log represents the ability to log messages.
 	Log logr.Logger
+	// EventRecorder knows how to record events on behalf of an EventSource.
+	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
@@ -62,6 +66,7 @@ func NewSourceManager(
 	ctx context.Context,
 	cli client.Client,
 	log logr.Logger,
+	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
@@ -72,6 +77,7 @@ func NewSourceManager(
 		Context:              ctx,
 		Client:               cli,
 		Log:                  log,
+		EventRecorder:        eventRecorder,
 		Scheme:               scheme,
 		Cache:                cache,
 		NodeName:             nodeName,
@@ -91,6 +97,8 @@ func (sm *sourceManagerImpl) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in source manager channel.
 		case abnormal := <-sm.sourceManagerCh:
+			sm.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Created", "Created abnormal")
+
 			if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
 				abnormal, err := sm.SyncAbnormal(abnormal)
 				if err != nil {
