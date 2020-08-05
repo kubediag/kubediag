@@ -185,6 +185,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		r.HandleFunc("/informationcollector", informationManager.Handler)
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
 		r.HandleFunc("/recoverer", recovererChain.Handler)
+		r.HandleFunc("/healthz", HealthCheckHandler)
 
 		// Start pprof server.
 		r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -271,4 +272,14 @@ func SetupSignalHandler() chan struct{} {
 	}()
 
 	return stopCh
+}
+
+// HealthCheckHandler handles health check requests.
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		w.Write([]byte("OK"))
+	default:
+		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+	}
 }
