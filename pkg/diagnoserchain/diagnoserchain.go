@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,6 +53,8 @@ type diagnoserChainImpl struct {
 	Client client.Client
 	// Log represents the ability to log messages.
 	Log logr.Logger
+	// EventRecorder knows how to record events on behalf of an EventSource.
+	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
@@ -72,6 +75,7 @@ func NewDiagnoserChain(
 	ctx context.Context,
 	cli client.Client,
 	log logr.Logger,
+	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
@@ -89,6 +93,7 @@ func NewDiagnoserChain(
 		Context:          ctx,
 		Client:           cli,
 		Log:              log,
+		EventRecorder:    eventRecorder,
 		Scheme:           scheme,
 		Cache:            cache,
 		NodeName:         nodeName,
@@ -194,6 +199,9 @@ func (dc *diagnoserChainImpl) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, a
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
+
+		dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
+
 		abnormal, err := dc.sendAbnormalToRecovererChain(abnormal)
 		if err != nil {
 			return abnormal, err
@@ -283,6 +291,8 @@ func (dc *diagnoserChainImpl) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, a
 			return abnormal, err
 		}
 
+		dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Identified", "Abnormal identified by %s/%s", diagnoser.Namespace, diagnoser.Name)
+
 		return abnormal, nil
 	}
 
@@ -290,6 +300,8 @@ func (dc *diagnoserChainImpl) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, a
 	if err != nil {
 		return abnormal, err
 	}
+
+	dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedIdentify", "Unable to identify abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }

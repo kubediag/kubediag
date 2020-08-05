@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,6 +53,8 @@ type informationManagerImpl struct {
 	Client client.Client
 	// Log represents the ability to log messages.
 	Log logr.Logger
+	// EventRecorder knows how to record events on behalf of an EventSource.
+	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
@@ -72,6 +75,7 @@ func NewInformationManager(
 	ctx context.Context,
 	cli client.Client,
 	log logr.Logger,
+	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
@@ -89,6 +93,7 @@ func NewInformationManager(
 		Context:              ctx,
 		Client:               cli,
 		Log:                  log,
+		EventRecorder:        eventRecorder,
 		Scheme:               scheme,
 		Cache:                cache,
 		NodeName:             nodeName,
@@ -202,6 +207,9 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
+
+		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingCollection", "Skipping collection")
+
 		abnormal, err := im.sendAbnormalToDiagnoserChain(abnormal)
 		if err != nil {
 			return abnormal, err
@@ -287,6 +295,8 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 			return abnormal, err
 		}
 
+		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
+
 		return abnormal, nil
 	}
 
@@ -294,6 +304,8 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 	if err != nil {
 		return abnormal, err
 	}
+
+	im.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedCollect", "Unable to collect information for abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }

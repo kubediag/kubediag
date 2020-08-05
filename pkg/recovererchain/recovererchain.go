@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,6 +53,8 @@ type recovererChainImpl struct {
 	Client client.Client
 	// Log represents the ability to log messages.
 	Log logr.Logger
+	// EventRecorder knows how to record events on behalf of an EventSource.
+	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme *runtime.Scheme
 	// Cache knows how to load Kubernetes objects.
@@ -70,6 +73,7 @@ func NewRecovererChain(
 	ctx context.Context,
 	cli client.Client,
 	log logr.Logger,
+	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
@@ -86,6 +90,7 @@ func NewRecovererChain(
 		Context:          ctx,
 		Client:           cli,
 		Log:              log,
+		EventRecorder:    eventRecorder,
 		Scheme:           scheme,
 		Cache:            cache,
 		NodeName:         nodeName,
@@ -190,6 +195,9 @@ func (rc *recovererChainImpl) runRecovery(recoverers []diagnosisv1.Recoverer, ab
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
+
+		rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
+
 		abnormal, err := rc.setAbnormalSucceeded(abnormal)
 		if err != nil {
 			return abnormal, err
@@ -279,6 +287,8 @@ func (rc *recovererChainImpl) runRecovery(recoverers []diagnosisv1.Recoverer, ab
 			return abnormal, err
 		}
 
+		rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Recovered", "Abnormal recovered by %s/%s", recoverer.Namespace, recoverer.Name)
+
 		return abnormal, nil
 	}
 
@@ -286,6 +296,8 @@ func (rc *recovererChainImpl) runRecovery(recoverers []diagnosisv1.Recoverer, ab
 	if err != nil {
 		return abnormal, err
 	}
+
+	rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedRecover", "Unable to recover abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }

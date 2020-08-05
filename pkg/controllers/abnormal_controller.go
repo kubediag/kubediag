@@ -28,7 +28,7 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// AbnormalReconciler reconciles a Abnormal object
+// AbnormalReconciler reconciles a Abnormal object.
 type AbnormalReconciler struct {
 	client.Client
 	Log    logr.Logger
@@ -40,6 +40,7 @@ type AbnormalReconciler struct {
 	recovererChainCh     chan diagnosisv1.Abnormal
 }
 
+// NewAbnormalReconciler creates a new AbnormalReconciler.
 func NewAbnormalReconciler(
 	cli client.Client,
 	log logr.Logger,
@@ -60,9 +61,9 @@ func NewAbnormalReconciler(
 	}
 }
 
+// Reconcile synchronizes a Abnormal object according to the phase.
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals/status,verbs=get;update;patch
-
 func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("abnormal", req.NamespacedName)
