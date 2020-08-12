@@ -37,7 +37,9 @@ import (
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
+	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
+	"netease.com/k8s/kube-diagnoser/pkg/informationmanager/informationcollector"
 	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
 	"netease.com/k8s/kube-diagnoser/pkg/sourcemanager"
 	// +kubebuilder:scaffold:imports
@@ -58,6 +60,8 @@ type KubeDiagnoserAgentOptions struct {
 	MetricsAddress string
 	// EnableLeaderElection enables leader election for kube diagnoser agent.
 	EnableLeaderElection bool
+	// DockerEndpoint specifies the docker endpoint.
+	DockerEndpoint string
 }
 
 func init() {
@@ -179,11 +183,36 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		recovererChain.Run(stopCh)
 	}(stopCh)
 
+	// Setup information collectors, diagnosers and recoverers.
+	podCollector := informationcollector.NewPodCollector(
+		context.Background(),
+		ctrl.Log.WithName("informationmanager/podcollector"),
+		mgr.GetCache(),
+		opts.NodeName,
+	)
+	containerCollector, err := informationcollector.NewContainerCollector(
+		context.Background(),
+		opts.DockerEndpoint,
+		ctrl.Log.WithName("informationmanager/containercollector"),
+		mgr.GetCache(),
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
+		return fmt.Errorf("unable to create information collector: %v", err)
+	}
+	podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
+		context.Background(),
+		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
+	)
+
 	// Start http server.
 	go func(stopCh chan struct{}) {
 		r := mux.NewRouter()
 		r.HandleFunc("/informationcollector", informationManager.Handler)
+		r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
+		r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
+		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
 		r.HandleFunc("/recoverer", recovererChain.Handler)
 		r.HandleFunc("/healthz", HealthCheckHandler)
 
@@ -252,6 +281,7 @@ func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser agent.")
+	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned
