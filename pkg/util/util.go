@@ -25,14 +25,36 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"reflect"
+	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+)
+
+const (
+	// PodInformationContextKey is the key of pod information in abnormal context.
+	PodInformationContextKey = "podInformation"
+	// ContainerInformationContextKey is the key of container information in abnormal context.
+	ContainerInformationContextKey = "containerInformation"
+	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
+	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
+	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
+	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
+	MaxDataSize = 1024 * 1024 * 2
+	// KubeletRunDirectory specifies the directory where the kubelet runtime information is stored.
+	KubeletRunDirectory = "/var/lib/kubelet"
+	// KubeletPodDirectory specifies the directory where the kubelet pod information is stored.
+	KubeletPodDirectory = "/var/lib/kubelet/pods"
 )
 
 // UpdateAbnormalCondition updates existing abnormal condition or creates a new one. Sets
@@ -212,4 +234,171 @@ func QueueAbnormalWithTimer(ctx context.Context, duration time.Duration, channel
 // It returns true if node name of the abnormal is empty or matches provided node name, otherwise false.
 func IsAbnormalNodeNameMatched(abnormal diagnosisv1.Abnormal, nodeName string) bool {
 	return abnormal.Spec.NodeName == "" || abnormal.Spec.NodeName == nodeName
+}
+
+// SetAbnormalContext sets context field of an abnormal with provided key and value.
+func SetAbnormalContext(abnormal diagnosisv1.Abnormal, key string, value interface{}) (diagnosisv1.Abnormal, error) {
+	if abnormal.Status.Context == nil {
+		abnormal.Status.Context = new(runtime.RawExtension)
+	}
+	current, err := abnormal.Status.Context.MarshalJSON()
+	if err != nil {
+		return abnormal, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	// Use map[string]interface{} instead of map[string][]byte for readability in json or yaml format.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return abnormal, err
+	}
+
+	// Reinitialize context if context is nil.
+	if context == nil {
+		context = make(map[string]interface{})
+	}
+	context[key] = value
+	result, err := json.Marshal(context)
+	if err != nil {
+		return abnormal, err
+	}
+
+	err = abnormal.Status.Context.UnmarshalJSON(result)
+	if err != nil {
+		return abnormal, err
+	}
+
+	return abnormal, nil
+}
+
+// GetAbnormalContext gets context field of an abnormal with provided key.
+func GetAbnormalContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, error) {
+	if abnormal.Status.Context == nil {
+		return nil, fmt.Errorf("abnormal context nil")
+	}
+	current, err := abnormal.Status.Context.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return error if abnormal context is empty.
+	if context == nil {
+		return nil, fmt.Errorf("abnormal context empty")
+	}
+	value, ok := context[key]
+	if !ok {
+		return nil, fmt.Errorf("context key not exist: %s", key)
+	}
+
+	result, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// RemoveAbnormalContext removes context field of an abnormal with provided key.
+func RemoveAbnormalContext(abnormal diagnosisv1.Abnormal, key string) (diagnosisv1.Abnormal, bool, error) {
+	if abnormal.Status.Context == nil {
+		return abnormal, true, nil
+	}
+	current, err := abnormal.Status.Context.MarshalJSON()
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	// Delete value with provided key from context.
+	if context == nil {
+		return abnormal, true, nil
+	}
+	delete(context, key)
+
+	result, err := json.Marshal(context)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	err = abnormal.Status.Context.UnmarshalJSON(result)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	return abnormal, true, nil
+}
+
+// RetrievePodsOnNode retrieves all pods on the provided node.
+func RetrievePodsOnNode(pods []corev1.Pod, nodeName string) []corev1.Pod {
+	podsOnNode := make([]corev1.Pod, 0)
+	for _, pod := range pods {
+		if pod.Spec.NodeName == nodeName {
+			podsOnNode = append(podsOnNode, pod)
+		}
+	}
+
+	return podsOnNode
+}
+
+// GetTotalBytes gets total bytes in filesystem.
+func GetTotalBytes(path string) uint64 {
+	var stat syscall.Statfs_t
+	syscall.Statfs(path, &stat)
+
+	return stat.Blocks * uint64(stat.Bsize)
+}
+
+// GetFreeBytes gets free bytes in filesystem.
+func GetFreeBytes(path string) uint64 {
+	var stat syscall.Statfs_t
+	syscall.Statfs(path, &stat)
+
+	return stat.Bfree * uint64(stat.Bsize)
+}
+
+// GetAvailableBytes gets available bytes in filesystem.
+func GetAvailableBytes(path string) uint64 {
+	var stat syscall.Statfs_t
+	syscall.Statfs(path, &stat)
+
+	return stat.Bavail * uint64(stat.Bsize)
+}
+
+// GetUsedBytes gets used bytes in filesystem.
+func GetUsedBytes(path string) uint64 {
+	var stat syscall.Statfs_t
+	syscall.Statfs(path, &stat)
+
+	return (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
+}
+
+// DiskUsage calculates the disk usage of a directory by executing du command.
+func DiskUsage(path string) (int, error) {
+	// Uses the same niceness level as cadvisor.fs does when running du.
+	// Uses -B 1 to always scale to a blocksize of 1 byte.
+	out, err := exec.Command("nice", "-n", "19", "du", "-s", "-B", "1", path).CombinedOutput()
+	if err != nil {
+		return 0, fmt.Errorf("execute command du ($ nice -n 19 du -s -B 1) on path %s with error %v", path, err)
+	}
+
+	size, err := strconv.Atoi(strings.Fields(string(out))[0])
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse du output %s due to error %v", out, err)
+	}
+
+	return size, nil
 }
