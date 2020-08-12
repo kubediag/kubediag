@@ -218,6 +218,7 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 		return abnormal, nil
 	}
 
+	informationCollected := false
 	for _, collector := range informationCollectors {
 		// Execute only matched information collectors if AssignedInformationCollectors is not empty.
 		matched := false
@@ -289,13 +290,19 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 			continue
 		}
 
+		informationCollected = true
 		abnormal.Status = result.Status
+
+		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
+	}
+
+	// All assigned information collectors will be executed. The Abnormal will be sent to diagnoser chain
+	// if any information is collected successfully.
+	if informationCollected {
 		abnormal, err := im.sendAbnormalToDiagnoserChain(abnormal)
 		if err != nil {
 			return abnormal, err
 		}
-
-		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
 
 		return abnormal, nil
 	}
