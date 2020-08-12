@@ -49,6 +49,8 @@ spec:
           name: docker-sock
         - mountPath: /var/lib/docker
           name: docker-data
+        - mountPath: /var/lib/kubelet
+          name: kubelet-data
       volumes:
       - name: docker-sock
         hostPath:
@@ -57,6 +59,10 @@ spec:
       - name: docker-data
         hostPath:
           path: /var/lib/docker
+          type: Directory
+      - name: kubelet-data
+        hostPath:
+          path: /var/lib/kubelet
           type: Directory
       hostNetwork: true
       hostPID: true

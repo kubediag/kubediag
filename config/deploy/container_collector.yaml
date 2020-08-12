@@ -1,11 +1,12 @@
 apiVersion: diagnosis.netease.com/v1
-kind: Recoverer
+kind: InformationCollector
 metadata:
-  name: recoverer-sample
+  name: container-collector
+  namespace: kube-diagnoser
 spec:
   ip: 0.0.0.0
   port: "8090"
-  path: /recoverer
+  path: /informationcollector/containercollector
   readinessProbe:
     failureThreshold: 3
     httpGet:
