@@ -7,7 +7,7 @@ Pod Disk Usage Diagnoser 是一个 Kube Diagnoser 内置的故障分析器，用
 运行以下命令注册 Pod Disk Usage Diagnoser 故障分析器到 Kube Diagnoser 中：
 
 ```bash
-kubectl apply -f config/deploy/pod_collector.yaml
+kubectl apply -f config/deploy/pod_disk_usage_diagnoser.yaml
 ```
 
 ## 请求类型
