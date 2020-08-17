@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -328,7 +329,11 @@ func TestValidateAbnormalResult(t *testing.T) {
 
 	for _, test := range tests {
 		err := ValidateAbnormalResult(test.result, test.current)
-		assert.Equal(t, test.expected, err, test.desc)
+		if test.expected == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.Error(), test.desc)
+		}
 	}
 }
 
@@ -365,4 +370,434 @@ func TestIsAbnormalNodeNameMatched(t *testing.T) {
 		matched := IsAbnormalNodeNameMatched(test.abnormal, test.node)
 		assert.Equal(t, test.expected, matched, test.desc)
 	}
+}
+
+func TestSetAbnormalContext(t *testing.T) {
+	type expectedStruct struct {
+		abnormal diagnosisv1.Abnormal
+		err      error
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		key      string
+		value    interface{}
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			key:   "key1",
+			value: "value1",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: func(keysAndValues ...string) []byte {
+								testingMap, err := newTestingMap(keysAndValues...)
+								if err != nil {
+									t.Errorf("%v", err)
+								}
+								return testingMap
+							}("key1", "value1"),
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			key:   "key1",
+			value: "value1",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: func(keysAndValues ...string) []byte {
+								testingMap, err := newTestingMap(keysAndValues...)
+								if err != nil {
+									t.Errorf("%v", err)
+								}
+								return testingMap
+							}("key1", "value1"),
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: func(keysAndValues ...string) []byte {
+							testingMap, err := newTestingMap(keysAndValues...)
+							if err != nil {
+								t.Errorf("%v", err)
+							}
+							return testingMap
+						}("key1", "value1", "key2", "value2"),
+					},
+				},
+			},
+			key:   "key3",
+			value: "value3",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: func(keysAndValues ...string) []byte {
+								testingMap, err := newTestingMap(keysAndValues...)
+								if err != nil {
+									t.Errorf("%v", err)
+								}
+								return testingMap
+							}("key1", "value1", "key2", "value2", "key3", "value3"),
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "context updated",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: func(keysAndValues ...string) []byte {
+							testingMap, err := newTestingMap(keysAndValues...)
+							if err != nil {
+								t.Errorf("%v", err)
+							}
+							return testingMap
+						}("key1", "value1", "key2", "value2"),
+					},
+				},
+			},
+			key:   "key2",
+			value: "value3",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: func(keysAndValues ...string) []byte {
+								testingMap, err := newTestingMap(keysAndValues...)
+								if err != nil {
+									t.Errorf("%v", err)
+								}
+								return testingMap
+							}("key1", "value1", "key2", "value3"),
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "context overwritten",
+		},
+	}
+
+	for _, test := range tests {
+		abnormal, err := SetAbnormalContext(test.abnormal, test.key, test.value)
+		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
+func TestGetAbnormalContext(t *testing.T) {
+	type expectedStruct struct {
+		value []byte
+		err   error
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		key      string
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			key: "key1",
+			expected: expectedStruct{
+				value: nil,
+				err:   fmt.Errorf("abnormal context nil"),
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			key: "key1",
+			expected: expectedStruct{
+				value: nil,
+				err:   fmt.Errorf("abnormal context empty"),
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: func(keysAndValues ...string) []byte {
+							testingMap, err := newTestingMap(keysAndValues...)
+							if err != nil {
+								t.Errorf("%v", err)
+							}
+							return testingMap
+						}("key1", "value1", "key2", "value2"),
+					},
+				},
+			},
+			key: "key2",
+			expected: expectedStruct{
+				value: func(str string) []byte {
+					result, err := json.Marshal(str)
+					if err != nil {
+						t.Errorf("%v", err)
+					}
+					return result
+				}("value2"),
+				err: nil,
+			},
+			desc: "context found",
+		},
+	}
+
+	for _, test := range tests {
+		abnormal, err := GetAbnormalContext(test.abnormal, test.key)
+		assert.Equal(t, test.expected.value, abnormal, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
+func TestRemoveAbnormalContext(t *testing.T) {
+	type expectedStruct struct {
+		abnormal diagnosisv1.Abnormal
+		removed  bool
+		err      error
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		key      string
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			key: "key1",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: nil,
+					},
+				},
+				removed: true,
+				err:     nil,
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			key: "key1",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{},
+					},
+				},
+				removed: true,
+				err:     nil,
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: func(keysAndValues ...string) []byte {
+							testingMap, err := newTestingMap(keysAndValues...)
+							if err != nil {
+								t.Errorf("%v", err)
+							}
+							return testingMap
+						}("key1", "value1", "key2", "value2"),
+					},
+				},
+			},
+			key: "key2",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: func(keysAndValues ...string) []byte {
+								testingMap, err := newTestingMap(keysAndValues...)
+								if err != nil {
+									t.Errorf("%v", err)
+								}
+								return testingMap
+							}("key1", "value1"),
+						},
+					},
+				},
+				removed: true,
+				err:     nil,
+			},
+			desc: "context removed",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: []byte{0, 1, 2},
+					},
+				},
+			},
+			key: "key1",
+			expected: expectedStruct{
+				abnormal: diagnosisv1.Abnormal{
+					Status: diagnosisv1.AbnormalStatus{
+						Context: &runtime.RawExtension{
+							Raw: []byte{0, 1, 2},
+						},
+					},
+				},
+				removed: false,
+				err:     fmt.Errorf("invalid character '\\x00' looking for beginning of value"),
+			},
+			desc: "invalid context",
+		},
+	}
+
+	for _, test := range tests {
+		abnormal, removed, err := RemoveAbnormalContext(test.abnormal, test.key)
+		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		assert.Equal(t, test.expected.removed, removed, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
+func TestRetrievePodsOnNode(t *testing.T) {
+	tests := []struct {
+		pods     []corev1.Pod
+		nodeName string
+		expected []corev1.Pod
+		desc     string
+	}{
+		{
+			pods:     []corev1.Pod{},
+			nodeName: "node1",
+			expected: []corev1.Pod{},
+			desc:     "empty slice",
+		},
+		{
+			pods: []corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod1",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod2",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node2",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod3",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
+					},
+				},
+			},
+			nodeName: "node1",
+			expected: []corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod1",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod3",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node1",
+					},
+				},
+			},
+			desc: "pods not on provided node removed",
+		},
+	}
+
+	for _, test := range tests {
+		resultPods := RetrievePodsOnNode(test.pods, test.nodeName)
+		assert.Equal(t, test.expected, resultPods, test.desc)
+	}
+}
+
+func newTestingMap(keysAndValues ...string) ([]byte, error) {
+	if len(keysAndValues) < 2 || len(keysAndValues)%2 == 1 {
+		return nil, fmt.Errorf("invalid input for keys and values: %v", keysAndValues)
+	}
+
+	testingMap := make(map[string]interface{})
+	for i := 0; i < len(keysAndValues)-1; i = i + 2 {
+		testingMap[keysAndValues[i]] = keysAndValues[i+1]
+	}
+
+	raw, err := json.Marshal(testingMap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal testing raw data: %v", err)
+	}
+
+	return raw, nil
 }

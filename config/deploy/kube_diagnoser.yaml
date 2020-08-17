@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+  name: kube-diagnoser
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-diagnoser
+  namespace: kube-diagnoser
+  labels:
+    control-plane: kube-diagnoser
+spec:
+  selector:
+    matchLabels:
+      control-plane: kube-diagnoser
+  template:
+    metadata:
+      labels:
+        control-plane: kube-diagnoser
+    spec:
+      containers:
+      - command:
+        - /kube-diagnoser
+        args:
+        - --address=0.0.0.0:8090
+        - --metrics-address=0.0.0.0:10357
+        - --node-name=$(NODE_NAME)
+        image: hub.c.163.com/combk8s/kube-diagnoser:latest
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        name: kube-diagnoser
+        resources:
+          limits:
+            cpu: 400m
+            memory: 400Mi
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-sock
+        - mountPath: /var/lib/docker
+          name: docker-data
+        - mountPath: /var/lib/kubelet
+          name: kubelet-data
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: docker-data
+        hostPath:
+          path: /var/lib/docker
+          type: Directory
+      - name: kubelet-data
+        hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+      hostNetwork: true
+      hostPID: true
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccountName: kube-diagnoser
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-diagnoser
+  namespace: kube-diagnoser

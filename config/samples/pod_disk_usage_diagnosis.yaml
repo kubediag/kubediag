@@ -1,0 +1,15 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: pod-disk-usage-diagnosis
+spec:
+  source: Custom
+  skipInformationCollection: false
+  skipDiagnosis: false
+  skipRecovery: true
+  assignedInformationCollectors:
+  - name: pod-collector
+    namespace: kube-diagnoser
+  assignedDiagnosers:
+  - name: pod-disk-usage-diagnoser
+    namespace: kube-diagnoser
