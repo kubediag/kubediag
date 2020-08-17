@@ -26,7 +26,7 @@ make deploy
 ```bash
 kubectl create namespace kube-diagnoser
 kubectl apply -f config/rbac
-kubectl apply -f config/kube-diagnoser
+kubectl apply -f config/deploy
 ```
 
 查看是否所有运行 Kube Diagnoser 的 Pod 处于 Running 状态：
