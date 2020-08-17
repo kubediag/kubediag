@@ -35,28 +35,22 @@ kubectl apply -f config/kube-diagnoser
 kubectl get -n kube-diagnoser pod -o wide
 ```
 
-通过访问节点的 10357 端口可以获取 Prometheus 监控数据：
-
-```bash
-curl 0.0.0.0:10357/metrics
-```
-
 ## 通过 Abnormal 触发故障诊断流程
 
-Abnormal 自定义资源是对故障事件的抽象。通过创建 Abnormal 可以启动对已知的故障事件自动化诊断恢复的流水线，一个查看某个节点上磁盘占用量过高 Pod 列表的 Abnormal 如下所示：
+Abnormal 自定义资源是对故障事件的抽象。通过创建 Abnormal 可以启动对已知的故障事件自动化诊断恢复的流水线，一个查看某个节点上磁盘使用量过高 Pod 列表的 Abnormal 如下所示：
 
 ```yaml
 apiVersion: diagnosis.netease.com/v1
 kind: Abnormal
 metadata:
-  name: pod-disk-usage
+  name: pod-disk-usage-diagnosis
   namespace: default
 spec:
   assignedDiagnosers:
   - name: pod-disk-usage-diagnoser
     namespace: kube-diagnoser
   assignedInformationCollectors:
-  - name: pod-disk-usage-information-collector
+  - name: pod-collector
     namespace: kube-diagnoser
   nodeName: 10.177.16.22
   skipDiagnosis: false
@@ -65,51 +59,78 @@ spec:
   source: Custom
 status:
   conditions:
-  - lastTransitionTime: "2020-07-30T06:51:27Z"
+  - lastTransitionTime: "2020-08-13T07:44:42Z"
     status: "True"
     type: InformationCollected
-  - lastTransitionTime: "2020-07-30T06:51:29Z"
+  - lastTransitionTime: "2020-08-13T07:44:42Z"
     status: "True"
     type: Identified
-  - lastTransitionTime: "2020-07-30T06:51:29Z"
+  - lastTransitionTime: "2020-08-13T07:44:42Z"
     status: "True"
     type: Recovered
+  context:
+    podDiskUsageDiagnosis:
+    - diskUsage: 77824
+      metadata:
+        creationTimestamp: "2020-07-15T03:35:24Z"
+        generateName: kube-flannel-ds-amd64-
+        labels:
+          app: flannel
+          controller-revision-hash: 7f489b5c67
+          pod-template-generation: "1"
+          tier: node
+        name: kube-flannel-ds-amd64-qdjtb
+        namespace: kube-system
+        ownerReferences:
+        - apiVersion: apps/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: DaemonSet
+          name: kube-flannel-ds-amd64
+          uid: 94094c6d-4779-4172-9d39-dce884184fef
+        resourceVersion: "1762390"
+        selfLink: /api/v1/namespaces/kube-system/pods/kube-flannel-ds-amd64-qdjtb
+        uid: 2bfed5a3-67fd-4721-99ae-6d584150c891
+      path: /var/lib/kubelet/pods/2bfed5a3-67fd-4721-99ae-6d584150c891
   diagnoser:
-    name: kube-diagnoser
-    namespace: pod-disk-usage-diagnoser
+    name: pod-disk-usage-diagnoser
+    namespace: kube-diagnoser
   identifiable: true
   phase: Succeeded
   recoverable: true
-  recoverer:
-    name: ""
-    namespace: ""
-  context:
-  - name: cicd-jenkins-master-67f68bcd5c-wdlc4
-    namespace: cicd
-    usage: 21G
-  - name: ingress-nginx-pw7wk
-    namespace: kube-system
-    usage: 12G
-  - name: kibana-fcc7fc4cc-jbh27
-    namespace: elasticsearch
-    usage: 8G
-  startTime: "2020-07-30T06:51:27Z"
+  startTime: "2020-08-13T07:44:42Z"
 ```
 
 该故障定义了一次对节点 `10.177.16.22` 的磁盘使用量诊断，整个处理流程如下：
 
-* Kube Diagnoser Agent 向信息采集器 `pod-disk-usage-information-collector` 发送请求以获取 Pod 磁盘使用量详情。
-* Kube Diagnoser Agent 向故障诊断器 `pod-disk-usage-diagnoser` 发送请求以获取 Pod 磁盘使用量诊断结果。故障诊断成功后 `.status.identifiable` 字段被设置为 `true`。
+* Kube Diagnoser Agent 向信息采集器 `pod-collector` 发送请求以获取该节点上的 Pod 信息。
+* Kube Diagnoser Agent 向故障诊断器 `pod-disk-usage-diagnoser` 发送请求以获取 Pod 磁盘使用量诊断结果。故障诊断成功后 `.status.identifiable` 字段被设置为 `true`，磁盘使用量较多的 Pod 列表被记录到 `.status.context.podDiskUsageDiagnosis` 字段。
 * 由于 `.spec.skipRecovery` 字段被设置为 `true`，自动恢复流程被跳过。
-* 诊断成功结束后 `.status.phase` 字段被设置为 `Succeeded` 并且 `.status.context` 字段记录了磁盘使用量较多的 Pod 列表。
+* 诊断成功结束后 `.status.phase` 字段被设置为 `Succeeded`。
 
 详细信息参考 [Abnormal API 设计](./docs/architecture/abnormal.md)。
+
+## 可观测性
+
+Kube Diagnoser 实现了 Prometheus 接口，通过访问节点的 10357 端口可以获取 Prometheus 监控数据：
+
+```bash
+curl 0.0.0.0:10357/metrics
+```
+
+## 内置功能
+
+Kube Diagnoser 集成了以下常用故障诊断功能：
+
+* [Container Collector](./docs/information-collector/container-collector.md)：采集节点上的容器信息并将结果记录到 Abnormal 中。
+* [Pod Collector](./docs/information-collector/pod-collector.md)：采集节点上的 Pod 信息并将结果记录到 Abnormal 中。
+* [Pod Disk Usage Diagnoser](./docs/diagnoser/pod-disk-usage-diagnoser.md)：分析 Pod 磁盘使用量并将结果记录到 Abnormal 中。
 
 ## 路线图
 
 Kube Diagnoser 的后续工作包括：
 
+* 支持 Golang、Java、Python 等语言的性能剖析。
 * 与 [Kuberhealthy](https://github.com/Comcast/kuberhealthy) 的集成。
 * 支持更丰富的故障事件源，如 Elasticsearch、Prometheus 报警等。
-* 支持 Golang、Java、Python 等语言的性能剖析。
 * 易于集成的客户端开发库。
