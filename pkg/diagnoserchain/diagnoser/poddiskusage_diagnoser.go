@@ -123,7 +123,7 @@ func (pd *podDiskUsageDiagnoserImpl) Handler(w http.ResponseWriter, r *http.Requ
 		}
 
 		// Remove pod information in status context.
-		abnormal, removed, err := util.RemoveAbnormalContext(abnormal, util.PodInformationContextKey)
+		abnormal, removed, err := util.RemoveAbnormalStatusContext(abnormal, util.PodInformationContextKey)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to remove context field: %v", err), http.StatusInternalServerError)
 			return
@@ -134,7 +134,7 @@ func (pd *podDiskUsageDiagnoserImpl) Handler(w http.ResponseWriter, r *http.Requ
 		}
 
 		// Set pod disk usage diagnosis result in status context.
-		abnormal, err = util.SetAbnormalContext(abnormal, util.PodDiskUsageDiagnosisContextKey, sorted)
+		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.PodDiskUsageDiagnosisContextKey, sorted)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
@@ -153,10 +153,11 @@ func (pd *podDiskUsageDiagnoserImpl) Handler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// ListPods lists all pods on the node by retrieving information in abnormal.
+// ListPods lists all pods on the node by retrieving context in abnormal.
 func (pd *podDiskUsageDiagnoserImpl) ListPods(abnormal diagnosisv1.Abnormal) ([]corev1.Pod, error) {
 	pd.Log.Info("listing pods")
-	data, err := util.GetAbnormalContext(abnormal, util.PodInformationContextKey)
+
+	data, err := util.GetAbnormalStatusContext(abnormal, util.PodInformationContextKey)
 	if err != nil {
 		return nil, err
 	}

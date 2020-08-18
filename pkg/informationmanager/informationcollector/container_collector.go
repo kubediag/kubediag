@@ -96,7 +96,7 @@ func (cc *containerCollectorImpl) Handler(w http.ResponseWriter, r *http.Request
 		}
 
 		// Set container information in status context.
-		abnormal, err = util.SetAbnormalContext(abnormal, util.ContainerInformationContextKey, containers)
+		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.ContainerInformationContextKey, containers)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
