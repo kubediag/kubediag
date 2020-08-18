@@ -41,6 +41,7 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager/informationcollector"
 	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
+	"netease.com/k8s/kube-diagnoser/pkg/recovererchain/recoverer"
 	"netease.com/k8s/kube-diagnoser/pkg/sourcemanager"
 	// +kubebuilder:scaffold:imports
 )
@@ -208,6 +209,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		context.Background(),
 		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
 	)
+	signalRecoverer := recoverer.NewSignalRecoverer(
+		context.Background(),
+		ctrl.Log.WithName("recovererchain/signalrecoverer"),
+	)
 
 	// Start http server.
 	go func(stopCh chan struct{}) {
@@ -219,6 +224,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
 		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
 		r.HandleFunc("/recoverer", recovererChain.Handler)
+		r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
 		r.HandleFunc("/healthz", HealthCheckHandler)
 
 		// Start pprof server.
