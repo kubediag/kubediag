@@ -90,7 +90,7 @@ func (pc *podCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set pod information in status context.
-		abnormal, err = util.SetAbnormalContext(abnormal, util.PodInformationContextKey, pods)
+		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.PodInformationContextKey, pods)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return

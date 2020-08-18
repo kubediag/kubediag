@@ -104,7 +104,7 @@ func (pc *processCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) 
 		}
 
 		// Set process information in status context.
-		abnormal, err = util.SetAbnormalContext(abnormal, util.ProcessInformationContextKey, processes)
+		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.ProcessInformationContextKey, processes)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return

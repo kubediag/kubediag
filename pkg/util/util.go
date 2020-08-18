@@ -50,6 +50,8 @@ const (
 	ProcessInformationContextKey = "processInformation"
 	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
 	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
+	// SignalRecoveryContextKey is the key of process signal recovery details in abnormal context.
+	SignalRecoveryContextKey = "signalRecovery"
 	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
 	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
 	MaxDataSize = 1024 * 1024 * 2
@@ -174,36 +176,80 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
+// The following fields must not be modified after processed:
+//
+// .spec.source
+// .spec.kubernetesEvent
+// .spec.skipInformationCollection
+// .spec.skipDiagnosis
+// .spec.skipRecovery
+// .spec.nodeName
+// .spec.assignedInformationCollectors
+// .spec.assignedDiagnosers
+// .spec.assignedRecoverers
+// .status.identifiable
+// .status.recoverable
+// .status.phase
+// .status.conditions
+// .status.message
+// .status.reason
+// .status.startTime
+// .status.diagnoser
+// .status.recoverer
 func ValidateAbnormalResult(result diagnosisv1.Abnormal, current diagnosisv1.Abnormal) error {
-	if !reflect.DeepEqual(result.Spec, current.Spec) {
-		return fmt.Errorf("spec field of Abnormal must not be modified")
+	if !reflect.DeepEqual(result.Spec.Source, current.Spec.Source) {
+		return fmt.Errorf("source field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.KubernetesEvent, current.Spec.KubernetesEvent) {
+		return fmt.Errorf("kubernetesEvent field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.SkipInformationCollection, current.Spec.SkipInformationCollection) {
+		return fmt.Errorf("skipInformationCollection field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.SkipDiagnosis, current.Spec.SkipDiagnosis) {
+		return fmt.Errorf("skipDiagnosis field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.SkipRecovery, current.Spec.SkipRecovery) {
+		return fmt.Errorf("skipRecovery field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.NodeName, current.Spec.NodeName) {
+		return fmt.Errorf("nodeName field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.AssignedInformationCollectors, current.Spec.AssignedInformationCollectors) {
+		return fmt.Errorf("assignedInformationCollectors field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.AssignedDiagnosers, current.Spec.AssignedDiagnosers) {
+		return fmt.Errorf("assignedDiagnosers field of Abnormal must not be modified")
+	}
+	if !reflect.DeepEqual(result.Spec.AssignedRecoverers, current.Spec.AssignedRecoverers) {
+		return fmt.Errorf("assignedRecoverers field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Identifiable, current.Status.Identifiable) {
-		return fmt.Errorf("identifiable filed of Abnormal must not be modified")
+		return fmt.Errorf("identifiable field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Recoverable, current.Status.Recoverable) {
-		return fmt.Errorf("recoverable filed of Abnormal must not be modified")
+		return fmt.Errorf("recoverable field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Phase, current.Status.Phase) {
-		return fmt.Errorf("phase filed of Abnormal must not be modified")
+		return fmt.Errorf("phase field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Conditions, current.Status.Conditions) {
-		return fmt.Errorf("conditions filed of Abnormal must not be modified")
+		return fmt.Errorf("conditions field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Message, current.Status.Message) {
-		return fmt.Errorf("message filed of Abnormal must not be modified")
+		return fmt.Errorf("message field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Reason, current.Status.Reason) {
-		return fmt.Errorf("reason filed of Abnormal must not be modified")
+		return fmt.Errorf("reason field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.StartTime, current.Status.StartTime) {
-		return fmt.Errorf("startTime filed of Abnormal must not be modified")
+		return fmt.Errorf("startTime field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Diagnoser, current.Status.Diagnoser) {
-		return fmt.Errorf("diagnoser filed of Abnormal must not be modified")
+		return fmt.Errorf("diagnoser field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Recoverer, current.Status.Recoverer) {
-		return fmt.Errorf("recoverer filed of Abnormal must not be modified")
+		return fmt.Errorf("recoverer field of Abnormal must not be modified")
 	}
 
 	return nil
@@ -238,8 +284,44 @@ func IsAbnormalNodeNameMatched(abnormal diagnosisv1.Abnormal, nodeName string) b
 	return abnormal.Spec.NodeName == "" || abnormal.Spec.NodeName == nodeName
 }
 
-// SetAbnormalContext sets context field of an abnormal with provided key and value.
-func SetAbnormalContext(abnormal diagnosisv1.Abnormal, key string, value interface{}) (diagnosisv1.Abnormal, error) {
+// SetAbnormalSpecContext sets spec context field of an abnormal with provided key and value.
+func SetAbnormalSpecContext(abnormal diagnosisv1.Abnormal, key string, value interface{}) (diagnosisv1.Abnormal, error) {
+	if abnormal.Spec.Context == nil {
+		abnormal.Spec.Context = new(runtime.RawExtension)
+	}
+	current, err := abnormal.Spec.Context.MarshalJSON()
+	if err != nil {
+		return abnormal, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	// Use map[string]interface{} instead of map[string][]byte for readability in json or yaml format.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return abnormal, err
+	}
+
+	// Reinitialize context if context is nil.
+	if context == nil {
+		context = make(map[string]interface{})
+	}
+	context[key] = value
+	result, err := json.Marshal(context)
+	if err != nil {
+		return abnormal, err
+	}
+
+	err = abnormal.Spec.Context.UnmarshalJSON(result)
+	if err != nil {
+		return abnormal, err
+	}
+
+	return abnormal, nil
+}
+
+// SetAbnormalStatusContext sets status context field of an abnormal with provided key and value.
+func SetAbnormalStatusContext(abnormal diagnosisv1.Abnormal, key string, value interface{}) (diagnosisv1.Abnormal, error) {
 	if abnormal.Status.Context == nil {
 		abnormal.Status.Context = new(runtime.RawExtension)
 	}
@@ -274,10 +356,44 @@ func SetAbnormalContext(abnormal diagnosisv1.Abnormal, key string, value interfa
 	return abnormal, nil
 }
 
-// GetAbnormalContext gets context field of an abnormal with provided key.
-func GetAbnormalContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, error) {
+// GetAbnormalSpecContext gets spec context field of an abnormal with provided key.
+func GetAbnormalSpecContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, error) {
+	if abnormal.Spec.Context == nil {
+		return nil, fmt.Errorf("abnormal spec context nil")
+	}
+	current, err := abnormal.Spec.Context.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return error if abnormal spec context is empty.
+	if context == nil {
+		return nil, fmt.Errorf("abnormal spec context empty")
+	}
+	value, ok := context[key]
+	if !ok {
+		return nil, fmt.Errorf("spec context key not exist: %s", key)
+	}
+
+	result, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetAbnormalStatusContext gets status context field of an abnormal with provided key.
+func GetAbnormalStatusContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, error) {
 	if abnormal.Status.Context == nil {
-		return nil, fmt.Errorf("abnormal context nil")
+		return nil, fmt.Errorf("abnormal status context nil")
 	}
 	current, err := abnormal.Status.Context.MarshalJSON()
 	if err != nil {
@@ -291,13 +407,13 @@ func GetAbnormalContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, erro
 		return nil, err
 	}
 
-	// Return error if abnormal context is empty.
+	// Return error if abnormal status context is empty.
 	if context == nil {
-		return nil, fmt.Errorf("abnormal context empty")
+		return nil, fmt.Errorf("abnormal status context empty")
 	}
 	value, ok := context[key]
 	if !ok {
-		return nil, fmt.Errorf("context key not exist: %s", key)
+		return nil, fmt.Errorf("status context key not exist: %s", key)
 	}
 
 	result, err := json.Marshal(value)
@@ -308,8 +424,44 @@ func GetAbnormalContext(abnormal diagnosisv1.Abnormal, key string) ([]byte, erro
 	return result, nil
 }
 
-// RemoveAbnormalContext removes context field of an abnormal with provided key.
-func RemoveAbnormalContext(abnormal diagnosisv1.Abnormal, key string) (diagnosisv1.Abnormal, bool, error) {
+// RemoveAbnormalSpecContext removes spec context field of an abnormal with provided key.
+func RemoveAbnormalSpecContext(abnormal diagnosisv1.Abnormal, key string) (diagnosisv1.Abnormal, bool, error) {
+	if abnormal.Spec.Context == nil {
+		return abnormal, true, nil
+	}
+	current, err := abnormal.Spec.Context.MarshalJSON()
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	// Parsed context will be nil if raw data is empty.
+	context := make(map[string]interface{})
+	err = json.Unmarshal(current, &context)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	// Delete value with provided key from context.
+	if context == nil {
+		return abnormal, true, nil
+	}
+	delete(context, key)
+
+	result, err := json.Marshal(context)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	err = abnormal.Spec.Context.UnmarshalJSON(result)
+	if err != nil {
+		return abnormal, false, err
+	}
+
+	return abnormal, true, nil
+}
+
+// RemoveAbnormalStatusContext removes status context field of an abnormal with provided key.
+func RemoveAbnormalStatusContext(abnormal diagnosisv1.Abnormal, key string) (diagnosisv1.Abnormal, bool, error) {
 	if abnormal.Status.Context == nil {
 		return abnormal, true, nil
 	}
