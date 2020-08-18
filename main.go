@@ -200,6 +200,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
 		return fmt.Errorf("unable to create information collector: %v", err)
 	}
+	processCollector := informationcollector.NewProcessCollector(
+		context.Background(),
+		ctrl.Log.WithName("informationmanager/processcollector"),
+	)
 	podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
@@ -211,6 +215,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		r.HandleFunc("/informationcollector", informationManager.Handler)
 		r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
 		r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
+		r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
 		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
 		r.HandleFunc("/recoverer", recovererChain.Handler)

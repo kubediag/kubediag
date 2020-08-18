@@ -1,0 +1,20 @@
+apiVersion: diagnosis.netease.com/v1
+kind: InformationCollector
+metadata:
+  name: process-collector
+  namespace: kube-diagnoser
+spec:
+  ip: 0.0.0.0
+  port: "8090"
+  path: /informationcollector/processcollector
+  readinessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /healthz
+      port: 8090
+      scheme: http
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  scheme: http
+  timeoutSeconds: 30

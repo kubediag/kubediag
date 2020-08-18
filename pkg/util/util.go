@@ -46,6 +46,8 @@ const (
 	PodInformationContextKey = "podInformation"
 	// ContainerInformationContextKey is the key of container information in abnormal context.
 	ContainerInformationContextKey = "containerInformation"
+	// ProcessInformationContextKey is the key of process information in abnormal context.
+	ProcessInformationContextKey = "processInformation"
 	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
 	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
 	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
