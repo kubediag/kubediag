@@ -28,21 +28,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// PodCollector manages information of all pods on the node.
-type PodCollector interface {
-	Handler(http.ResponseWriter, *http.Request)
-	ListPods() ([]corev1.Pod, error)
-}
-
-// podCollectorImpl implements PodCollector interface.
-type podCollectorImpl struct {
+// podCollector manages information of all pods on the node.
+type podCollector struct {
 	// Context carries values across API boundaries.
-	Context context.Context
-	// Log represents the ability to log messages.
-	Log logr.Logger
+	context.Context
+	// Logger represents the ability to log messages.
+	logr.Logger
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
 	// NodeName specifies the node name.
@@ -52,20 +47,20 @@ type podCollectorImpl struct {
 // NewPodCollector creates a new PodCollector.
 func NewPodCollector(
 	ctx context.Context,
-	log logr.Logger,
+	logger logr.Logger,
 	cache cache.Cache,
 	nodeName string,
-) PodCollector {
-	return &podCollectorImpl{
+) types.AbnormalProcessor {
+	return &podCollector{
 		Context:  ctx,
-		Log:      log,
+		Logger:   logger,
 		Cache:    cache,
 		NodeName: nodeName,
 	}
 }
 
 // Handler handles http requests for pod information.
-func (pc *podCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
+func (pc *podCollector) Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)
@@ -83,7 +78,7 @@ func (pc *podCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// List all pods on the node.
-		pods, err := pc.ListPods()
+		pods, err := pc.listPods()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list pods: %v", err), http.StatusInternalServerError)
 			return
@@ -112,7 +107,7 @@ func (pc *podCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 	case "GET":
 		// List all pods on the node.
-		pods, err := pc.ListPods()
+		pods, err := pc.listPods()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list pods: %v", err), http.StatusInternalServerError)
 			return
@@ -131,9 +126,9 @@ func (pc *podCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListPods lists Pods from cache.
-func (pc *podCollectorImpl) ListPods() ([]corev1.Pod, error) {
-	pc.Log.Info("listing Pods on node")
+// listPods lists Pods from cache.
+func (pc *podCollector) listPods() ([]corev1.Pod, error) {
+	pc.Info("listing Pods on node")
 
 	var podList corev1.PodList
 	if err := pc.Cache.List(pc.Context, &podList); err != nil {

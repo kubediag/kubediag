@@ -130,8 +130,8 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	// Run source manager, information manager, diagnoser chain and recoverer chain.
 	sourceManager := sourcemanager.NewSourceManager(
 		context.Background(),
-		mgr.GetClient(),
 		ctrl.Log.WithName("sourcemanager"),
+		mgr.GetClient(),
 		mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
 		mgr.GetScheme(),
 		mgr.GetCache(),
@@ -144,8 +144,8 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	}(stopCh)
 	informationManager := informationmanager.NewInformationManager(
 		context.Background(),
-		mgr.GetClient(),
 		ctrl.Log.WithName("informationmanager"),
+		mgr.GetClient(),
 		mgr.GetEventRecorderFor("kube-diagnoser/informationmanager"),
 		mgr.GetScheme(),
 		mgr.GetCache(),
@@ -158,8 +158,8 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	}(stopCh)
 	diagnoserChain := diagnoserchain.NewDiagnoserChain(
 		context.Background(),
-		mgr.GetClient(),
 		ctrl.Log.WithName("diagnoserchain"),
+		mgr.GetClient(),
 		mgr.GetEventRecorderFor("kube-diagnoser/diagnoserchain"),
 		mgr.GetScheme(),
 		mgr.GetCache(),
@@ -172,8 +172,8 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	}(stopCh)
 	recovererChain := recovererchain.NewRecovererChain(
 		context.Background(),
-		mgr.GetClient(),
 		ctrl.Log.WithName("recovererchain"),
+		mgr.GetClient(),
 		mgr.GetEventRecorderFor("kube-diagnoser/recovererchain"),
 		mgr.GetScheme(),
 		mgr.GetCache(),
@@ -193,8 +193,8 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	)
 	containerCollector, err := informationcollector.NewContainerCollector(
 		context.Background(),
-		opts.DockerEndpoint,
 		ctrl.Log.WithName("informationmanager/containercollector"),
+		opts.DockerEndpoint,
 		mgr.GetCache(),
 	)
 	if err != nil {

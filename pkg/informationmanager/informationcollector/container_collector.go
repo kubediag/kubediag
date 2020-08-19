@@ -23,29 +23,24 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/docker/docker/api/types"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// ContainerCollector manages information of all containers on the node.
-type ContainerCollector interface {
-	Handler(http.ResponseWriter, *http.Request)
-	ListContainers() ([]types.Container, error)
-}
-
-// containerCollectorImpl implements ContainerCollector interface.
-type containerCollectorImpl struct {
+// containerCollector manages information of all containers on the node.
+type containerCollector struct {
 	// Context carries values across API boundaries.
-	Context context.Context
+	context.Context
+	// Logger represents the ability to log messages.
+	logr.Logger
 	// The API client that performs all operations against a docker server.
 	Client *client.Client
-	// Log represents the ability to log messages.
-	Log logr.Logger
 	// Cache knows how to load Kubernetes objects.
 	Cache cache.Cache
 }
@@ -53,25 +48,25 @@ type containerCollectorImpl struct {
 // NewContainerCollector creates a new ContainerCollector.
 func NewContainerCollector(
 	ctx context.Context,
+	logger logr.Logger,
 	dockerEndpoint string,
-	log logr.Logger,
 	cache cache.Cache,
-) (ContainerCollector, error) {
+) (types.AbnormalProcessor, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerEndpoint))
 	if err != nil {
 		return nil, err
 	}
 
-	return &containerCollectorImpl{
+	return &containerCollector{
 		Context: ctx,
+		Logger:  logger,
 		Client:  cli,
-		Log:     log,
 		Cache:   cache,
 	}, nil
 }
 
 // Handler handles http requests for container information.
-func (cc *containerCollectorImpl) Handler(w http.ResponseWriter, r *http.Request) {
+func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)
@@ -89,7 +84,7 @@ func (cc *containerCollectorImpl) Handler(w http.ResponseWriter, r *http.Request
 		}
 
 		// List all containers on the node.
-		containers, err := cc.ListContainers()
+		containers, err := cc.listContainers()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list containers: %v", err), http.StatusInternalServerError)
 			return
@@ -118,7 +113,7 @@ func (cc *containerCollectorImpl) Handler(w http.ResponseWriter, r *http.Request
 		w.Write(data)
 	case "GET":
 		// List all containers on the node.
-		containers, err := cc.ListContainers()
+		containers, err := cc.listContainers()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list containers: %v", err), http.StatusInternalServerError)
 			return
@@ -137,12 +132,12 @@ func (cc *containerCollectorImpl) Handler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// ListContainers lists all containers on the node.
-func (cc *containerCollectorImpl) ListContainers() ([]types.Container, error) {
-	cc.Log.Info("listing containers")
+// listContainers lists all containers on the node.
+func (cc *containerCollector) listContainers() ([]dockertypes.Container, error) {
+	cc.Info("listing containers")
 
 	cc.Client.NegotiateAPIVersion(cc.Context)
-	containers, err := cc.Client.ContainerList(cc.Context, types.ContainerListOptions{})
+	containers, err := cc.Client.ContainerList(cc.Context, dockertypes.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}
