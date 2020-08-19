@@ -27,8 +27,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 )
 
 func TestUpdateAbnormalCondition(t *testing.T) {
@@ -171,6 +173,186 @@ func TestFormatURL(t *testing.T) {
 	for _, test := range tests {
 		resultURL := FormatURL(test.scheme, test.host, test.port, test.path)
 		assert.Equal(t, test.expected, resultURL, test.desc)
+	}
+}
+
+func TestListPodsFromPodInformationContext(t *testing.T) {
+	type expectedStruct struct {
+		pods []corev1.Pod
+		err  error
+	}
+
+	logger := log.NullLogger{}
+	raw, err := json.Marshal(map[string]interface{}{
+		"podInformation": []corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pod1",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pod2",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal pods: %v", err)
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			expected: expectedStruct{
+				pods: nil,
+				err:  fmt.Errorf("abnormal status context nil"),
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			expected: expectedStruct{
+				pods: nil,
+				err:  fmt.Errorf("abnormal status context empty"),
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: raw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				pods: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pod1",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pod2",
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "pods found",
+		},
+	}
+
+	for _, test := range tests {
+		pods, err := ListPodsFromPodInformationContext(test.abnormal, logger)
+		assert.Equal(t, test.expected.pods, pods, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
+func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
+	type expectedStruct struct {
+		signals types.SignalList
+		err     error
+	}
+
+	logger := log.NullLogger{}
+	raw, err := json.Marshal(map[string]interface{}{
+		"signalRecovery": types.SignalList{
+			{
+				PID:    1,
+				Signal: 1,
+			},
+			{
+				PID:    2,
+				Signal: 2,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal signals: %v", err)
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					Context: nil,
+				},
+			},
+			expected: expectedStruct{
+				signals: nil,
+				err:     fmt.Errorf("abnormal spec context nil"),
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			expected: expectedStruct{
+				signals: nil,
+				err:     fmt.Errorf("abnormal spec context empty"),
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					Context: &runtime.RawExtension{
+						Raw: raw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				signals: types.SignalList{
+					{
+						PID:    1,
+						Signal: 1,
+					},
+					{
+						PID:    2,
+						Signal: 2,
+					},
+				},
+				err: nil,
+			},
+			desc: "signals found",
+		},
+	}
+
+	for _, test := range tests {
+		signals, err := ListSignalsFromSignalRecoveryContext(test.abnormal, logger)
+		assert.Equal(t, test.expected.signals, signals, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
 	}
 }
 
