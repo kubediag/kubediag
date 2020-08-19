@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
@@ -50,6 +51,8 @@ const (
 	ProcessInformationContextKey = "processInformation"
 	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
 	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
+	// TerminatingPodDiagnosisContextKey is the key of terminating pod diagnosis result in abnormal context.
+	TerminatingPodDiagnosisContextKey = "terminatingPodDiagnosis"
 	// SignalRecoveryContextKey is the key of process signal recovery details in abnormal context.
 	SignalRecoveryContextKey = "signalRecovery"
 	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
@@ -173,6 +176,42 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 
 	log.Info("failed to complete http request", "status", res.Status, "response", string(body))
 	return abnormal, fmt.Errorf("failed with status: %s", res.Status)
+}
+
+// ListPodsFromPodInformationContext lists all pods on the node by retrieving context in abnormal.
+func ListPodsFromPodInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]corev1.Pod, error) {
+	log.Info("listing pods")
+
+	data, err := GetAbnormalStatusContext(abnormal, PodInformationContextKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var pods []corev1.Pod
+	err = json.Unmarshal(data, &pods)
+	if err != nil {
+		return nil, err
+	}
+
+	return pods, nil
+}
+
+// ListSignalsFromSignalRecoveryContext list process signal details by retrieving context in abnormal.
+func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log logr.Logger) (types.SignalList, error) {
+	log.Info("listing signals")
+
+	data, err := GetAbnormalSpecContext(abnormal, SignalRecoveryContextKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var signals types.SignalList
+	err = json.Unmarshal(data, &signals)
+	if err != nil {
+		return nil, err
+	}
+
+	return signals, nil
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.

@@ -34,25 +34,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// InformationManager manages information collectors in the system.
-type InformationManager interface {
-	Run(<-chan struct{})
-	ListInformationCollectors() ([]diagnosisv1.InformationCollector, error)
-	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
-	Handler(http.ResponseWriter, *http.Request)
-}
-
-// informationManagerImpl implements InformationManager interface.
-type informationManagerImpl struct {
+// informationManager manages information collectors in the system.
+type informationManager struct {
 	// Context carries values across API boundaries.
-	Context context.Context
+	context.Context
+	// Logger represents the ability to log messages.
+	logr.Logger
 	// Client knows how to perform CRUD operations on Kubernetes objects.
 	Client client.Client
-	// Log represents the ability to log messages.
-	Log logr.Logger
 	// EventRecorder knows how to record events on behalf of an EventSource.
 	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
@@ -73,15 +66,15 @@ type informationManagerImpl struct {
 // NewInformationManager creates a new InformationManager.
 func NewInformationManager(
 	ctx context.Context,
+	logger logr.Logger,
 	cli client.Client,
-	log logr.Logger,
 	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
-) InformationManager {
+) types.AbnormalManager {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -89,10 +82,10 @@ func NewInformationManager(
 			Proxy:             http.ProxyURL(nil),
 		})
 
-	return &informationManagerImpl{
+	return &informationManager{
 		Context:              ctx,
+		Logger:               logger,
 		Client:               cli,
-		Log:                  log,
 		EventRecorder:        eventRecorder,
 		Scheme:               scheme,
 		Cache:                cache,
@@ -104,7 +97,7 @@ func NewInformationManager(
 }
 
 // Run runs the information manager.
-func (im *informationManagerImpl) Run(stopCh <-chan struct{}) {
+func (im *informationManager) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
 	if !im.Cache.WaitForCacheSync(stopCh) {
 		return
@@ -117,10 +110,10 @@ func (im *informationManagerImpl) Run(stopCh <-chan struct{}) {
 			if util.IsAbnormalNodeNameMatched(abnormal, im.NodeName) {
 				abnormal, err := im.SyncAbnormal(abnormal)
 				if err != nil {
-					im.Log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+					im.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
 				}
 
-				im.Log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				im.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
@@ -132,42 +125,30 @@ func (im *informationManagerImpl) Run(stopCh <-chan struct{}) {
 	}
 }
 
-// ListInformationCollectors lists InformationCollectors from cache.
-func (im *informationManagerImpl) ListInformationCollectors() ([]diagnosisv1.InformationCollector, error) {
-	im.Log.Info("listing InformationCollectors")
-
-	var informationCollectorList diagnosisv1.InformationCollectorList
-	if err := im.Cache.List(im.Context, &informationCollectorList); err != nil {
-		return nil, err
-	}
-
-	return informationCollectorList.Items, nil
-}
-
 // SyncAbnormal syncs abnormals.
-func (im *informationManagerImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	im.Log.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
+func (im *informationManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	im.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
 
 	_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
 	if condition != nil {
-		im.Log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
+		im.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
 	} else {
-		informationCollectors, err := im.ListInformationCollectors()
+		informationCollectors, err := im.listInformationCollectors()
 		if err != nil {
-			im.Log.Error(err, "failed to list InformationCollectors")
+			im.Error(err, "failed to list InformationCollectors")
 			im.addAbnormalToInformationManagerQueue(abnormal)
 			return abnormal, err
 		}
 
 		abnormal, err := im.runInformationCollection(informationCollectors, abnormal)
 		if err != nil {
-			im.Log.Error(err, "failed to run collection")
+			im.Error(err, "failed to run collection")
 			im.addAbnormalToInformationManagerQueue(abnormal)
 			return abnormal, err
 		}
@@ -177,10 +158,10 @@ func (im *informationManagerImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (d
 }
 
 // Handler handles http requests and response with information collectors.
-func (im *informationManagerImpl) Handler(w http.ResponseWriter, r *http.Request) {
+func (im *informationManager) Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		informationCollectors, err := im.ListInformationCollectors()
+		informationCollectors, err := im.listInformationCollectors()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list information collectors: %v", err), http.StatusInternalServerError)
 			return
@@ -199,11 +180,23 @@ func (im *informationManagerImpl) Handler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// listInformationCollectors lists InformationCollectors from cache.
+func (im *informationManager) listInformationCollectors() ([]diagnosisv1.InformationCollector, error) {
+	im.Info("listing InformationCollectors")
+
+	var informationCollectorList diagnosisv1.InformationCollectorList
+	if err := im.Cache.List(im, &informationCollectorList); err != nil {
+		return nil, err
+	}
+
+	return informationCollectorList.Items, nil
+}
+
 // runInformationCollection collects information from information collectors.
-func (im *informationManagerImpl) runInformationCollection(informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+func (im *informationManager) runInformationCollection(informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	// Skip collection if SkipInformationCollection is true.
 	if abnormal.Spec.SkipInformationCollection {
-		im.Log.Info("skipping collection", "abnormal", client.ObjectKey{
+		im.Info("skipping collection", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
@@ -227,7 +220,7 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 		} else {
 			for _, assignedCollector := range abnormal.Spec.AssignedInformationCollectors {
 				if collector.Name == assignedCollector.Name && collector.Namespace == assignedCollector.Namespace {
-					im.Log.Info("assigned collector matched", "collector", client.ObjectKey{
+					im.Info("assigned collector matched", "collector", client.ObjectKey{
 						Name:      collector.Name,
 						Namespace: collector.Namespace,
 					}, "abnormal", client.ObjectKey{
@@ -244,7 +237,7 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 			continue
 		}
 
-		im.Log.Info("running collection", "collector", client.ObjectKey{
+		im.Info("running collection", "collector", client.ObjectKey{
 			Name:      collector.Name,
 			Namespace: collector.Namespace,
 		}, "abnormal", client.ObjectKey{
@@ -265,9 +258,9 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 		}
 
 		// Send http request to the information collector with payload of abnormal.
-		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, im.Log)
+		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, im)
 		if err != nil {
-			im.Log.Error(err, "failed to do http request to collector", "collector", client.ObjectKey{
+			im.Error(err, "failed to do http request to collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
 				Namespace: collector.Namespace,
 			}, "abnormal", client.ObjectKey{
@@ -280,7 +273,7 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 		// Validate an abnormal after processed by an information collector.
 		err = util.ValidateAbnormalResult(result, abnormal)
 		if err != nil {
-			im.Log.Error(err, "invalid result from collector", "collector", client.ObjectKey{
+			im.Error(err, "invalid result from collector", "collector", client.ObjectKey{
 				Name:      collector.Name,
 				Namespace: collector.Namespace,
 			}, "abnormal", client.ObjectKey{
@@ -318,8 +311,8 @@ func (im *informationManagerImpl) runInformationCollection(informationCollectors
 }
 
 // sendAbnormalToDiagnoserChain sends Abnormal to diagnoser chain.
-func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	im.Log.Info("sending Abnormal to diagnoser chain", "abnormal", client.ObjectKey{
+func (im *informationManager) sendAbnormalToDiagnoserChain(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	im.Info("sending Abnormal to diagnoser chain", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
@@ -329,8 +322,8 @@ func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(abnormal diagnosi
 		Type:   diagnosisv1.InformationCollected,
 		Status: corev1.ConditionTrue,
 	})
-	if err := im.Client.Status().Update(im.Context, &abnormal); err != nil {
-		im.Log.Error(err, "unable to update Abnormal")
+	if err := im.Client.Status().Update(im, &abnormal); err != nil {
+		im.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
 
@@ -338,8 +331,8 @@ func (im *informationManagerImpl) sendAbnormalToDiagnoserChain(abnormal diagnosi
 }
 
 // setAbnormalFailed sets abnormal phase to Failed.
-func (im *informationManagerImpl) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	im.Log.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
+func (im *informationManager) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	im.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
@@ -349,8 +342,8 @@ func (im *informationManagerImpl) setAbnormalFailed(abnormal diagnosisv1.Abnorma
 		Type:   diagnosisv1.InformationCollected,
 		Status: corev1.ConditionFalse,
 	})
-	if err := im.Client.Status().Update(im.Context, &abnormal); err != nil {
-		im.Log.Error(err, "unable to update Abnormal")
+	if err := im.Client.Status().Update(im, &abnormal); err != nil {
+		im.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
 
@@ -358,10 +351,10 @@ func (im *informationManagerImpl) setAbnormalFailed(abnormal diagnosisv1.Abnorma
 }
 
 // addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
-func (im *informationManagerImpl) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormal(im.Context, im.informationManagerCh, abnormal)
+func (im *informationManager) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(im, im.informationManagerCh, abnormal)
 	if err != nil {
-		im.Log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+		im.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
@@ -369,10 +362,10 @@ func (im *informationManagerImpl) addAbnormalToInformationManagerQueue(abnormal 
 }
 
 // addAbnormalToInformationManagerQueueWithTimer adds Abnormal to the queue processed by information manager with a timer.
-func (im *informationManagerImpl) addAbnormalToInformationManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormalWithTimer(im.Context, 30*time.Second, im.informationManagerCh, abnormal)
+func (im *informationManager) addAbnormalToInformationManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(im, 30*time.Second, im.informationManagerCh, abnormal)
 	if err != nil {
-		im.Log.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+		im.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})

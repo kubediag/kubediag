@@ -18,6 +18,8 @@ package sourcemanager
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -29,23 +31,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// SourceManager manages abnormals in the system.
-type SourceManager interface {
-	Run(<-chan struct{})
-	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
-}
-
-// sourceManagerImpl implements SourceManager interface.
-type sourceManagerImpl struct {
+// sourceManager manages abnormal sources in the system.
+type sourceManager struct {
 	// Context carries values across API boundaries.
-	Context context.Context
+	context.Context
+	// Logger represents the ability to log messages.
+	logr.Logger
 	// Client knows how to perform CRUD operations on Kubernetes objects.
 	Client client.Client
-	// Log represents the ability to log messages.
-	Log logr.Logger
 	// EventRecorder knows how to record events on behalf of an EventSource.
 	EventRecorder record.EventRecorder
 	// Scheme defines methods for serializing and deserializing API objects.
@@ -64,19 +61,19 @@ type sourceManagerImpl struct {
 // NewSourceManager creates a new SourceManager.
 func NewSourceManager(
 	ctx context.Context,
+	logger logr.Logger,
 	cli client.Client,
-	log logr.Logger,
 	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 	informationManagerCh chan diagnosisv1.Abnormal,
-) SourceManager {
-	return &sourceManagerImpl{
+) types.AbnormalManager {
+	return &sourceManager{
 		Context:              ctx,
+		Logger:               logger,
 		Client:               cli,
-		Log:                  log,
 		EventRecorder:        eventRecorder,
 		Scheme:               scheme,
 		Cache:                cache,
@@ -87,7 +84,7 @@ func NewSourceManager(
 }
 
 // Run runs the source manager.
-func (sm *sourceManagerImpl) Run(stopCh <-chan struct{}) {
+func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
 	if !sm.Cache.WaitForCacheSync(stopCh) {
 		return
@@ -102,10 +99,10 @@ func (sm *sourceManagerImpl) Run(stopCh <-chan struct{}) {
 			if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
 				abnormal, err := sm.SyncAbnormal(abnormal)
 				if err != nil {
-					sm.Log.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+					sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
 				}
 
-				sm.Log.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
@@ -118,8 +115,8 @@ func (sm *sourceManagerImpl) Run(stopCh <-chan struct{}) {
 }
 
 // SyncAbnormal syncs abnormals.
-func (sm *sourceManagerImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	sm.Log.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
+func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	sm.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
@@ -133,17 +130,22 @@ func (sm *sourceManagerImpl) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagno
 	return abnormal, nil
 }
 
+// Handler handles http requests.
+func (sm *sourceManager) Handler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+}
+
 // sendAbnormalToInformationManager sends Abnormal to information manager.
-func (sm *sourceManagerImpl) sendAbnormalToInformationManager(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	sm.Log.Info("sending Abnormal to information manager", "abnormal", client.ObjectKey{
+func (sm *sourceManager) sendAbnormalToInformationManager(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	sm.Info("sending Abnormal to information manager", "abnormal", client.ObjectKey{
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
 
 	abnormal.Status.StartTime = metav1.Now()
 	abnormal.Status.Phase = diagnosisv1.InformationCollecting
-	if err := sm.Client.Status().Update(sm.Context, &abnormal); err != nil {
-		sm.Log.Error(err, "unable to update Abnormal")
+	if err := sm.Client.Status().Update(sm, &abnormal); err != nil {
+		sm.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
 
@@ -151,10 +153,10 @@ func (sm *sourceManagerImpl) sendAbnormalToInformationManager(abnormal diagnosis
 }
 
 // addAbnormalToSourceManagerQueue adds Abnormal to the queue processed by source manager.
-func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormal(sm.Context, sm.informationManagerCh, abnormal)
+func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormal(sm, sm.informationManagerCh, abnormal)
 	if err != nil {
-		sm.Log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
@@ -162,10 +164,10 @@ func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueue(abnormal diagnosisv
 }
 
 // addAbnormalToSourceManagerQueueWithTimer adds Abnormal to the queue processed by source manager with a timer.
-func (sm *sourceManagerImpl) addAbnormalToSourceManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormalWithTimer(sm.Context, 30*time.Second, sm.informationManagerCh, abnormal)
+func (sm *sourceManager) addAbnormalToSourceManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	err := util.QueueAbnormalWithTimer(sm, 30*time.Second, sm.informationManagerCh, abnormal)
 	if err != nil {
-		sm.Log.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
