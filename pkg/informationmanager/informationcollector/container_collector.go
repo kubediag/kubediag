@@ -26,7 +26,6 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-logr/logr"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
@@ -39,10 +38,9 @@ type containerCollector struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// The API client that performs all operations against a docker server.
-	Client *client.Client
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
+
+	// client is the API client that performs all operations against a docker server.
+	client *client.Client
 }
 
 // NewContainerCollector creates a new ContainerCollector.
@@ -50,7 +48,6 @@ func NewContainerCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	dockerEndpoint string,
-	cache cache.Cache,
 ) (types.AbnormalProcessor, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerEndpoint))
 	if err != nil {
@@ -60,8 +57,7 @@ func NewContainerCollector(
 	return &containerCollector{
 		Context: ctx,
 		Logger:  logger,
-		Client:  cli,
-		Cache:   cache,
+		client:  cli,
 	}, nil
 }
 
@@ -136,8 +132,8 @@ func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 func (cc *containerCollector) listContainers() ([]dockertypes.Container, error) {
 	cc.Info("listing containers")
 
-	cc.Client.NegotiateAPIVersion(cc.Context)
-	containers, err := cc.Client.ContainerList(cc.Context, dockertypes.ContainerListOptions{})
+	cc.client.NegotiateAPIVersion(cc.Context)
+	containers, err := cc.client.ContainerList(cc.Context, dockertypes.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}

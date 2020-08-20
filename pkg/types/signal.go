@@ -25,6 +25,8 @@ type SignalList []Signal
 
 // Signal contains details to send a signal to a process.
 type Signal struct {
-	PID    int            `json:"pid"`
+	// PID is process ID of the process.
+	PID int `json:"pid"`
+	// Signal is the signal to send.
 	Signal syscall.Signal `json:"signal"`
 }

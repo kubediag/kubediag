@@ -41,20 +41,20 @@ type sourceManager struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Client knows how to perform CRUD operations on Kubernetes objects.
-	Client client.Client
-	// EventRecorder knows how to record events on behalf of an EventSource.
-	EventRecorder record.EventRecorder
-	// Scheme defines methods for serializing and deserializing API objects.
-	Scheme *runtime.Scheme
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
-	// NodeName specifies the node name.
-	NodeName string
 
-	// Channel for queuing Abnormals to be processed by source manager.
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// eventRecorder knows how to record events on behalf of an EventSource.
+	eventRecorder record.EventRecorder
+	// scheme defines methods for serializing and deserializing API objects.
+	scheme *runtime.Scheme
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
+	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
 	sourceManagerCh chan diagnosisv1.Abnormal
-	// Channel for queuing Abnormals to be processed by information manager.
+	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
 	informationManagerCh chan diagnosisv1.Abnormal
 }
 
@@ -73,11 +73,11 @@ func NewSourceManager(
 	return &sourceManager{
 		Context:              ctx,
 		Logger:               logger,
-		Client:               cli,
-		EventRecorder:        eventRecorder,
-		Scheme:               scheme,
-		Cache:                cache,
-		NodeName:             nodeName,
+		client:               cli,
+		eventRecorder:        eventRecorder,
+		scheme:               scheme,
+		cache:                cache,
+		nodeName:             nodeName,
 		sourceManagerCh:      sourceManagerCh,
 		informationManagerCh: informationManagerCh,
 	}
@@ -86,7 +86,7 @@ func NewSourceManager(
 // Run runs the source manager.
 func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
-	if !sm.Cache.WaitForCacheSync(stopCh) {
+	if !sm.cache.WaitForCacheSync(stopCh) {
 		return
 	}
 
@@ -94,9 +94,9 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in source manager channel.
 		case abnormal := <-sm.sourceManagerCh:
-			sm.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Created", "Created abnormal")
+			sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Created", "Created abnormal")
 
-			if util.IsAbnormalNodeNameMatched(abnormal, sm.NodeName) {
+			if util.IsAbnormalNodeNameMatched(abnormal, sm.nodeName) {
 				abnormal, err := sm.SyncAbnormal(abnormal)
 				if err != nil {
 					sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
@@ -144,7 +144,7 @@ func (sm *sourceManager) sendAbnormalToInformationManager(abnormal diagnosisv1.A
 
 	abnormal.Status.StartTime = metav1.Now()
 	abnormal.Status.Phase = diagnosisv1.InformationCollecting
-	if err := sm.Client.Status().Update(sm, &abnormal); err != nil {
+	if err := sm.client.Status().Update(sm, &abnormal); err != nil {
 		sm.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}

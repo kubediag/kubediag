@@ -44,22 +44,22 @@ type diagnoserChain struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Client knows how to perform CRUD operations on Kubernetes objects.
-	Client client.Client
-	// EventRecorder knows how to record events on behalf of an EventSource.
-	EventRecorder record.EventRecorder
-	// Scheme defines methods for serializing and deserializing API objects.
-	Scheme *runtime.Scheme
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
-	// NodeName specifies the node name.
-	NodeName string
 
-	// Transport for sending http requests to information collectors.
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// eventRecorder knows how to record events on behalf of an EventSource.
+	eventRecorder record.EventRecorder
+	// scheme defines methods for serializing and deserializing API objects.
+	scheme *runtime.Scheme
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
+	// transport is the transport for sending http requests to diagnosers.
 	transport *http.Transport
-	// Channel for queuing Abnormals to be processed by diagnoser chain.
+	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
 	diagnoserChainCh chan diagnosisv1.Abnormal
-	// Channel for queuing Abnormals to be processed by recoverer chain.
+	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
 	recovererChainCh chan diagnosisv1.Abnormal
 }
 
@@ -85,11 +85,11 @@ func NewDiagnoserChain(
 	return &diagnoserChain{
 		Context:          ctx,
 		Logger:           logger,
-		Client:           cli,
-		EventRecorder:    eventRecorder,
-		Scheme:           scheme,
-		Cache:            cache,
-		NodeName:         nodeName,
+		client:           cli,
+		eventRecorder:    eventRecorder,
+		scheme:           scheme,
+		cache:            cache,
+		nodeName:         nodeName,
 		transport:        transport,
 		diagnoserChainCh: diagnoserChainCh,
 		recovererChainCh: recovererChainCh,
@@ -99,7 +99,7 @@ func NewDiagnoserChain(
 // Run runs the diagnoser chain.
 func (dc *diagnoserChain) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
-	if !dc.Cache.WaitForCacheSync(stopCh) {
+	if !dc.cache.WaitForCacheSync(stopCh) {
 		return
 	}
 
@@ -107,7 +107,7 @@ func (dc *diagnoserChain) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in diagnoser chain channel.
 		case abnormal := <-dc.diagnoserChainCh:
-			if util.IsAbnormalNodeNameMatched(abnormal, dc.NodeName) {
+			if util.IsAbnormalNodeNameMatched(abnormal, dc.nodeName) {
 				abnormal, err := dc.SyncAbnormal(abnormal)
 				if err != nil {
 					dc.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
@@ -177,7 +177,7 @@ func (dc *diagnoserChain) listDiagnosers() ([]diagnosisv1.Diagnoser, error) {
 	dc.Info("listing Diagnosers")
 
 	var diagnoserList diagnosisv1.DiagnoserList
-	if err := dc.Cache.List(dc, &diagnoserList); err != nil {
+	if err := dc.cache.List(dc, &diagnoserList); err != nil {
 		return nil, err
 	}
 
@@ -193,7 +193,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 			Namespace: abnormal.Namespace,
 		})
 
-		dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
+		dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
 
 		abnormal, err := dc.sendAbnormalToRecovererChain(abnormal)
 		if err != nil {
@@ -284,7 +284,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 			return abnormal, err
 		}
 
-		dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Identified", "Abnormal identified by %s/%s", diagnoser.Namespace, diagnoser.Name)
+		dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Identified", "Abnormal identified by %s/%s", diagnoser.Namespace, diagnoser.Name)
 
 		return abnormal, nil
 	}
@@ -294,7 +294,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		return abnormal, err
 	}
 
-	dc.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedIdentify", "Unable to identify abnormal %s(%s)", abnormal.Name, abnormal.UID)
+	dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedIdentify", "Unable to identify abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }
@@ -312,7 +312,7 @@ func (dc *diagnoserChain) sendAbnormalToRecovererChain(abnormal diagnosisv1.Abno
 		Type:   diagnosisv1.AbnormalIdentified,
 		Status: corev1.ConditionTrue,
 	})
-	if err := dc.Client.Status().Update(dc, &abnormal); err != nil {
+	if err := dc.client.Status().Update(dc, &abnormal); err != nil {
 		dc.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
@@ -333,7 +333,7 @@ func (dc *diagnoserChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diag
 		Type:   diagnosisv1.AbnormalIdentified,
 		Status: corev1.ConditionFalse,
 	})
-	if err := dc.Client.Status().Update(dc, &abnormal); err != nil {
+	if err := dc.client.Status().Update(dc, &abnormal); err != nil {
 		dc.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}

@@ -44,20 +44,20 @@ type recovererChain struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Client knows how to perform CRUD operations on Kubernetes objects.
-	Client client.Client
-	// EventRecorder knows how to record events on behalf of an EventSource.
-	EventRecorder record.EventRecorder
-	// Scheme defines methods for serializing and deserializing API objects.
-	Scheme *runtime.Scheme
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
-	// NodeName specifies the node name.
-	NodeName string
 
-	// Transport for sending http requests to information collectors.
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// eventRecorder knows how to record events on behalf of an EventSource.
+	eventRecorder record.EventRecorder
+	// scheme defines methods for serializing and deserializing API objects.
+	scheme *runtime.Scheme
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
+	// transport is the transport for sending http requests to recoverers.
 	transport *http.Transport
-	// Channel for queuing Abnormals to be processed by recoverer chain.
+	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
 	recovererChainCh chan diagnosisv1.Abnormal
 }
 
@@ -82,11 +82,11 @@ func NewRecovererChain(
 	return &recovererChain{
 		Context:          ctx,
 		Logger:           logger,
-		Client:           cli,
-		EventRecorder:    eventRecorder,
-		Scheme:           scheme,
-		Cache:            cache,
-		NodeName:         nodeName,
+		client:           cli,
+		eventRecorder:    eventRecorder,
+		scheme:           scheme,
+		cache:            cache,
+		nodeName:         nodeName,
 		transport:        transport,
 		recovererChainCh: recovererChainCh,
 	}
@@ -95,7 +95,7 @@ func NewRecovererChain(
 // Run runs the recoverer chain.
 func (rc *recovererChain) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
-	if !rc.Cache.WaitForCacheSync(stopCh) {
+	if !rc.cache.WaitForCacheSync(stopCh) {
 		return
 	}
 
@@ -103,7 +103,7 @@ func (rc *recovererChain) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in recoverer chain channel.
 		case abnormal := <-rc.recovererChainCh:
-			if util.IsAbnormalNodeNameMatched(abnormal, rc.NodeName) {
+			if util.IsAbnormalNodeNameMatched(abnormal, rc.nodeName) {
 				abnormal, err := rc.SyncAbnormal(abnormal)
 				if err != nil {
 					rc.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
@@ -173,7 +173,7 @@ func (rc *recovererChain) listRecoverers() ([]diagnosisv1.Recoverer, error) {
 	rc.Info("listing Recoverers")
 
 	var recovererList diagnosisv1.RecovererList
-	if err := rc.Cache.List(rc, &recovererList); err != nil {
+	if err := rc.cache.List(rc, &recovererList); err != nil {
 		return nil, err
 	}
 
@@ -189,7 +189,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 			Namespace: abnormal.Namespace,
 		})
 
-		rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
+		rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
 
 		abnormal, err := rc.setAbnormalSucceeded(abnormal)
 		if err != nil {
@@ -280,7 +280,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 			return abnormal, err
 		}
 
-		rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Recovered", "Abnormal recovered by %s/%s", recoverer.Namespace, recoverer.Name)
+		rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Recovered", "Abnormal recovered by %s/%s", recoverer.Namespace, recoverer.Name)
 
 		return abnormal, nil
 	}
@@ -290,7 +290,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		return abnormal, err
 	}
 
-	rc.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedRecover", "Unable to recover abnormal %s(%s)", abnormal.Name, abnormal.UID)
+	rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedRecover", "Unable to recover abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }
@@ -308,7 +308,7 @@ func (rc *recovererChain) setAbnormalSucceeded(abnormal diagnosisv1.Abnormal) (d
 		Type:   diagnosisv1.AbnormalRecovered,
 		Status: corev1.ConditionTrue,
 	})
-	if err := rc.Client.Status().Update(rc, &abnormal); err != nil {
+	if err := rc.client.Status().Update(rc, &abnormal); err != nil {
 		rc.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
@@ -329,7 +329,7 @@ func (rc *recovererChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diag
 		Type:   diagnosisv1.AbnormalRecovered,
 		Status: corev1.ConditionFalse,
 	})
-	if err := rc.Client.Status().Update(rc, &abnormal); err != nil {
+	if err := rc.client.Status().Update(rc, &abnormal); err != nil {
 		rc.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
