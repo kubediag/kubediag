@@ -183,7 +183,7 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 	}
 
 	logger := log.NullLogger{}
-	raw, err := json.Marshal(map[string]interface{}{
+	specRaw, err := json.Marshal(map[string]interface{}{
 		"podInformation": []corev1.Pod{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -193,6 +193,23 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "pod2",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal pods: %v", err)
+	}
+	statusRaw, err := json.Marshal(map[string]interface{}{
+		"podInformation": []corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pod3",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pod4",
 				},
 			},
 		},
@@ -232,9 +249,9 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 		},
 		{
 			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+				Spec: diagnosisv1.AbnormalSpec{
 					Context: &runtime.RawExtension{
-						Raw: raw,
+						Raw: specRaw,
 					},
 				},
 			},
@@ -253,7 +270,32 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 				},
 				err: nil,
 			},
-			desc: "pods found",
+			desc: "pods found in spec context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: statusRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				pods: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pod3",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pod4",
+						},
+					},
+				},
+				err: nil,
+			},
+			desc: "pods found in status context",
 		},
 	}
 
@@ -275,7 +317,7 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	}
 
 	logger := log.NullLogger{}
-	raw, err := json.Marshal(map[string]interface{}{
+	specRaw, err := json.Marshal(map[string]interface{}{
 		"signalRecovery": types.SignalList{
 			{
 				PID:    1,
@@ -290,6 +332,21 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	if err != nil {
 		t.Errorf("unable to marshal signals: %v", err)
 	}
+	statusRaw, err := json.Marshal(map[string]interface{}{
+		"signalRecovery": types.SignalList{
+			{
+				PID:    3,
+				Signal: 3,
+			},
+			{
+				PID:    4,
+				Signal: 4,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal signals: %v", err)
+	}
 
 	tests := []struct {
 		abnormal diagnosisv1.Abnormal
@@ -298,25 +355,25 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	}{
 		{
 			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+				Status: diagnosisv1.AbnormalStatus{
 					Context: nil,
 				},
 			},
 			expected: expectedStruct{
 				signals: nil,
-				err:     fmt.Errorf("abnormal spec context nil"),
+				err:     fmt.Errorf("abnormal status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
 			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+				Status: diagnosisv1.AbnormalStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			expected: expectedStruct{
 				signals: nil,
-				err:     fmt.Errorf("abnormal spec context empty"),
+				err:     fmt.Errorf("abnormal status context empty"),
 			},
 			desc: "empty context",
 		},
@@ -324,7 +381,7 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 			abnormal: diagnosisv1.Abnormal{
 				Spec: diagnosisv1.AbnormalSpec{
 					Context: &runtime.RawExtension{
-						Raw: raw,
+						Raw: specRaw,
 					},
 				},
 			},
@@ -341,13 +398,154 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 				},
 				err: nil,
 			},
-			desc: "signals found",
+			desc: "signals found in spec context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: statusRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				signals: types.SignalList{
+					{
+						PID:    3,
+						Signal: 3,
+					},
+					{
+						PID:    4,
+						Signal: 4,
+					},
+				},
+				err: nil,
+			},
+			desc: "signals found in status context",
 		},
 	}
 
 	for _, test := range tests {
 		signals, err := ListSignalsFromSignalRecoveryContext(test.abnormal, logger)
 		assert.Equal(t, test.expected.signals, signals, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
+func TestListProcessesFromProcessInformationContext(t *testing.T) {
+	type expectedStruct struct {
+		processes []types.Process
+		err       error
+	}
+
+	logger := log.NullLogger{}
+	specRaw, err := json.Marshal(map[string]interface{}{
+		"processInformation": []types.Process{
+			{
+				PID: 1,
+			},
+			{
+				PID: 2,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal signals: %v", err)
+	}
+	statusRaw, err := json.Marshal(map[string]interface{}{
+		"processInformation": []types.Process{
+			{
+				PID: 3,
+			},
+			{
+				PID: 4,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal signals: %v", err)
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			expected: expectedStruct{
+				processes: nil,
+				err:       fmt.Errorf("abnormal status context nil"),
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			expected: expectedStruct{
+				processes: nil,
+				err:       fmt.Errorf("abnormal status context empty"),
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					Context: &runtime.RawExtension{
+						Raw: specRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				processes: []types.Process{
+					{
+						PID: 1,
+					},
+					{
+						PID: 2,
+					},
+				},
+				err: nil,
+			},
+			desc: "processes found in spec context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: statusRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				processes: []types.Process{
+					{
+						PID: 3,
+					},
+					{
+						PID: 4,
+					},
+				},
+				err: nil,
+			},
+			desc: "processes found in status context",
+		},
+	}
+
+	for _, test := range tests {
+		processes, err := ListProcessesFromProcessInformationContext(test.abnormal, logger)
+		assert.Equal(t, test.expected.processes, processes, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -406,32 +604,8 @@ func TestValidateAbnormalResult(t *testing.T) {
 		},
 	}
 
-	invalidSource := abnormal
-	invalidSource.Spec.Source = "KubernetesEvent"
-
-	invalidKubernetesEvent := abnormal
-	invalidKubernetesEvent.Spec.KubernetesEvent = nil
-
-	invalidSkipInformationCollection := abnormal
-	invalidSkipInformationCollection.Spec.SkipInformationCollection = true
-
-	invalidSkipDiagnosis := abnormal
-	invalidSkipDiagnosis.Spec.SkipDiagnosis = true
-
-	invalidSkipRecovery := abnormal
-	invalidSkipRecovery.Spec.SkipRecovery = true
-
-	invalidNodeName := abnormal
-	invalidNodeName.Spec.NodeName = "node2"
-
-	invalidAssignedInformationCollectors := abnormal
-	invalidAssignedInformationCollectors.Spec.AssignedInformationCollectors = nil
-
-	invalidAssignedDiagnosers := abnormal
-	invalidAssignedDiagnosers.Spec.AssignedDiagnosers = nil
-
-	invalidAssignedRecoverers := abnormal
-	invalidAssignedRecoverers.Spec.AssignedRecoverers = nil
+	invalidSpec := abnormal
+	invalidSpec.Spec.Source = "KubernetesEvent"
 
 	invalidIdentifiable := abnormal
 	invalidIdentifiable.Status.Identifiable = true
@@ -497,57 +671,9 @@ func TestValidateAbnormalResult(t *testing.T) {
 		},
 		{
 			current:  abnormal,
-			result:   invalidSource,
-			expected: fmt.Errorf("source field of Abnormal must not be modified"),
-			desc:     "invalid source field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidKubernetesEvent,
-			expected: fmt.Errorf("kubernetesEvent field of Abnormal must not be modified"),
-			desc:     "invalid kubernetesEvent field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidSkipInformationCollection,
-			expected: fmt.Errorf("skipInformationCollection field of Abnormal must not be modified"),
-			desc:     "invalid skipInformationCollection field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidSkipDiagnosis,
-			expected: fmt.Errorf("skipDiagnosis field of Abnormal must not be modified"),
-			desc:     "invalid skipDiagnosis field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidSkipRecovery,
-			expected: fmt.Errorf("skipRecovery field of Abnormal must not be modified"),
-			desc:     "invalid skipRecovery field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidNodeName,
-			expected: fmt.Errorf("nodeName field of Abnormal must not be modified"),
-			desc:     "invalid nodeName field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidAssignedInformationCollectors,
-			expected: fmt.Errorf("assignedInformationCollectors field of Abnormal must not be modified"),
-			desc:     "invalid assignedInformationCollectors field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidAssignedDiagnosers,
-			expected: fmt.Errorf("assignedDiagnosers field of Abnormal must not be modified"),
-			desc:     "invalid assignedDiagnosers field",
-		},
-		{
-			current:  abnormal,
-			result:   invalidAssignedRecoverers,
-			expected: fmt.Errorf("assignedRecoverers field of Abnormal must not be modified"),
-			desc:     "invalid assignedRecoverers field",
+			result:   invalidSpec,
+			expected: fmt.Errorf("spec field of Abnormal must not be modified"),
+			desc:     "invalid spec field",
 		},
 		{
 			current:  abnormal,
