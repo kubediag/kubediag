@@ -94,8 +94,6 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in source manager channel.
 		case abnormal := <-sm.sourceManagerCh:
-			sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Created", "Created abnormal")
-
 			if util.IsAbnormalNodeNameMatched(abnormal, sm.nodeName) {
 				abnormal, err := sm.SyncAbnormal(abnormal)
 				if err != nil {
@@ -120,6 +118,8 @@ func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv
 		Name:      abnormal.Name,
 		Namespace: abnormal.Namespace,
 	})
+
+	sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Accepted", "Accepted abnormal")
 
 	abnormal, err := sm.sendAbnormalToInformationManager(abnormal)
 	if err != nil {
