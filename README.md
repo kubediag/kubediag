@@ -25,6 +25,7 @@ make deploy
 
 ```bash
 kubectl create namespace kube-diagnoser
+kubectl apply -f config/crd/bases
 kubectl apply -f config/rbac
 kubectl apply -f config/deploy
 ```
