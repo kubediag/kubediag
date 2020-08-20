@@ -7,10 +7,10 @@ spec:
   skipInformationCollection: true
   skipDiagnosis: true
   skipRecovery: false
-  assignedInformationCollectors:
+  assignedRecoverers:
   - name: signal-recoverer
     namespace: kube-diagnoser
   context:
     signalRecovery:
     - pid: 1000
-    - signal: 10
+      signal: 10
