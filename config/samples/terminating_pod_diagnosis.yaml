@@ -1,0 +1,17 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: terminating-pod-diagnosis
+spec:
+  source: Custom
+  skipInformationCollection: false
+  skipDiagnosis: false
+  skipRecovery: true
+  assignedInformationCollectors:
+  - name: pod-collector
+    namespace: kube-diagnoser
+  - name: process-collector
+    namespace: kube-diagnoser
+  assignedDiagnosers:
+  - name: terminating-pod-diagnoser
+    namespace: kube-diagnoser

@@ -62,6 +62,9 @@ const (
 	KubeletRunDirectory = "/var/lib/kubelet"
 	// KubeletPodDirectory specifies the directory where the kubelet pod information is stored.
 	KubeletPodDirectory = "/var/lib/kubelet/pods"
+	// PodKillGracePeriodSeconds is the duration in seconds after the pod is forcibly halted
+	// with a kill signal and the time when the pod is taken as an abormal pod.
+	PodKillGracePeriodSeconds = 30
 )
 
 // UpdateAbnormalCondition updates existing abnormal condition or creates a new one. Sets
@@ -182,9 +185,13 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 func ListPodsFromPodInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]corev1.Pod, error) {
 	log.Info("listing pods")
 
-	data, err := GetAbnormalStatusContext(abnormal, PodInformationContextKey)
+	// Retrieve value from status context if context key is not found in spec context.
+	data, err := GetAbnormalSpecContext(abnormal, PodInformationContextKey)
 	if err != nil {
-		return nil, err
+		data, err = GetAbnormalStatusContext(abnormal, PodInformationContextKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var pods []corev1.Pod
@@ -200,9 +207,13 @@ func ListPodsFromPodInformationContext(abnormal diagnosisv1.Abnormal, log logr.L
 func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log logr.Logger) (types.SignalList, error) {
 	log.Info("listing signals")
 
+	// Retrieve value from status context if context key is not found in spec context.
 	data, err := GetAbnormalSpecContext(abnormal, SignalRecoveryContextKey)
 	if err != nil {
-		return nil, err
+		data, err = GetAbnormalStatusContext(abnormal, SignalRecoveryContextKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var signals types.SignalList
@@ -214,18 +225,32 @@ func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log log
 	return signals, nil
 }
 
+// ListProcessesFromProcessInformationContext list processes by retrieving context in abnormal.
+func ListProcessesFromProcessInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]types.Process, error) {
+	log.Info("listing processes")
+
+	// Retrieve value from status context if context key is not found in spec context.
+	data, err := GetAbnormalSpecContext(abnormal, ProcessInformationContextKey)
+	if err != nil {
+		data, err = GetAbnormalStatusContext(abnormal, ProcessInformationContextKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var processes []types.Process
+	err = json.Unmarshal(data, &processes)
+	if err != nil {
+		return nil, err
+	}
+
+	return processes, nil
+}
+
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
 // The following fields must not be modified after processed:
 //
-// .spec.source
-// .spec.kubernetesEvent
-// .spec.skipInformationCollection
-// .spec.skipDiagnosis
-// .spec.skipRecovery
-// .spec.nodeName
-// .spec.assignedInformationCollectors
-// .spec.assignedDiagnosers
-// .spec.assignedRecoverers
+// .spec
 // .status.identifiable
 // .status.recoverable
 // .status.phase
@@ -236,32 +261,8 @@ func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log log
 // .status.diagnoser
 // .status.recoverer
 func ValidateAbnormalResult(result diagnosisv1.Abnormal, current diagnosisv1.Abnormal) error {
-	if !reflect.DeepEqual(result.Spec.Source, current.Spec.Source) {
-		return fmt.Errorf("source field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.KubernetesEvent, current.Spec.KubernetesEvent) {
-		return fmt.Errorf("kubernetesEvent field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.SkipInformationCollection, current.Spec.SkipInformationCollection) {
-		return fmt.Errorf("skipInformationCollection field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.SkipDiagnosis, current.Spec.SkipDiagnosis) {
-		return fmt.Errorf("skipDiagnosis field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.SkipRecovery, current.Spec.SkipRecovery) {
-		return fmt.Errorf("skipRecovery field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.NodeName, current.Spec.NodeName) {
-		return fmt.Errorf("nodeName field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.AssignedInformationCollectors, current.Spec.AssignedInformationCollectors) {
-		return fmt.Errorf("assignedInformationCollectors field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.AssignedDiagnosers, current.Spec.AssignedDiagnosers) {
-		return fmt.Errorf("assignedDiagnosers field of Abnormal must not be modified")
-	}
-	if !reflect.DeepEqual(result.Spec.AssignedRecoverers, current.Spec.AssignedRecoverers) {
-		return fmt.Errorf("assignedRecoverers field of Abnormal must not be modified")
+	if !reflect.DeepEqual(result.Spec, current.Spec) {
+		return fmt.Errorf("spec field of Abnormal must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Identifiable, current.Status.Identifiable) {
 		return fmt.Errorf("identifiable field of Abnormal must not be modified")
@@ -579,9 +580,9 @@ func GetUsedBytes(path string) uint64 {
 	return (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
 }
 
-// DiskUsage calculates the disk usage of a directory by executing du command.
+// DiskUsage calculates the disk usage of a directory by executing "du" command.
 func DiskUsage(path string) (int, error) {
-	// Uses the same niceness level as cadvisor.fs does when running du.
+	// Uses the same niceness level as cadvisor.fs does when running "du".
 	// Uses -B 1 to always scale to a blocksize of 1 byte.
 	out, err := exec.Command("nice", "-n", "19", "du", "-s", "-B", "1", path).CombinedOutput()
 	if err != nil {

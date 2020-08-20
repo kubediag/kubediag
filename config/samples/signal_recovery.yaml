@@ -1,0 +1,16 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: signal-recovery
+spec:
+  source: Custom
+  skipInformationCollection: true
+  skipDiagnosis: true
+  skipRecovery: false
+  assignedInformationCollectors:
+  - name: signal-recoverer
+    namespace: kube-diagnoser
+  context:
+    signalRecovery:
+    - pid: 1000
+    - signal: 10

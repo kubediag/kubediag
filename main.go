@@ -209,6 +209,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		context.Background(),
 		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
 	)
+	terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
+		context.Background(),
+		ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
+	)
 	signalRecoverer := recoverer.NewSignalRecoverer(
 		context.Background(),
 		ctrl.Log.WithName("recovererchain/signalrecoverer"),
@@ -223,6 +227,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
 		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
+		r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
 		r.HandleFunc("/recoverer", recovererChain.Handler)
 		r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
 		r.HandleFunc("/healthz", HealthCheckHandler)
