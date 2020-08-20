@@ -195,7 +195,6 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		context.Background(),
 		ctrl.Log.WithName("informationmanager/containercollector"),
 		opts.DockerEndpoint,
-		mgr.GetCache(),
 	)
 	if err != nil {
 		setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")

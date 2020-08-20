@@ -44,22 +44,22 @@ type informationManager struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Client knows how to perform CRUD operations on Kubernetes objects.
-	Client client.Client
-	// EventRecorder knows how to record events on behalf of an EventSource.
-	EventRecorder record.EventRecorder
-	// Scheme defines methods for serializing and deserializing API objects.
-	Scheme *runtime.Scheme
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
-	// NodeName specifies the node name.
-	NodeName string
 
-	// Transport for sending http requests to information collectors.
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// eventRecorder knows how to record events on behalf of an EventSource.
+	eventRecorder record.EventRecorder
+	// scheme defines methods for serializing and deserializing API objects.
+	scheme *runtime.Scheme
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
+	// transport is the transport for sending http requests to information collectors.
 	transport *http.Transport
-	// Channel for queuing Abnormals to be processed by information manager.
+	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
 	informationManagerCh chan diagnosisv1.Abnormal
-	// Channel for queuing Abnormals to be processed by diagnoser chain.
+	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
 	diagnoserChainCh chan diagnosisv1.Abnormal
 }
 
@@ -85,11 +85,11 @@ func NewInformationManager(
 	return &informationManager{
 		Context:              ctx,
 		Logger:               logger,
-		Client:               cli,
-		EventRecorder:        eventRecorder,
-		Scheme:               scheme,
-		Cache:                cache,
-		NodeName:             nodeName,
+		client:               cli,
+		eventRecorder:        eventRecorder,
+		scheme:               scheme,
+		cache:                cache,
+		nodeName:             nodeName,
 		transport:            transport,
 		informationManagerCh: informationManagerCh,
 		diagnoserChainCh:     diagnoserChainCh,
@@ -99,7 +99,7 @@ func NewInformationManager(
 // Run runs the information manager.
 func (im *informationManager) Run(stopCh <-chan struct{}) {
 	// Wait for all caches to sync before processing.
-	if !im.Cache.WaitForCacheSync(stopCh) {
+	if !im.cache.WaitForCacheSync(stopCh) {
 		return
 	}
 
@@ -107,7 +107,7 @@ func (im *informationManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in information manager channel.
 		case abnormal := <-im.informationManagerCh:
-			if util.IsAbnormalNodeNameMatched(abnormal, im.NodeName) {
+			if util.IsAbnormalNodeNameMatched(abnormal, im.nodeName) {
 				abnormal, err := im.SyncAbnormal(abnormal)
 				if err != nil {
 					im.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
@@ -185,7 +185,7 @@ func (im *informationManager) listInformationCollectors() ([]diagnosisv1.Informa
 	im.Info("listing InformationCollectors")
 
 	var informationCollectorList diagnosisv1.InformationCollectorList
-	if err := im.Cache.List(im, &informationCollectorList); err != nil {
+	if err := im.cache.List(im, &informationCollectorList); err != nil {
 		return nil, err
 	}
 
@@ -201,7 +201,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 			Namespace: abnormal.Namespace,
 		})
 
-		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingCollection", "Skipping collection")
+		im.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingCollection", "Skipping collection")
 
 		abnormal, err := im.sendAbnormalToDiagnoserChain(abnormal)
 		if err != nil {
@@ -286,7 +286,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		informationCollected = true
 		abnormal.Status = result.Status
 
-		im.EventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
+		im.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
 	}
 
 	// All assigned information collectors will be executed. The Abnormal will be sent to diagnoser chain
@@ -305,7 +305,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		return abnormal, err
 	}
 
-	im.EventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedCollect", "Unable to collect information for abnormal %s(%s)", abnormal.Name, abnormal.UID)
+	im.eventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedCollect", "Unable to collect information for abnormal %s(%s)", abnormal.Name, abnormal.UID)
 
 	return abnormal, nil
 }
@@ -322,7 +322,7 @@ func (im *informationManager) sendAbnormalToDiagnoserChain(abnormal diagnosisv1.
 		Type:   diagnosisv1.InformationCollected,
 		Status: corev1.ConditionTrue,
 	})
-	if err := im.Client.Status().Update(im, &abnormal); err != nil {
+	if err := im.client.Status().Update(im, &abnormal); err != nil {
 		im.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}
@@ -342,7 +342,7 @@ func (im *informationManager) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (
 		Type:   diagnosisv1.InformationCollected,
 		Status: corev1.ConditionFalse,
 	})
-	if err := im.Client.Status().Update(im, &abnormal); err != nil {
+	if err := im.client.Status().Update(im, &abnormal); err != nil {
 		im.Error(err, "unable to update Abnormal")
 		return abnormal, err
 	}

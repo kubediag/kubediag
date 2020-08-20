@@ -38,10 +38,11 @@ type podCollector struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Cache knows how to load Kubernetes objects.
-	Cache cache.Cache
-	// NodeName specifies the node name.
-	NodeName string
+
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
 }
 
 // NewPodCollector creates a new PodCollector.
@@ -54,8 +55,8 @@ func NewPodCollector(
 	return &podCollector{
 		Context:  ctx,
 		Logger:   logger,
-		Cache:    cache,
-		NodeName: nodeName,
+		cache:    cache,
+		nodeName: nodeName,
 	}
 }
 
@@ -131,11 +132,11 @@ func (pc *podCollector) listPods() ([]corev1.Pod, error) {
 	pc.Info("listing Pods on node")
 
 	var podList corev1.PodList
-	if err := pc.Cache.List(pc.Context, &podList); err != nil {
+	if err := pc.cache.List(pc.Context, &podList); err != nil {
 		return nil, err
 	}
 
-	podsOnNode := util.RetrievePodsOnNode(podList.Items, pc.NodeName)
+	podsOnNode := util.RetrievePodsOnNode(podList.Items, pc.nodeName)
 
 	return podsOnNode, nil
 }
