@@ -63,7 +63,7 @@ type diagnoserChain struct {
 	recovererChainCh chan diagnosisv1.Abnormal
 }
 
-// NewDiagnoserChain creates a new DiagnoserChain.
+// NewDiagnoserChain creates a new diagnoserChain.
 func NewDiagnoserChain(
 	ctx context.Context,
 	logger logr.Logger,

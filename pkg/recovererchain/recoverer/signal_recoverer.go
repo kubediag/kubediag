@@ -39,7 +39,7 @@ type signalRecoverer struct {
 	logr.Logger
 }
 
-// NewSignalRecoverer creates a new SignalRecoverer.
+// NewSignalRecoverer creates a new signalRecoverer.
 func NewSignalRecoverer(
 	ctx context.Context,
 	logger logr.Logger,

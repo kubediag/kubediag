@@ -44,7 +44,7 @@ type terminatingPodDiagnoser struct {
 	logr.Logger
 }
 
-// NewTerminatingPodDiagnoser creates a new TerminatingPodDiagnoser.
+// NewTerminatingPodDiagnoser creates a new terminatingPodDiagnoser.
 func NewTerminatingPodDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,

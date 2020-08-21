@@ -38,7 +38,7 @@ spec:
   source: Custom
 ```
 
-Process Collector 成功采集信息后会将节点进程列表记录到 `.status.context.containerInformation` 字段：
+Process Collector 成功采集信息后会将节点进程列表记录到 `.status.context.processInformation` 字段：
 
 ```yaml
 status:

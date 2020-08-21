@@ -548,6 +548,18 @@ func RetrievePodsOnNode(pods []corev1.Pod, nodeName string) []corev1.Pod {
 	return podsOnNode
 }
 
+// RetrieveAbnormalsOnNode retrieves all abnormals on the provided node.
+func RetrieveAbnormalsOnNode(abnormals []diagnosisv1.Abnormal, nodeName string) []diagnosisv1.Abnormal {
+	abnormalsOnNode := make([]diagnosisv1.Abnormal, 0)
+	for _, abnormal := range abnormals {
+		if abnormal.Spec.NodeName == nodeName {
+			abnormalsOnNode = append(abnormalsOnNode, abnormal)
+		}
+	}
+
+	return abnormalsOnNode
+}
+
 // GetTotalBytes gets total bytes in filesystem.
 func GetTotalBytes(path string) uint64 {
 	var stat syscall.Statfs_t

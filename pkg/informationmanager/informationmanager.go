@@ -63,7 +63,7 @@ type informationManager struct {
 	diagnoserChainCh chan diagnosisv1.Abnormal
 }
 
-// NewInformationManager creates a new InformationManager.
+// NewInformationManager creates a new informationManager.
 func NewInformationManager(
 	ctx context.Context,
 	logger logr.Logger,
