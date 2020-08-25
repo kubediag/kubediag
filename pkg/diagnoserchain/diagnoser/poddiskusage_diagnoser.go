@@ -40,7 +40,7 @@ type podDiskUsageDiagnoser struct {
 	logr.Logger
 }
 
-// NewPodDiskUsageDiagnoser creates a new PodDiskUsageDiagnoser.
+// NewPodDiskUsageDiagnoser creates a new podDiskUsageDiagnoser.
 func NewPodDiskUsageDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,

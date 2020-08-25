@@ -58,7 +58,7 @@ type sourceManager struct {
 	informationManagerCh chan diagnosisv1.Abnormal
 }
 
-// NewSourceManager creates a new SourceManager.
+// NewSourceManager creates a new sourceManager.
 func NewSourceManager(
 	ctx context.Context,
 	logger logr.Logger,

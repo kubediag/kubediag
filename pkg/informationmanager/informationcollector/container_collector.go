@@ -43,7 +43,7 @@ type containerCollector struct {
 	client *client.Client
 }
 
-// NewContainerCollector creates a new ContainerCollector.
+// NewContainerCollector creates a new containerCollector.
 func NewContainerCollector(
 	ctx context.Context,
 	logger logr.Logger,
@@ -132,8 +132,8 @@ func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 func (cc *containerCollector) listContainers() ([]dockertypes.Container, error) {
 	cc.Info("listing containers")
 
-	cc.client.NegotiateAPIVersion(cc.Context)
-	containers, err := cc.client.ContainerList(cc.Context, dockertypes.ContainerListOptions{})
+	cc.client.NegotiateAPIVersion(cc)
+	containers, err := cc.client.ContainerList(cc, dockertypes.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}

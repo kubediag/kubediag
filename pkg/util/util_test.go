@@ -1531,6 +1531,75 @@ func TestRetrievePodsOnNode(t *testing.T) {
 	}
 }
 
+func TestRetrieveAbnormalsOnNode(t *testing.T) {
+	tests := []struct {
+		abnormals []diagnosisv1.Abnormal
+		nodeName  string
+		expected  []diagnosisv1.Abnormal
+		desc      string
+	}{
+		{
+			abnormals: []diagnosisv1.Abnormal{},
+			nodeName:  "node1",
+			expected:  []diagnosisv1.Abnormal{},
+			desc:      "empty slice",
+		},
+		{
+			abnormals: []diagnosisv1.Abnormal{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abnormal1",
+					},
+					Spec: diagnosisv1.AbnormalSpec{
+						NodeName: "node1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abnormal2",
+					},
+					Spec: diagnosisv1.AbnormalSpec{
+						NodeName: "node2",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abnormal3",
+					},
+					Spec: diagnosisv1.AbnormalSpec{
+						NodeName: "node1",
+					},
+				},
+			},
+			nodeName: "node1",
+			expected: []diagnosisv1.Abnormal{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abnormal1",
+					},
+					Spec: diagnosisv1.AbnormalSpec{
+						NodeName: "node1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abnormal3",
+					},
+					Spec: diagnosisv1.AbnormalSpec{
+						NodeName: "node1",
+					},
+				},
+			},
+			desc: "abnormals not on provided node removed",
+		},
+	}
+
+	for _, test := range tests {
+		resultAbnormals := RetrieveAbnormalsOnNode(test.abnormals, test.nodeName)
+		assert.Equal(t, test.expected, resultAbnormals, test.desc)
+	}
+}
+
 func newTestingMap(keysAndValues ...string) ([]byte, error) {
 	if len(keysAndValues) < 2 || len(keysAndValues)%2 == 1 {
 		return nil, fmt.Errorf("invalid input for keys and values: %v", keysAndValues)

@@ -40,7 +40,7 @@ type processCollector struct {
 	logr.Logger
 }
 
-// NewProcessCollector creates a new ProcessCollector.
+// NewProcessCollector creates a new processCollector.
 func NewProcessCollector(
 	ctx context.Context,
 	logger logr.Logger,

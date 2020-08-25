@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +36,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
@@ -63,6 +65,12 @@ type KubeDiagnoserAgentOptions struct {
 	EnableLeaderElection bool
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
+	// AbnormalTTL is amount of time to retain abnormals.
+	AbnormalTTL time.Duration
+	// MinimumAbnormalTTLDuration is minimum age for a finished abnormal before it is garbage collected.
+	MinimumAbnormalTTLDuration time.Duration
+	// MaximumAbnormalsPerNode is maximum number of finished abnormals to retain per node.
+	MaximumAbnormalsPerNode int32
 }
 
 func init() {
@@ -97,9 +105,12 @@ of an Abnormal.`,
 // NewKubeDiagnoserAgentOptions creates a new KubeDiagnoserAgentOptions with a default config.
 func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 	return &KubeDiagnoserAgentOptions{
-		Address:              "0.0.0.0:8090",
-		MetricsAddress:       "0.0.0.0:10357",
-		EnableLeaderElection: false,
+		Address:                    "0.0.0.0:8090",
+		MetricsAddress:             "0.0.0.0:10357",
+		EnableLeaderElection:       false,
+		AbnormalTTL:                240 * time.Hour,
+		MinimumAbnormalTTLDuration: 30 * time.Minute,
+		MaximumAbnormalsPerNode:    20,
 	}
 }
 
@@ -182,6 +193,22 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 	)
 	go func(stopCh chan struct{}) {
 		recovererChain.Run(stopCh)
+	}(stopCh)
+
+	// Run abnormal reaper for garbage collection.
+	abnormalreaper := abnormalreaper.NewAbnormalReaper(
+		context.Background(),
+		ctrl.Log.WithName("abnormalreaper"),
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetCache(),
+		opts.NodeName,
+		opts.AbnormalTTL,
+		opts.MinimumAbnormalTTLDuration,
+		opts.MaximumAbnormalsPerNode,
+	)
+	go func(stopCh chan struct{}) {
+		abnormalreaper.Run(stopCh)
 	}(stopCh)
 
 	// Setup information collectors, diagnosers and recoverers.
@@ -297,6 +324,9 @@ func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser agent.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
+	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
+	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
+	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

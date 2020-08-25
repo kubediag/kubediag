@@ -45,7 +45,7 @@ type podCollector struct {
 	nodeName string
 }
 
-// NewPodCollector creates a new PodCollector.
+// NewPodCollector creates a new podCollector.
 func NewPodCollector(
 	ctx context.Context,
 	logger logr.Logger,
@@ -132,7 +132,7 @@ func (pc *podCollector) listPods() ([]corev1.Pod, error) {
 	pc.Info("listing Pods on node")
 
 	var podList corev1.PodList
-	if err := pc.cache.List(pc.Context, &podList); err != nil {
+	if err := pc.cache.List(pc, &podList); err != nil {
 		return nil, err
 	}
 
