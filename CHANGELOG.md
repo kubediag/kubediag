@@ -1,6 +1,15 @@
 # Changelog
 
-- [v0.1.0](#first-release)
+- [v0.1.1](#v011)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
+- [v0.1.0](#v010)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
     - [Bug or Regression](#bug-or-regression)
@@ -10,7 +19,44 @@
     - [Changed](#changed)
     - [Removed](#removed)
 
-## First Release
+## v0.1.1
+
+### Changes by Kind
+
+#### API Change
+
+- Add interfaces for AbnormalProcessor and AbnormalManager.
+
+#### Bug or Regression
+
+- Util functions `ListPodsFromPodInformationContext` and `ListProcessesFromProcessInformationContext` get context value from both spec and status.
+- Fix inappropriate privates fields usages in private types.
+- Fix duplicated `Created` event issue.
+
+#### Other
+
+- Signal recoverer handler on advertised port and http path `/recoverer/signalrecoverer`.
+- Process collector handler on advertised port and http path `/informationcollector/processcollector`.
+- Terminating pod diagnoser handler on advertised port and http path `/diagnoser/terminatingpoddiagnoser`.
+- Implement abnormal reaper for garbage collection.
+
+## Dependencies
+
+### Added
+
+- github.com/StackExchange/wmi: [cbe66965904d](https://github.com/StackExchange/wmi/tree/cbe66965904d)
+- github.com/go-ole/go-ole: [v1.2.4](https://github.com/go-ole/go-ole/tree/v1.2.4)
+- github.com/shirou/gopsutil: [v2.20.7](https://github.com/shirou/gopsutil/tree/v2.20.7)
+
+### Changed
+
+_Nothing has changed._
+
+### Removed
+
+_Nothing has changed._
+
+## v0.1.0
 
 ### Changes by Kind
 
