@@ -596,7 +596,8 @@ func GetUsedBytes(path string) uint64 {
 func DiskUsage(path string) (int, error) {
 	// Uses the same niceness level as cadvisor.fs does when running "du".
 	// Uses -B 1 to always scale to a blocksize of 1 byte.
-	out, err := exec.Command("nice", "-n", "19", "du", "-s", "-B", "1", path).CombinedOutput()
+	// Set 10 seconds timeout for "du" command.
+	out, err := exec.Command("timeout", "10s", "nice", "-n", "19", "du", "-s", "-B", "1", path).CombinedOutput()
 	if err != nil {
 		return 0, fmt.Errorf("execute command du ($ nice -n 19 du -s -B 1) on path %s with error %v", path, err)
 	}
