@@ -9,6 +9,10 @@ spec:
   selector:
     matchLabels:
       control-plane: kube-diagnoser
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 5
+    type: RollingUpdate
   template:
     metadata:
       labels:

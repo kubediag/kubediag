@@ -132,34 +132,42 @@ func (pc *processCollector) listProcesses() ([]types.Process, error) {
 		ppid, err := proc.Ppid()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get ppid of %d", proc.Pid))
+			continue
 		}
 		tgid, err := proc.Tgid()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get tgid of %d", proc.Pid))
+			continue
 		}
 		cmdlineSlice, err := proc.CmdlineSlice()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get command line arguments of %d", proc.Pid))
+			continue
 		}
 		status, err := proc.Status()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get status of %d", proc.Pid))
+			continue
 		}
 		createTime, err := proc.CreateTime()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get create time of %d", proc.Pid))
+			continue
 		}
 		cpuPercent, err := proc.CPUPercent()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get cpu percent of %d", proc.Pid))
+			continue
 		}
 		nice, err := proc.Nice()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get nice value of %d", proc.Pid))
+			continue
 		}
 		memoryInfo, err := proc.MemoryInfo()
 		if err != nil {
 			pc.Error(err, fmt.Sprintf("unable to get memory information of %d", proc.Pid))
+			continue
 		}
 
 		process := types.Process{
