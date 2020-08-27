@@ -17,4 +17,4 @@ spec:
     successThreshold: 1
     timeoutSeconds: 1
   scheme: http
-  timeoutSeconds: 30
+  timeoutSeconds: 120
