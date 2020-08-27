@@ -27,14 +27,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
