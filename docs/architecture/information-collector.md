@@ -24,7 +24,6 @@ InformationCollector 用于表示信息采集器实例。
 | ip | 信息采集器的监听 IP。 | string | true |
 | port | 信息采集器的监听端口。 | string | true |
 | path | 信息采集器的 HTTP 路径。 | string | false |
-| readinessProbe | 信息采集器的就绪检查探针，探测失败时不会发送请求到信息采集器。 | [v1core.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#probe-v1-core) | false |
 | scheme | 信息采集器的 HTTP 协议。 | string | false |
 | timeoutSeconds | 信息采集器执行超时时间。 | int32 | false |
 

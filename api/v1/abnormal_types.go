@@ -72,8 +72,7 @@ type AbnormalSpec struct {
 	// +optional
 	SkipRecovery bool `json:"skipRecovery,omitempty"`
 	// NodeName is a specific node which the abnormal is on.
-	// +optional
-	NodeName string `json:"nodeName,omitempty"`
+	NodeName string `json:"nodeName"`
 	// AssignedInformationCollectors is the list of information collectors to execute
 	// information collecting logics. Information collectors would be executed in the
 	// specified sequence. No extra information collectors will be executed if the list
@@ -99,14 +98,6 @@ type AbnormalSpec struct {
 
 // AbnormalSource is the source of abnormals.
 type AbnormalSource string
-
-// Label is a key/value pair of strings about prometheus alert.
-type Label struct {
-	// Name is the name of prometheus alert label.
-	Name string `json:"name"`
-	// Value is the value of prometheus alert label.
-	Value string `json:"value"`
-}
 
 // NamespacedName represents a kubernetes api resource.
 type NamespacedName struct {

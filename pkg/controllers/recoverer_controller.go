@@ -17,8 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,11 +52,6 @@ func NewRecovererReconciler(
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=recoverers/status,verbs=get;update;patch
 
 func (r *RecovererReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("recoverer", req.NamespacedName)
-
-	// your logic here
-
 	return ctrl.Result{}, nil
 }
 

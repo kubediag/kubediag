@@ -10,7 +10,7 @@ metadata:
 spec:
   endpoints:
     - path: /metrics
-      port: https
+      port: http
   selector:
     matchLabels:
       control-plane: kube-diagnoser

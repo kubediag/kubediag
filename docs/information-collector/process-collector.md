@@ -1,6 +1,6 @@
 # Process Collector
 
-Process Collector 是一个 Kube Diagnoser 内置的信息采集器，用于收集节点上的进程信息。
+Process Collector 是一个 Kube Diagnoser 内置的信息采集器，用于采集节点上的进程信息。
 
 ## 如何部署
 

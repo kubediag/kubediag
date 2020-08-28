@@ -1,6 +1,6 @@
 # Container Collector
 
-Container Collector 是一个 Kube Diagnoser 内置的信息采集器，用于收集节点上的容器信息。
+Container Collector 是一个 Kube Diagnoser 内置的信息采集器，用于采集节点上的容器信息。
 
 ## 如何部署
 

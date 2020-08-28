@@ -10,6 +10,7 @@ spec:
   assignedRecoverers:
   - name: signal-recoverer
     namespace: kube-diagnoser
+  nodeName: my-node
   context:
     signalRecovery:
     - pid: 1000

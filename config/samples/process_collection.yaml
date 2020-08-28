@@ -10,3 +10,4 @@ spec:
   assignedInformationCollectors:
   - name: process-collector
     namespace: kube-diagnoser
+  nodeName: my-node

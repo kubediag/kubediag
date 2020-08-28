@@ -1,6 +1,6 @@
 # Pod Collector
 
-Pod Collector 是一个 Kube Diagnoser 内置的信息采集器，用于收集节点上的 Pod 信息。
+Pod Collector 是一个 Kube Diagnoser 内置的信息采集器，用于采集节点上的 Pod 信息。
 
 ## 如何部署
 
