@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,9 +35,6 @@ type InformationCollectorSpec struct {
 	// Scheme is the serving scheme of information collector.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Periodic probe of information collector readiness.
-	// +optional
-	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 	// Number of seconds after which the probe times out.
 	// Defaults to 1 second. Minimum value is 1.
 	// +optional

@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,9 +32,6 @@ type RecovererSpec struct {
 	// Scheme is the serving scheme of recoverer.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Periodic probe of recoverer readiness.
-	// +optional
-	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 	// Number of seconds after which the probe times out.
 	// Defaults to 1 second. Minimum value is 1.
 	// +optional
@@ -61,7 +57,7 @@ type Recovery struct {
 	EndTime metav1.Time `json:"endTime,omitempty"`
 	// Abnormal specifies details about last abnormal which has been successfully recovered.
 	// +optional
-	Abnormal Abnormal `json:"abnormal,omitempty"`
+	Abnormal metav1.ObjectMeta `json:"abnormal,omitempty"`
 }
 
 // +kubebuilder:object:root=true
