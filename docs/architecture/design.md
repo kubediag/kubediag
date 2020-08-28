@@ -101,8 +101,8 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 * 故障诊断恢复平台 Agent 或用户自行创建 Abnormal 自定义资源。
 * 将 Abnormal 发送至信息管理器，标记 Abnormal 的状态为 InformationCollecting 并采集故障诊断恢复的信息。
-  * 如果信息能够被成功收集则记录 InformationCollected 状况并继续。
-  * 如果信息无法被成功收集则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。
+  * 如果信息能够被成功采集则记录 InformationCollected 状况并继续。
+  * 如果信息无法被成功采集则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。
 * 将 Abnormal 发送至故障分析链，标记 Abnormal 的状态为 Diagnosing 并对故障进行分析。
   * 如果故障能够被成功识别则记录 Identified 状况并继续。
   * 如果故障无法被成功识别则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。

@@ -24,7 +24,6 @@ Diagnoser 用于表示故障分析器实例。
 | ip | 故障分析器的监听 IP。 | string | true |
 | port | 故障分析器的监听端口。 | string | true |
 | path | 故障分析器的 HTTP 路径。 | string | false |
-| readinessProbe | 故障分析器的就绪检查探针，探测失败时不会发送请求到故障分析器。 | [v1core.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#probe-v1-core) | false |
 | scheme | 故障分析器的 HTTP 协议。 | string | false |
 | timeoutSeconds | 故障分析器执行超时时间。 | int32 | false |
 
@@ -41,4 +40,4 @@ Diagnoser 用于表示故障分析器实例。
 | ----- | ----------- | ------ | -------- |
 | startTime | 分析开始的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
 | endTime | 分析结束的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| abnormal | 分析的故障。 | [Abnormal](#abnormal) | false |
+| abnormal | 分析的故障。 | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta) | false |
