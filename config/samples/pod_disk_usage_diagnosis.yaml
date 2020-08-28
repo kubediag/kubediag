@@ -13,3 +13,4 @@ spec:
   assignedDiagnosers:
   - name: pod-disk-usage-diagnoser
     namespace: kube-diagnoser
+  nodeName: my-node
