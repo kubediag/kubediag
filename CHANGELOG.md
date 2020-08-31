@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.1.2](#v012)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.1](#v011)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -19,26 +28,57 @@
     - [Changed](#changed)
     - [Removed](#removed)
 
+## v0.1.2
+
+### Changes by Kind
+
+#### API Change
+
+- Remove used APIs including `Label` type and `ReadinessProbe` field. Set `NodeName` as required field in `AbnormalSpec`. ([#36](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/36))
+- Implement `CommandExecutor` API. ([#37](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/37))
+
+#### Bug or Regression
+
+- Continue loop on process collector util function error. ([#34](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/34))
+- Set timeout for `du` command in in `DiskUsage` function. ([#35](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/35))
+
+#### Other
+
+_Nothing has changed._
+
+## Dependencies
+
+### Added
+
+_Nothing has changed._
+
+### Changed
+
+_Nothing has changed._
+
+### Removed
+
+_Nothing has changed._
+
 ## v0.1.1
 
 ### Changes by Kind
 
 #### API Change
 
-- Add interfaces for AbnormalProcessor and AbnormalManager.
+- Add interfaces for AbnormalProcessor and AbnormalManager. ([#27](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/27))
 
 #### Bug or Regression
 
-- Util functions `ListPodsFromPodInformationContext` and `ListProcessesFromProcessInformationContext` get context value from both spec and status.
-- Fix inappropriate privates fields usages in private types.
-- Fix duplicated `Created` event issue.
+- Fix inappropriate privates fields usages in private types. ([#29](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/29))
+- Fix duplicated `Created` event issue. ([#30](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/30))
 
 #### Other
 
-- Signal recoverer handler on advertised port and http path `/recoverer/signalrecoverer`.
-- Process collector handler on advertised port and http path `/informationcollector/processcollector`.
-- Terminating pod diagnoser handler on advertised port and http path `/diagnoser/terminatingpoddiagnoser`.
-- Implement abnormal reaper for garbage collection.
+- Process collector handler on advertised port and http path `/informationcollector/processcollector`. ([#25](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/25))
+- Signal recoverer handler on advertised port and http path `/recoverer/signalrecoverer`. ([#26](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/26))
+- Terminating pod diagnoser handler on advertised port and http path `/diagnoser/terminatingpoddiagnoser`. ([#28](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/28))
+- Implement abnormal reaper for garbage collection. ([#32](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/32))
 
 ## Dependencies
 
@@ -62,8 +102,8 @@ _Nothing has changed._
 
 #### API Change
 
-- API definitions for Abnormal, InformationCollector, Diagnoser and Recoverer.
-- Abnormal will be synchronized by abnormal controller and sent to information manager, diagnoser chain or recoverer chain according to its phase.
+- API definitions for Abnormal, InformationCollector, Diagnoser and Recoverer. ([#2](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/2))
+- Abnormal will be synchronized by abnormal controller and sent to information manager, diagnoser chain or recoverer chain according to its phase. ([#2](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/2), [#12](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/12))
 
 #### Bug or Regression
 
@@ -71,11 +111,10 @@ _Nothing has changed._
 
 #### Other
 
-- Pod collector handler on advertised port and http path `/informationcollector/podcollector`.
-- Container collector handler on advertised port and http path `/informationcollector/containercollector`.
-- Pod disk usage diagnoser handler on advertised port and http path `/diagnoser/poddiskusagediagnoser`.
-- Promentheus metrics handler on metrics port and http path `/metrics`.
-- Golang pprof handler on advertised port and http path `/debug/pprof`.
+- Information manager, diagnoser chain and recoverer chain would send http request with payload of abnormal to information collectors, diagnosers and recoverers. ([#3](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/3))
+- Golang pprof handler on advertised port and http path `/debug/pprof`. ([19](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/19))
+- Add event recorder for source manager, information manager, diagnoser chain and recoverer chain. ([#20](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/20))
+- Implement pod collector handler, container collector handler and pod disk usage diagnoser handler on advertised port and http path `/informationcollector/podcollector`, `/informationcollector/containercollector` and `/diagnoser/poddiskusagediagnoser`. ([#22](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/22))
 
 ## Dependencies
 
