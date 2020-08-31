@@ -35,7 +35,7 @@ type InformationCollectorSpec struct {
 	// Scheme is the serving scheme of information collector.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
-	// Number of seconds after which the probe times out.
+	// Number of seconds after which the information collector times out.
 	// Defaults to 1 second. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
