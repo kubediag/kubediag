@@ -592,6 +592,45 @@ func GetUsedBytes(path string) uint64 {
 	return (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
 }
 
+// RunCommandExecutor runs the command with timeout and updates the result into command executor.
+func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Logger) (diagnosisv1.CommandExecutor, error) {
+	if len(commandExecutor.Command) < 1 {
+		return commandExecutor, fmt.Errorf("invalid command")
+	}
+
+	var buf bytes.Buffer
+	command := exec.Command(commandExecutor.Command[0], commandExecutor.Command[1:]...)
+	command.Stdout = &buf
+	command.Stderr = &buf
+	command.Start()
+
+	// Wait and signal completion of command.
+	done := make(chan error)
+	go func() {
+		done <- command.Wait()
+	}()
+
+	timeout := time.After(time.Duration(commandExecutor.TimeoutSeconds) * time.Second)
+	select {
+	// Kill the process if timeout happened.
+	case <-timeout:
+		err := command.Process.Kill()
+		if err != nil {
+			log.Error(err, "failed to kill process on command timed out", "command", commandExecutor.Command)
+		}
+
+		return commandExecutor, fmt.Errorf("command %v timed out", commandExecutor.Command)
+	// Set output and error if command completed before timeout.
+	case err := <-done:
+		commandExecutor.Stdout = buf.String()
+		if err != nil {
+			commandExecutor.Stderr = err.Error()
+		}
+	}
+
+	return commandExecutor, nil
+}
+
 // DiskUsage calculates the disk usage of a directory by executing "du" command.
 func DiskUsage(path string) (int, error) {
 	// Uses the same niceness level as cadvisor.fs does when running "du".

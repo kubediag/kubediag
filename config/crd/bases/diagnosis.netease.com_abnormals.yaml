@@ -96,6 +96,45 @@ spec:
                 - namespace
                 type: object
               type: array
+            commandExecutors:
+              description: CommandExecutors is the list of commands to execute during
+                information collecting, diagnosing and recovering.
+              items:
+                description: CommandExecutor executes a command with the given arguments.
+                  A CommandExecutor could be an information collector, a diagnoser
+                  or a recoverer.
+                properties:
+                  command:
+                    description: Command represents a command being prepared and run.
+                    items:
+                      type: string
+                    type: array
+                  error:
+                    description: Error is the command execution error.
+                    type: string
+                  stderr:
+                    description: Stderr is standard error of the command.
+                    type: string
+                  stdout:
+                    description: Stdout is standard output of the command.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the command times out.
+                      Defaults to 1 second. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
+                    type: string
+                required:
+                - command
+                - type
+                type: object
+              type: array
             context:
               description: Context is a blob of information about the abnormal, meant
                 to be user-facing content and display instructions. This field may
@@ -293,6 +332,45 @@ spec:
         status:
           description: AbnormalStatus defines the observed state of Abnormal.
           properties:
+            commandExecutors:
+              description: CommandExecutors is the list of commands to execute during
+                information collecting, diagnosing and recovering.
+              items:
+                description: CommandExecutor executes a command with the given arguments.
+                  A CommandExecutor could be an information collector, a diagnoser
+                  or a recoverer.
+                properties:
+                  command:
+                    description: Command represents a command being prepared and run.
+                    items:
+                      type: string
+                    type: array
+                  error:
+                    description: Error is the command execution error.
+                    type: string
+                  stderr:
+                    description: Stderr is standard error of the command.
+                    type: string
+                  stdout:
+                    description: Stdout is standard output of the command.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the command times out.
+                      Defaults to 1 second. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
+                    type: string
+                required:
+                - command
+                - type
+                type: object
+              type: array
             conditions:
               description: Conditions contains current service state of abnormal.
               items:

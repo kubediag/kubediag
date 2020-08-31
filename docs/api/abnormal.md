@@ -4,7 +4,7 @@ Abnormal 是故障诊断恢复平台中故障事件源、故障分析链、故�
 
 * 记录故障现象和来源，故障事件源会在接收到故障事件后将现象和来源写入 AbnormalSpec 中。
 * 维护故障恢复的状态机，故障事件源、故障分析链、故障恢复链会在对故障恢复后将结果更新到 AbnormalStatus 中。
-* 在节点上或容器内执行探测指令，如运行命令或者发送 HTTP 请求，并将结果输出到 AbnormalStatus 中。
+* 在节点上执行命令或者发送 HTTP 请求，并将结果输出到 AbnormalStatus 中。
 * 故障分析链将 Abnormal 逐个发送至故障分析器，故障分析器分析后输出 Abnormal，故障分析链对输出的 Abnormal 进行验证后决定下一步流程。如果 Abnormal 被成功识别则更新 AbnormalStatus 并将 Abnormal 发往故障恢复链。如果无法识别或者发生错误则更新 AbnormalStatus 并等待人工干预。
 * 故障恢复链将 Abnormal 逐个发送至故障恢复器，故障恢复器恢复后输出 Abnormal，故障恢复链对输出的 Abnormal 进行验证后决定下一步流程。如果 Abnormal 被成功恢复则更新 AbnormalStatus。如果无法恢复或者发生错误则更新 AbnormalStatus 并等待人工干预。
 
@@ -31,6 +31,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | assignedInformationCollectors | 指定进行信息采集的信息采集器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedDiagnosers | 指定进行诊断的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedRecoverers | 指定进行恢复的故障恢复器列表。 | [][NamespacedName](#namespacedname) | false |
+| commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
 ## AbnormalStatus
@@ -46,6 +47,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | startTime | 表示当前故障开始被诊断的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
 | diagnoser | 成功执行的故障诊断器。 | NamespacedName | false |
 | recoverer | 成功执行的故障恢复器。 | NamespacedName | false |
+| commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
 ## AbnormalCondition
@@ -64,3 +66,14 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | namespace | API 资源的命名空间。 | string | false |
 | name | API 资源的名称。 | string | true |
+
+## CommandExecutor
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| command | 需要执行的命令。 | []string | true |
+| type | 命令执行器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
+| stdout | 命令执行的标准输出。 | string | false |
+| stderr | 命令执行的标准错误。 | string | false |
+| error | 命令执行的错误。 | string | false |
+| timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |

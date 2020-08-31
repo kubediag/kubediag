@@ -49,8 +49,8 @@ spec:
               description: Scheme is the serving scheme of recoverer.
               type: string
             timeoutSeconds:
-              description: Number of seconds after which the probe times out. Defaults
-                to 1 second. Minimum value is 1.
+              description: Number of seconds after which the recoverer times out.
+                Defaults to 1 second. Minimum value is 1.
               format: int32
               type: integer
           required:

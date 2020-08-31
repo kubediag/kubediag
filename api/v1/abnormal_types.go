@@ -46,6 +46,13 @@ const (
 	// AbnormalUnknown means that for some reason the state of the abnormal could not be obtained.
 	AbnormalUnknown AbnormalPhase = "Unknown"
 
+	// InformationCollectorType means that the command executor is an information collector.
+	InformationCollectorType AbnormalProcessorType = "InformationCollector"
+	// DiagnoserType means that the command executor is an diagnoser.
+	DiagnoserType AbnormalProcessorType = "Diagnoser"
+	// RecovererType means that the command executor is an recoverer.
+	RecovererType AbnormalProcessorType = "Recoverer"
+
 	// InformationCollected means that the abnormal has been passed to information manager.
 	InformationCollected AbnormalConditionType = "InformationCollected"
 	// AbnormalIdentified means that the abnormal has been identified by the diagnoser chain.
@@ -89,6 +96,10 @@ type AbnormalSpec struct {
 	// be executed until the abnormal is recovered if the list is empty.
 	// +optional
 	AssignedRecoverers []NamespacedName `json:"assignedRecoverers,omitempty"`
+	// CommandExecutors is the list of commands to execute during information collecting, diagnosing
+	// and recovering.
+	// +optional
+	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
 	// Context is a blob of information about the abnormal, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
@@ -105,6 +116,32 @@ type NamespacedName struct {
 	Namespace string `json:"namespace"`
 	// Name specifies the name of a kubernetes api resource.
 	Name string `json:"name"`
+}
+
+// CommandExecutor executes a command with the given arguments. A CommandExecutor could be an
+// information collector, a diagnoser or a recoverer.
+type CommandExecutor struct {
+	// Command represents a command being prepared and run.
+	Command []string `json:"command"`
+	// Type is the type of the command executor. There are three possible type values:
+	//
+	// InformationCollector: The command executor will be run by information manager.
+	// Diagnoser: The command executor will be run by diagnoser chain.
+	// Recoverer: The command executor will be run by recoverer chain.
+	Type AbnormalProcessorType `json:"type"`
+	// Stdout is standard output of the command.
+	// +optional
+	Stdout string `json:"stdout,omitempty"`
+	// Stderr is standard error of the command.
+	// +optional
+	Stderr string `json:"stderr,omitempty"`
+	// Error is the command execution error.
+	// +optional
+	Error string `json:"error,omitempty"`
+	// Number of seconds after which the command times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
 // AbnormalStatus defines the observed state of Abnormal.
@@ -150,6 +187,10 @@ type AbnormalStatus struct {
 	// Recoverer indicates the recoverer which has recovered the abnormal successfully.
 	// +optional
 	Recoverer *NamespacedName `json:"recoverer,omitempty"`
+	// CommandExecutors is the list of commands to execute during information collecting, diagnosing
+	// and recovering.
+	// +optional
+	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
 	// Context is a blob of information about the abnormal, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
@@ -178,6 +219,9 @@ type AbnormalCondition struct {
 
 // AbnormalPhase is a label for the condition of a abnormal at the current time.
 type AbnormalPhase string
+
+// AbnormalProcessorType is a valid for CommandExecutor.Type.
+type AbnormalProcessorType string
 
 // AbnormalConditionType is a valid value for AbnormalCondition.Type.
 type AbnormalConditionType string

@@ -1,0 +1,28 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: command-executor
+spec:
+  source: Custom
+  skipInformationCollection: true
+  skipDiagnosis: true
+  skipRecovery: true
+  commandExecutors:
+  - command:
+    - "ps"
+    - "aux"
+    type: InformationCollector
+    timeoutSeconds: 5
+  - command:
+    - "du"
+    - "-sh"
+    - "."
+    type: Diagnoser
+    timeoutSeconds: 5
+  - command:
+    - "kill"
+    - "-10"
+    - "1000"
+    type: Recoverer
+    timeoutSeconds: 5
+  nodeName: my-node
