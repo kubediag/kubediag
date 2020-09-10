@@ -210,6 +210,22 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		}
 	}
 
+	// Run profiler of InformationCollector type.
+	for _, profiler := range abnormal.Spec.Profilers {
+		if profiler.Type == diagnosisv1.InformationCollectorType {
+			profiler, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, profiler, im.client, im)
+			if err != nil {
+				im.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				profiler.Error = err.Error()
+			}
+
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+		}
+	}
+
 	// Skip collection if SkipInformationCollection is true.
 	if abnormal.Spec.SkipInformationCollection {
 		im.Info("skipping collection", "abnormal", client.ObjectKey{

@@ -310,6 +310,52 @@ spec:
             nodeName:
               description: NodeName is a specific node which the abnormal is on.
               type: string
+            profilers:
+              description: Profilers is the list of profilers to be performed during
+                information collecting, diagnosing and recovering.
+              items:
+                description: Profiler describes a profiler to be performed against
+                  a program to determine its performance status.
+                properties:
+                  endpoint:
+                    description: Endpoint specifies how to navigate through a performance
+                      profile.
+                    type: string
+                  error:
+                    description: Error is the profiler error.
+                    type: string
+                  go:
+                    description: One and only one of the following programming languages
+                      should be specified. Go specifies the action to perform for
+                      profiling a go program.
+                    properties:
+                      source:
+                        description: Source specifies the profile source. It must
+                          be a local file path or a URL.
+                        type: string
+                    required:
+                    - source
+                    type: object
+                  name:
+                    description: Name specifies the name of a profiler.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the profiler times
+                      out. Defaults to 1 second. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
+                    type: string
+                required:
+                - name
+                - type
+                type: object
+              type: array
             skipDiagnosis:
               description: SkipDiagnosis indicates whether the diagnosis should be
                 skipped.
@@ -445,6 +491,52 @@ spec:
                 of diagnosers and recoverers is able to diagnose and recover the abnormal.
                 Unknown: For some reason the state of the abnormal could not be obtained."
               type: string
+            profilers:
+              description: Profilers is the list of profilers to be performed during
+                information collecting, diagnosing and recovering.
+              items:
+                description: Profiler describes a profiler to be performed against
+                  a program to determine its performance status.
+                properties:
+                  endpoint:
+                    description: Endpoint specifies how to navigate through a performance
+                      profile.
+                    type: string
+                  error:
+                    description: Error is the profiler error.
+                    type: string
+                  go:
+                    description: One and only one of the following programming languages
+                      should be specified. Go specifies the action to perform for
+                      profiling a go program.
+                    properties:
+                      source:
+                        description: Source specifies the profile source. It must
+                          be a local file path or a URL.
+                        type: string
+                    required:
+                    - source
+                    type: object
+                  name:
+                    description: Name specifies the name of a profiler.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the profiler times
+                      out. Defaults to 1 second. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
+                    type: string
+                required:
+                - name
+                - type
+                type: object
+              type: array
             reason:
               description: Reason is a brief CamelCase message indicating details
                 about why the abnormal is in this state.

@@ -198,6 +198,22 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		}
 	}
 
+	// Run profiler of Recoverer type.
+	for _, profiler := range abnormal.Spec.Profilers {
+		if profiler.Type == diagnosisv1.RecovererType {
+			profiler, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, profiler, rc.client, rc)
+			if err != nil {
+				rc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				profiler.Error = err.Error()
+			}
+
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+		}
+	}
+
 	// Skip recovery if SkipRecovery is true.
 	if abnormal.Spec.SkipRecovery {
 		rc.Info("skipping recovery", "abnormal", client.ObjectKey{

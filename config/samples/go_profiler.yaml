@@ -1,0 +1,16 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Abnormal
+metadata:
+  name: go-profiler
+spec:
+  source: Custom
+  skipInformationCollection: true
+  skipDiagnosis: true
+  skipRecovery: true
+  profilers:
+  - name: go-profiler
+    type: InformationCollector
+    go:
+      source: http://127.0.0.1:8090/debug/pprof/heap
+    timeoutSeconds: 300
+  nodeName: my-node

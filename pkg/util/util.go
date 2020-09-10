@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -600,9 +601,14 @@ func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Lo
 
 	var buf bytes.Buffer
 	command := exec.Command(commandExecutor.Command[0], commandExecutor.Command[1:]...)
+	// Setting a new process group id to avoid suicide.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
 	command.Stderr = &buf
-	command.Start()
+	err := command.Start()
+	if err != nil {
+		return commandExecutor, err
+	}
 
 	// Wait and signal completion of command.
 	done := make(chan error)
@@ -614,9 +620,15 @@ func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Lo
 	select {
 	// Kill the process if timeout happened.
 	case <-timeout:
-		err := command.Process.Kill()
+		// Kill the process and all of its children with its process group id.
+		pgid, err := syscall.Getpgid(command.Process.Pid)
 		if err != nil {
-			log.Error(err, "failed to kill process on command timed out", "command", commandExecutor.Command)
+			log.Error(err, "failed to get process group id on command timed out", "command", commandExecutor.Command)
+		} else {
+			err = syscall.Kill(-pgid, syscall.SIGKILL)
+			if err != nil {
+				log.Error(err, "failed to kill process on command timed out", "command", commandExecutor.Command)
+			}
 		}
 
 		return commandExecutor, fmt.Errorf("command %v timed out", commandExecutor.Command)
@@ -629,6 +641,111 @@ func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Lo
 	}
 
 	return commandExecutor, nil
+}
+
+// RunProfiler runs profiling and updates the result into profiler.
+func RunProfiler(ctx context.Context, name string, namespace string, profiler diagnosisv1.Profiler, cli client.Client, log logr.Logger) (diagnosisv1.Profiler, error) {
+	switch {
+	case profiler.Go != nil:
+		endpoint, errCh := RunGoProfiler(*profiler.Go, profiler.TimeoutSeconds, log)
+		// Update error of go profiler asynchronously if any error happens on running go profiling command.
+		go func() {
+			profilerErr := <-errCh
+			if profilerErr != nil {
+				var abnormal diagnosisv1.Abnormal
+				if err := cli.Get(ctx, client.ObjectKey{
+					Name:      name,
+					Namespace: namespace,
+				}, &abnormal); err != nil {
+					log.Error(err, "unable to fetch Abnormal", "abnormal", client.ObjectKey{
+						Name:      name,
+						Namespace: namespace,
+					})
+					return
+				}
+
+				// Set error of go profiler.
+				for i := 0; i < len(abnormal.Status.Profilers); i++ {
+					if abnormal.Status.Profilers[i].Name == profiler.Name {
+						abnormal.Status.Profilers[i].Error = profilerErr.Error()
+						break
+					}
+				}
+
+				log.Error(profilerErr, "error on running go profiler")
+
+				if err := cli.Status().Update(ctx, &abnormal); err != nil {
+					log.Error(err, "unable to update Abnormal")
+				}
+			}
+		}()
+
+		// Set http endpoint of go profiling interactive web interface.
+		profiler.Endpoint = endpoint
+	default:
+		return profiler, fmt.Errorf("profiler not specified")
+	}
+
+	return profiler, nil
+}
+
+// RunGoProfiler runs go profiling with timeout and updates the result into go profiler. A goroutine is
+// spawned for updating error status of go profiling command asynchronously. An error will be sent to the
+// error channel if any error happens on running go profiling command.
+// It returns an http endpoint string an the error channel as results.
+func RunGoProfiler(goProfiler diagnosisv1.GoProfiler, timeoutSeconds int32, log logr.Logger) (string, chan error) {
+	errCh := make(chan error)
+	port, err := GetAvailablePort()
+	if err != nil {
+		errCh <- fmt.Errorf("unable to get available port for go profiler")
+		return "", errCh
+	}
+	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
+
+	var buf bytes.Buffer
+	command := exec.Command("/usr/local/go/bin/go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfiler.Source)
+	// Setting a new process group id to avoid suicide.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Stdout = &buf
+	command.Stderr = &buf
+	err = command.Start()
+	if err != nil {
+		errCh <- err
+		return endpoint, errCh
+	}
+
+	log.Info("running go profiler", "source", goProfiler.Source, "endpoint", endpoint)
+
+	// Wait and signal completion of go profiler.
+	done := make(chan error)
+	go func() {
+		done <- command.Wait()
+	}()
+	go func() {
+		timeout := time.After(time.Duration(timeoutSeconds) * time.Second)
+		select {
+		// Kill the process if timeout happened.
+		case <-timeout:
+			// Kill the process and all of its children with its process group id.
+			pgid, err := syscall.Getpgid(command.Process.Pid)
+			if err != nil {
+				log.Error(err, "failed to get process group id on go profiler timed out", "source", goProfiler.Source)
+			} else {
+				err = syscall.Kill(-pgid, syscall.SIGKILL)
+				if err != nil {
+					log.Error(err, "failed to kill process on go profiler timed out", "source", goProfiler.Source)
+				}
+			}
+			errCh <- fmt.Errorf("go profiler on source %v timed out", goProfiler.Source)
+		// Send error if go profiler completed before timeout.
+		case err := <-done:
+			if err != nil {
+				errCh <- err
+			}
+		}
+	}()
+
+	return endpoint, errCh
 }
 
 // DiskUsage calculates the disk usage of a directory by executing "du" command.
@@ -647,4 +764,33 @@ func DiskUsage(path string) (int, error) {
 	}
 
 	return size, nil
+}
+
+// GetAvailablePort returns a free open port that is ready to use.
+func GetAvailablePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+// ValidateProfilers tests that the specified profilers has valid data.
+func ValidateProfilers(profilers []diagnosisv1.Profiler) error {
+	allNames := sets.String{}
+	for _, profiler := range profilers {
+		if allNames.Has(profiler.Name) {
+			return fmt.Errorf("duplicated profiler name: %s", profiler.Name)
+		}
+		allNames.Insert(profiler.Name)
+	}
+
+	return nil
 }

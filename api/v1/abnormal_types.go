@@ -100,6 +100,10 @@ type AbnormalSpec struct {
 	// and recovering.
 	// +optional
 	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
+	// Profilers is the list of profilers to be performed during information collecting, diagnosing
+	// and recovering.
+	// +optional
+	Profilers []Profiler `json:"profilers,omitempty"`
 	// Context is a blob of information about the abnormal, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
@@ -142,6 +146,37 @@ type CommandExecutor struct {
 	// Defaults to 1 second. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// Profiler describes a profiler to be performed against a program to determine its performance status.
+type Profiler struct {
+	// Name specifies the name of a profiler.
+	Name string `json:"name"`
+	// Type is the type of the profiler. There are three possible type values:
+	//
+	// InformationCollector: The profiler will be run by information manager.
+	// Diagnoser: The profiler will be run by diagnoser chain.
+	// Recoverer: The profiler will be run by recoverer chain.
+	Type AbnormalProcessorType `json:"type"`
+	// One and only one of the following programming languages should be specified.
+	// Go specifies the action to perform for profiling a go program.
+	// +optional
+	Go *GoProfiler `json:"go,omitempty"`
+	// Error is the profiler error.
+	// +optional
+	Error string `json:"error,omitempty"`
+	// Number of seconds after which the profiler times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+	// Endpoint specifies how to navigate through a performance profile.
+	Endpoint string `json:"endpoint,omitempty"`
+}
+
+// GoProfiler specifies the action to perform for profiling a go program.
+type GoProfiler struct {
+	// Source specifies the profile source. It must be a local file path or a URL.
+	Source string `json:"source"`
 }
 
 // AbnormalStatus defines the observed state of Abnormal.
@@ -191,6 +226,10 @@ type AbnormalStatus struct {
 	// and recovering.
 	// +optional
 	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
+	// Profilers is the list of profilers to be performed during information collecting, diagnosing
+	// and recovering.
+	// +optional
+	Profilers []Profiler `json:"profilers,omitempty"`
 	// Context is a blob of information about the abnormal, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
