@@ -15,7 +15,7 @@ Abnormal 中的 `.spec.commandExecutors` 字段用于自定义需要执行的命
 
 ## 如何使用
 
-用户可以创建 Abnormal 并在 `.spec.commandExecutors` 字段中包含需要执行的命令，一个典型的如下所示：
+用户可以创建 Abnormal 并在 `.spec.commandExecutors` 字段中包含需要执行的命令，一个典型的 Abnormal 如下所示：
 
 ```yaml
 apiVersion: diagnosis.netease.com/v1

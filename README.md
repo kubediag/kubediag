@@ -123,6 +123,8 @@ curl 0.0.0.0:10357/metrics
 
 Kube Diagnoser 集成了以下常用故障诊断功能：
 
+* [Command Executor](./docs/design/command-executor.md)：用于在节点上执行命令。
+* [Profiler](./docs/design/profiler.md)：用于在节点上获取某个进程的性能剖析数据。
 * [Container Collector](./docs/information-collector/container-collector.md)：采集节点上的容器信息并将结果记录到 Abnormal 中。
 * [Pod Collector](./docs/information-collector/pod-collector.md)：采集节点上的 Pod 信息并将结果记录到 Abnormal 中。
 * [Process Collector](./docs/information-collector/process-collector.md)：采集节点上的进程信息并将结果记录到 Abnormal 中。

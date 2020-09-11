@@ -202,6 +202,22 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		}
 	}
 
+	// Run profiler of Diagnoser type.
+	for _, profiler := range abnormal.Spec.Profilers {
+		if profiler.Type == diagnosisv1.DiagnoserType {
+			profiler, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, profiler, dc.client, dc)
+			if err != nil {
+				dc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				profiler.Error = err.Error()
+			}
+
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+		}
+	}
+
 	// Skip diagnosis if SkipDiagnosis is true.
 	if abnormal.Spec.SkipDiagnosis {
 		dc.Info("skipping diagnosis", "abnormal", client.ObjectKey{
