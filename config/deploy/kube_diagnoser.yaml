@@ -32,6 +32,11 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         name: kube-diagnoser
+        ports:
+        - containerPort: 10357
+          name: metrics
+        - containerPort: 8090
+          name: http
         resources:
           limits:
             cpu: 400m
