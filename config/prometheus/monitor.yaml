@@ -10,7 +10,27 @@ metadata:
 spec:
   endpoints:
     - path: /metrics
-      port: http
+      port: metrics
+  namespaceSelector:
+    matchNames:
+    - kube-diagnoser
   selector:
     matchLabels:
       control-plane: kube-diagnoser
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+  name: kube-diagnoser-metrics-monitor
+  namespace: kube-diagnoser
+spec:
+  ports:
+  - name: metrics
+    port: 10357
+    targetPort: metrics
+  selector:
+    control-plane: kube-diagnoser
+  type: ClusterIP
+  clusterIP: None
