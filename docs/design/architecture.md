@@ -138,19 +138,19 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 ### Abnormal 自定义资源
 
-Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故障恢复链之间通信的接口。故障事件的详情记录在 Spec 中，故障管理器、故障分析链和故障恢复链对 Abnormal 进行处理并通过变更 Status 字段进行通信。详细信息参考 [Abnormal API 设计](./abnormal.md)。
+Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故障恢复链之间通信的接口。故障事件的详情记录在 Spec 中，故障管理器、故障分析链和故障恢复链对 Abnormal 进行处理并通过变更 Status 字段进行通信。详细信息参考 [Abnormal API 设计](../api/abnormal.md)。
 
 ### InformationCollector 自定义资源
 
-InformationCollector 自定义资源用于注册信息采集器，信息采集器的元数据记录在 Spec 中，包括发现方式和监听地址。InformationCollector 的当前状态记录在 Status 字段。详细信息参考 [InformationCollector API 设计](./information-collector.md)。
+InformationCollector 自定义资源用于注册信息采集器，信息采集器的元数据记录在 Spec 中，包括发现方式和监听地址。InformationCollector 的当前状态记录在 Status 字段。详细信息参考 [InformationCollector API 设计](../api/information-collector.md)。
 
 ### Diagnoser 自定义资源
 
-Diagnoser 自定义资源用于注册故障分析器，故障分析器的元数据记录在 Spec 中，包括发现方式和监听地址。Diagnoser 的当前状态记录在 Status 字段。详细信息参考 [Diagnoser API 设计](./diagnoser.md)。
+Diagnoser 自定义资源用于注册故障分析器，故障分析器的元数据记录在 Spec 中，包括发现方式和监听地址。Diagnoser 的当前状态记录在 Status 字段。详细信息参考 [Diagnoser API 设计](../api/diagnoser.md)。
 
 ### Recoverer 自定义资源
 
-Recoverer 自定义资源用于注册故障恢复器，故障恢复器的元数据记录在 Spec 中，包括发现方式和监听地址。Recoverer 的当前状态记录在 Status 字段。详细信息参考 [Recoverer API 设计](./recoverer.md)。
+Recoverer 自定义资源用于注册故障恢复器，故障恢复器的元数据记录在 Spec 中，包括发现方式和监听地址。Recoverer 的当前状态记录在 Status 字段。详细信息参考 [Recoverer API 设计](../api/recoverer.md)。
 
 ### 故障管理器
 
