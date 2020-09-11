@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -83,65 +84,58 @@ func NewAbnormalReaper(
 func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 	// The housekeeping interval of garbage collections is a quarter of abnormalTTL.
 	housekeepingInterval := ar.abnormalTTL / 4
-	ticker := time.NewTicker(housekeepingInterval)
-	for {
-		select {
+	go wait.Until(func() {
 		// Garbage collect abnormals on node.
-		case <-ticker.C:
-			abnormals, err := ar.listAbnormals()
-			if err != nil {
-				ar.Error(err, "failed to list abnormals")
-				continue
-			}
-
-			reapedAbnormals := make([]diagnosisv1.Abnormal, 0)
-			retainedAbnormals := make([]diagnosisv1.Abnormal, 0)
-			if len(abnormals) != 0 {
-				for _, abnormal := range abnormals {
-					// Garbage collect the abnormal if it is under any of the folowing conditions:
-					//
-					// Its age is longer than abnormalTTL.
-					// Its age is longer than minimumAbnormalTTLDuration and its phase is Failed or Succeeded.
-					if time.Now().Sub(abnormal.Status.StartTime.Time) > ar.abnormalTTL {
-						reapedAbnormals = append(reapedAbnormals, abnormal)
-					} else if abnormal.Status.Phase == diagnosisv1.AbnormalFailed || abnormal.Status.Phase == diagnosisv1.AbnormalSucceeded {
-						if time.Now().Sub(abnormal.Status.StartTime.Time) > ar.minimumAbnormalTTLDuration {
-							reapedAbnormals = append(reapedAbnormals, abnormal)
-						}
-					}
-
-					retainedAbnormals = append(retainedAbnormals, abnormal)
-				}
-
-				// Garbage collect old abnormals if count of retained abnormals is greater than maximumAbnormalsPerNode.
-				if len(retainedAbnormals) > int(ar.maximumAbnormalsPerNode) {
-					sorted := types.SortedAbnormalListByStartTime(retainedAbnormals)
-					sort.Sort(sorted)
-					for i := 0; i < len(retainedAbnormals)-int(ar.maximumAbnormalsPerNode); i++ {
-						reapedAbnormals = append(reapedAbnormals, sorted[i])
-					}
-				}
-
-				if len(reapedAbnormals) > 0 {
-					for _, abnormal := range reapedAbnormals {
-						err := ar.client.Delete(ar, &abnormal)
-						if err != nil {
-							ar.Error(err, "failed to delete abnormal", "abnormal", client.ObjectKey{
-								Name:      abnormal.Name,
-								Namespace: abnormal.Namespace,
-							})
-							continue
-						}
-					}
-
-					ar.Info("abnormals has been garbage collected", "time", time.Now(), "count", len(reapedAbnormals))
-				}
-			}
-		// Stop abnormal reaper on stop signal.
-		case <-stopCh:
+		abnormals, err := ar.listAbnormals()
+		if err != nil {
+			ar.Error(err, "failed to list abnormals")
 			return
 		}
-	}
+
+		reapedAbnormals := make([]diagnosisv1.Abnormal, 0)
+		retainedAbnormals := make([]diagnosisv1.Abnormal, 0)
+		if len(abnormals) != 0 {
+			for _, abnormal := range abnormals {
+				// Garbage collect the abnormal if it is under any of the folowing conditions:
+				//
+				// Its age is longer than abnormalTTL.
+				// Its age is longer than minimumAbnormalTTLDuration and its phase is Failed or Succeeded.
+				if time.Now().Sub(abnormal.Status.StartTime.Time) > ar.abnormalTTL {
+					reapedAbnormals = append(reapedAbnormals, abnormal)
+				} else if abnormal.Status.Phase == diagnosisv1.AbnormalFailed || abnormal.Status.Phase == diagnosisv1.AbnormalSucceeded {
+					if time.Now().Sub(abnormal.Status.StartTime.Time) > ar.minimumAbnormalTTLDuration {
+						reapedAbnormals = append(reapedAbnormals, abnormal)
+					}
+				}
+
+				retainedAbnormals = append(retainedAbnormals, abnormal)
+			}
+
+			// Garbage collect old abnormals if count of retained abnormals is greater than maximumAbnormalsPerNode.
+			if len(retainedAbnormals) > int(ar.maximumAbnormalsPerNode) {
+				sorted := types.SortedAbnormalListByStartTime(retainedAbnormals)
+				sort.Sort(sorted)
+				for i := 0; i < len(retainedAbnormals)-int(ar.maximumAbnormalsPerNode); i++ {
+					reapedAbnormals = append(reapedAbnormals, sorted[i])
+				}
+			}
+
+			if len(reapedAbnormals) > 0 {
+				for _, abnormal := range reapedAbnormals {
+					err := ar.client.Delete(ar, &abnormal)
+					if err != nil {
+						ar.Error(err, "failed to delete abnormal", "abnormal", client.ObjectKey{
+							Name:      abnormal.Name,
+							Namespace: abnormal.Namespace,
+						})
+						continue
+					}
+				}
+
+				ar.Info("abnormals has been garbage collected", "time", time.Now(), "count", len(reapedAbnormals))
+			}
+		}
+	}, housekeepingInterval, stopCh)
 }
 
 // listAbnormals lists Abnormals from cache.
