@@ -310,6 +310,96 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 	}
 }
 
+func TestListFilePathsFromFilePathInformationContext(t *testing.T) {
+	type expectedStruct struct {
+		paths []string
+		err   error
+	}
+
+	logger := log.NullLogger{}
+	specRaw, err := json.Marshal(map[string]interface{}{
+		"filePathInformation": []string{"/bin/", "/etc/"},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal file paths: %v", err)
+	}
+	statusRaw, err := json.Marshal(map[string]interface{}{
+		"filePathInformation": []string{"/sys/", "/var/"},
+	})
+	if err != nil {
+		t.Errorf("unable to marshal file paths: %v", err)
+	}
+
+	tests := []struct {
+		abnormal diagnosisv1.Abnormal
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: nil,
+				},
+			},
+			expected: expectedStruct{
+				paths: nil,
+				err:   fmt.Errorf("abnormal status context nil"),
+			},
+			desc: "nil context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{},
+				},
+			},
+			expected: expectedStruct{
+				paths: nil,
+				err:   fmt.Errorf("abnormal status context empty"),
+			},
+			desc: "empty context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					Context: &runtime.RawExtension{
+						Raw: specRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				paths: []string{"/bin/", "/etc/"},
+				err:   nil,
+			},
+			desc: "file paths found in spec context",
+		},
+		{
+			abnormal: diagnosisv1.Abnormal{
+				Status: diagnosisv1.AbnormalStatus{
+					Context: &runtime.RawExtension{
+						Raw: statusRaw,
+					},
+				},
+			},
+			expected: expectedStruct{
+				paths: []string{"/sys/", "/var/"},
+				err:   nil,
+			},
+			desc: "file paths found in status context",
+		},
+	}
+
+	for _, test := range tests {
+		paths, err := ListFilePathsFromFilePathInformationContext(test.abnormal, logger)
+		assert.Equal(t, test.expected.paths, paths, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
 func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	type expectedStruct struct {
 		signals types.SignalList

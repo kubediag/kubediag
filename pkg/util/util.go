@@ -50,6 +50,10 @@ const (
 	ContainerInformationContextKey = "containerInformation"
 	// ProcessInformationContextKey is the key of process information in abnormal context.
 	ProcessInformationContextKey = "processInformation"
+	// FilePathInformationContextKey is the key of file path information in abnormal context.
+	FilePathInformationContextKey = "filePathInformation"
+	// FileStatusInformationContextKey is the key of file information in abnormal context.
+	FileStatusInformationContextKey = "fileStatusInformation"
 	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
 	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
 	// TerminatingPodDiagnosisContextKey is the key of terminating pod diagnosis result in abnormal context.
@@ -202,6 +206,28 @@ func ListPodsFromPodInformationContext(abnormal diagnosisv1.Abnormal, log logr.L
 	}
 
 	return pods, nil
+}
+
+// ListFilePathsFromFilePathInformationContext lists file paths by retrieving context in abnormal.
+func ListFilePathsFromFilePathInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]string, error) {
+	log.Info("listing file paths")
+
+	// Retrieve value from status context if context key is not found in spec context.
+	data, err := GetAbnormalSpecContext(abnormal, FilePathInformationContextKey)
+	if err != nil {
+		data, err = GetAbnormalStatusContext(abnormal, FilePathInformationContextKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var filepaths []string
+	err = json.Unmarshal(data, &filepaths)
+	if err != nil {
+		return nil, err
+	}
+
+	return filepaths, nil
 }
 
 // ListSignalsFromSignalRecoveryContext list process signal details by retrieving context in abnormal.

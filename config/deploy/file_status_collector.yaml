@@ -1,0 +1,11 @@
+apiVersion: diagnosis.netease.com/v1
+kind: InformationCollector
+metadata:
+  name: file-status-collector
+  namespace: kube-diagnoser
+spec:
+  ip: 0.0.0.0
+  port: "8090"
+  path: /informationcollector/filestatuscollector
+  scheme: http
+  timeoutSeconds: 120
