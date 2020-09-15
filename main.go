@@ -231,6 +231,10 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		context.Background(),
 		ctrl.Log.WithName("informationmanager/processcollector"),
 	)
+	fileStatusCollector := informationcollector.NewFileStatusCollector(
+		context.Background(),
+		ctrl.Log.WithName("informationmanager/filestatuscollector"),
+	)
 	podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
@@ -251,6 +255,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 		r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
 		r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
 		r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
+		r.HandleFunc("/informationcollector/filestatuscollector", fileStatusCollector.Handler)
 		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
 		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
 		r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
