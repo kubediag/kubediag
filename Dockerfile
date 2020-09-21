@@ -1,5 +1,5 @@
 # Build the kube-diagnoser binary
-FROM golang:1.13 as builder
+FROM golang:1.14 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -30,10 +30,15 @@ RUN echo "deb http://mirrors.aliyun.com/ubuntu/ focal main restricted" > /etc/ap
     echo "deb http://mirrors.aliyun.com/ubuntu/ focal-security universe" >> /etc/apt/sources.list && \
     echo "deb http://mirrors.aliyun.com/ubuntu/ focal-security multiverse" >> /etc/apt/sources.list
 
-# Install utility tools.
+# Install utility tools
 RUN apt-get update -y && \
-    apt-get install -y coreutils dnsutils iputils-ping iproute2 telnet curl vim less && \
+    apt-get install -y coreutils dnsutils iputils-ping iproute2 telnet curl vim less wget graphviz && \
     apt-get clean
+
+# Install Go
+RUN wget https://golang.org/dl/go1.14.9.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.14.9.linux-amd64.tar.gz && \
+    rm go1.14.9.linux-amd64.tar.gz
 
 WORKDIR /usr/bin/
 # Copy diagnosing tools
@@ -43,6 +48,8 @@ COPY tools/docker .
 WORKDIR /
 # Copy kube-diagnoser binary
 COPY --from=builder /workspace/kube-diagnoser .
+
+ENV PATH=$PATH:/usr/local/go/bin
 
 USER root:root
 
