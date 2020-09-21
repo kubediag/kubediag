@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: kube-diagnoser
   newName: hub.c.163.com/combk8s/kube-diagnoser
-  newTag: v0.1.2
+  newTag: v0.1.3
