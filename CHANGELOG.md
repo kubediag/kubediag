@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.1.3](#v013)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.2](#v012)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -27,6 +36,37 @@
     - [Added](#added)
     - [Changed](#changed)
     - [Removed](#removed)
+
+## v0.1.3
+
+### Changes by Kind
+
+#### API Change
+
+- Go language profiler via `.spec.profilers` field. ([#39](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/39))
+- File status collector via `.spec.context.filePathInformation` and `.status.context.fileStatusInformation` fields. ([#42](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/42))
+
+#### Bug or Regression
+
+- Implement abnormal reaper ticker with `k8s.io/apimachinery/pkg/util/wait` package. It will work on kube-diagnoser started without waiting for the first tick. ([#41](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/41))
+
+#### Other
+
+_Nothing has changed._
+
+## Dependencies
+
+### Added
+
+_Nothing has changed._
+
+### Changed
+
+_Nothing has changed._
+
+### Removed
+
+_Nothing has changed._
 
 ## v0.1.2
 
