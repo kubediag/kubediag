@@ -729,7 +729,7 @@ func RunGoProfiler(goProfiler diagnosisv1.GoProfiler, timeoutSeconds int32, log 
 	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	var buf bytes.Buffer
-	command := exec.Command("/usr/local/go/bin/go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfiler.Source)
+	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfiler.Source)
 	// Setting a new process group id to avoid suicide.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
