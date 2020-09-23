@@ -54,6 +54,10 @@ const (
 	FilePathInformationContextKey = "filePathInformation"
 	// FileStatusInformationContextKey is the key of file information in abnormal context.
 	FileStatusInformationContextKey = "fileStatusInformation"
+	// SystemdUnitNameInformationContextKey is the key of systemd unit name information in abnormal context.
+	SystemdUnitNameInformationContextKey = "systemdUnitNameInformationContextKey"
+	// SystemdUnitPropertyInformationContextKey is the key of systemd unit property information in abnormal context.
+	SystemdUnitPropertyInformationContextKey = "systemdUnitPropertyInformationContextKey"
 	// PodDiskUsageDiagnosisContextKey is the key of pod disk usage diagnosis result in abnormal context.
 	PodDiskUsageDiagnosisContextKey = "podDiskUsageDiagnosis"
 	// TerminatingPodDiagnosisContextKey is the key of terminating pod diagnosis result in abnormal context.
@@ -230,28 +234,6 @@ func ListFilePathsFromFilePathInformationContext(abnormal diagnosisv1.Abnormal, 
 	return filepaths, nil
 }
 
-// ListSignalsFromSignalRecoveryContext list process signal details by retrieving context in abnormal.
-func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log logr.Logger) (types.SignalList, error) {
-	log.Info("listing signals")
-
-	// Retrieve value from status context if context key is not found in spec context.
-	data, err := GetAbnormalSpecContext(abnormal, SignalRecoveryContextKey)
-	if err != nil {
-		data, err = GetAbnormalStatusContext(abnormal, SignalRecoveryContextKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var signals types.SignalList
-	err = json.Unmarshal(data, &signals)
-	if err != nil {
-		return nil, err
-	}
-
-	return signals, nil
-}
-
 // ListProcessesFromProcessInformationContext list processes by retrieving context in abnormal.
 func ListProcessesFromProcessInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]types.Process, error) {
 	log.Info("listing processes")
@@ -272,6 +254,50 @@ func ListProcessesFromProcessInformationContext(abnormal diagnosisv1.Abnormal, l
 	}
 
 	return processes, nil
+}
+
+// ListSystemdUnitNamesFromProcessInformationContext list systemd unit names by retrieving context in abnormal.
+func ListSystemdUnitNamesFromProcessInformationContext(abnormal diagnosisv1.Abnormal, log logr.Logger) ([]string, error) {
+	log.Info("listing systemd unit names")
+
+	// Retrieve value from status context if context key is not found in spec context.
+	data, err := GetAbnormalSpecContext(abnormal, SystemdUnitNameInformationContextKey)
+	if err != nil {
+		data, err = GetAbnormalStatusContext(abnormal, SystemdUnitNameInformationContextKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var units []string
+	err = json.Unmarshal(data, &units)
+	if err != nil {
+		return nil, err
+	}
+
+	return units, nil
+}
+
+// ListSignalsFromSignalRecoveryContext list process signal details by retrieving context in abnormal.
+func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log logr.Logger) (types.SignalList, error) {
+	log.Info("listing signals")
+
+	// Retrieve value from status context if context key is not found in spec context.
+	data, err := GetAbnormalSpecContext(abnormal, SignalRecoveryContextKey)
+	if err != nil {
+		data, err = GetAbnormalStatusContext(abnormal, SignalRecoveryContextKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var signals types.SignalList
+	err = json.Unmarshal(data, &signals)
+	if err != nil {
+		return nil, err
+	}
+
+	return signals, nil
 }
 
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
@@ -774,12 +800,40 @@ func RunGoProfiler(goProfiler diagnosisv1.GoProfiler, timeoutSeconds int32, log 
 	return endpoint, errCh
 }
 
+// SystemdUnitProperties returns a slice which contains all properties of specified systemd unit.
+// See systemctl(1) linux manual page for more details:
+//
+// https://www.man7.org/linux/man-pages/man1/systemctl.1.html
+func SystemdUnitProperties(name string) ([]types.Property, error) {
+	command := make([]string, 0)
+	// Get properties of the manager itself if systemd unit name is empty.
+	if name == "" {
+		command = []string{"nsenter", "-t", "1", "-m", "-p", "-n", "-i", "-u", "systemctl", "show", "--no-page"}
+	} else {
+		command = []string{"nsenter", "-t", "1", "-m", "-p", "-n", "-i", "-u", "systemctl", "show", "--no-page", name}
+	}
+
+	out, err := BlockingRunCommandWithTimeout(command, 10)
+	if err != nil {
+		return nil, fmt.Errorf("execute command systemctl on unit %s with error %v", name, err)
+	}
+
+	buf := bytes.NewBuffer(out)
+	properties, err := types.ParseProperties(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return properties, nil
+}
+
 // DiskUsage calculates the disk usage of a directory by executing "du" command.
 func DiskUsage(path string) (int, error) {
 	// Uses the same niceness level as cadvisor.fs does when running "du".
 	// Uses -B 1 to always scale to a blocksize of 1 byte.
 	// Set 10 seconds timeout for "du" command.
-	out, err := exec.Command("timeout", "10s", "nice", "-n", "19", "du", "-s", "-B", "1", path).CombinedOutput()
+	command := []string{"nice", "-n", "19", "du", "-s", "-B", "1", path}
+	out, err := BlockingRunCommandWithTimeout(command, 10)
 	if err != nil {
 		return 0, fmt.Errorf("execute command du ($ nice -n 19 du -s -B 1) on path %s with error %v", path, err)
 	}
@@ -790,6 +844,18 @@ func DiskUsage(path string) (int, error) {
 	}
 
 	return size, nil
+}
+
+// BlockingRunCommandWithTimeout executes command in blocking mode with timeout seconds.
+func BlockingRunCommandWithTimeout(command []string, timeoutSeconds int32) ([]byte, error) {
+	timeoutCommand := []string{"timeout", fmt.Sprintf("%ds", timeoutSeconds)}
+	timeoutCommand = append(timeoutCommand, command...)
+	out, err := exec.Command(timeoutCommand[0], timeoutCommand[1:]...).CombinedOutput()
+	if err != nil {
+		return out, err
+	}
+
+	return out, nil
 }
 
 // GetAvailablePort returns a free open port that is ready to use.
