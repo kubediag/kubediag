@@ -128,6 +128,7 @@ Kube Diagnoser 集成了以下常用故障诊断功能：
 * [Container Collector](./docs/information-collector/container-collector.md)：采集节点上的容器信息并将结果记录到 Abnormal 中。
 * [Pod Collector](./docs/information-collector/pod-collector.md)：采集节点上的 Pod 信息并将结果记录到 Abnormal 中。
 * [Process Collector](./docs/information-collector/process-collector.md)：采集节点上的进程信息并将结果记录到 Abnormal 中。
+* [Systemd Collector](./docs/information-collector/systemd-collector.md)：采集节点上的 Systemd 相关信息并将结果记录到 Abnormal 中。
 * [Pod Disk Usage Diagnoser](./docs/diagnoser/pod-disk-usage-diagnoser.md)：分析 Pod 磁盘使用量并将结果记录到 Abnormal 中。
 * [Terminating Pod Diagnoser](./docs/diagnoser/terminating-pod-diagnoser.md)：分析节点上无法正常删除的 Pod 并将结果记录到 Abnormal 中。
 * [Signal Recoverer](./docs/recoverer/signal-recoverer.md)：向节点上的进程发送信号并将结果记录到 Abnormal 中。
