@@ -82,6 +82,11 @@ func NewAbnormalReaper(
 
 // Run runs the abnormal reaper.
 func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
+	// Wait for all caches to sync before processing.
+	if !ar.cache.WaitForCacheSync(stopCh) {
+		return
+	}
+
 	// The housekeeping interval of garbage collections is a quarter of abnormalTTL.
 	housekeepingInterval := ar.abnormalTTL / 4
 	go wait.Until(func() {
