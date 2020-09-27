@@ -99,12 +99,6 @@ func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Response with error if abnormal data size exceeds max data size.
-		if len(data) > util.MaxDataSize {
-			http.Error(w, fmt.Sprintf("abnormal data size %d exceeds max data size %d", len(data), util.MaxDataSize), http.StatusInternalServerError)
-			return
-		}
-
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 	case "GET":

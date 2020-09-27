@@ -172,6 +172,11 @@ func DoHTTPRequestWithAbnormal(abnormal diagnosisv1.Abnormal, url *url.URL, cli 
 		return abnormal, err
 	}
 
+	// Return error if abnormal size exceeds max data size.
+	if len(body) > MaxDataSize {
+		return abnormal, fmt.Errorf("abnormal data size %d exceeds max data size %d", len(body), MaxDataSize)
+	}
+
 	if res.StatusCode == http.StatusOK {
 		err = json.Unmarshal(body, &abnormal)
 		if err != nil {
