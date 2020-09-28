@@ -4,9 +4,6 @@ metadata:
   name: go-profiler
 spec:
   source: Custom
-  skipInformationCollection: true
-  skipDiagnosis: true
-  skipRecovery: true
   profilers:
   - name: go-profiler
     type: InformationCollector

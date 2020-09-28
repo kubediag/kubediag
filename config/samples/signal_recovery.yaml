@@ -4,9 +4,6 @@ metadata:
   name: signal-recovery
 spec:
   source: Custom
-  skipInformationCollection: true
-  skipDiagnosis: true
-  skipRecovery: false
   assignedRecoverers:
   - name: signal-recoverer
     namespace: kube-diagnoser

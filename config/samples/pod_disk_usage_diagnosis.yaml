@@ -4,9 +4,6 @@ metadata:
   name: pod-disk-usage-diagnosis
 spec:
   source: Custom
-  skipInformationCollection: false
-  skipDiagnosis: false
-  skipRecovery: true
   assignedInformationCollectors:
   - name: pod-collector
     namespace: kube-diagnoser

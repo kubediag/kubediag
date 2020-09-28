@@ -4,9 +4,6 @@ metadata:
   name: file-status-collection
 spec:
   source: Custom
-  skipInformationCollection: false
-  skipDiagnosis: true
-  skipRecovery: true
   assignedInformationCollectors:
   - name: file-status-collector
     namespace: kube-diagnoser
