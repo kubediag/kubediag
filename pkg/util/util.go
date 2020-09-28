@@ -748,10 +748,10 @@ func RunProfiler(ctx context.Context, name string, namespace string, profiler di
 
 // RunGoProfiler runs go profiling with timeout and updates the result into go profiler. A goroutine is
 // spawned for updating error status of go profiling command asynchronously. An error will be sent to the
-// error channel if any error happens on running go profiling command.
+// error channel if any error happens on running go profiling command. The error channel must be nonblocking.
 // It returns an http endpoint string an the error channel as results.
 func RunGoProfiler(goProfiler diagnosisv1.GoProfiler, timeoutSeconds int32, log logr.Logger) (string, chan error) {
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	port, err := GetAvailablePort()
 	if err != nil {
 		errCh <- fmt.Errorf("unable to get available port for go profiler")
