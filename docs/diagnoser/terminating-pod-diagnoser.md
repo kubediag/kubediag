@@ -40,9 +40,6 @@ spec:
   - name: signal-recoverer
     namespace: kube-diagnoser
   nodeName: 10.177.16.22
-  skipDiagnosis: false
-  skipInformationCollection: false
-  skipRecovery: false
   source: Custom
 ```
 

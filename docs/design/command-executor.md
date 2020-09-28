@@ -24,9 +24,6 @@ metadata:
   name: command-executor
 spec:
   source: Custom
-  skipInformationCollection: true
-  skipDiagnosis: true
-  skipRecovery: true
   commandExecutors:
   - command:
     - "ps"

@@ -36,8 +36,5 @@ spec:
     - pid: 10842
       signal: 9
   nodeName: 10.177.16.22
-  skipDiagnosis: true
-  skipInformationCollection: true
-  skipRecovery: false
   source: Custom
 ```
