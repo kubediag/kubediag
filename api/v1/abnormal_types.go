@@ -69,15 +69,6 @@ type AbnormalSpec struct {
 	// event source. This must be specified if abnormal source is KubernetesEvent.
 	// +optional
 	KubernetesEvent *corev1.Event `json:"kubernetesEvent,omitempty"`
-	// SkipInformationCollection indicates whether the information collection should be skipped.
-	// +optional
-	SkipInformationCollection bool `json:"skipInformationCollection,omitempty"`
-	// SkipDiagnosis indicates whether the diagnosis should be skipped.
-	// +optional
-	SkipDiagnosis bool `json:"skipDiagnosis,omitempty"`
-	// SkipRecovery indicates whether the recovery should be skipped.
-	// +optional
-	SkipRecovery bool `json:"skipRecovery,omitempty"`
 	// NodeName is a specific node which the abnormal is on.
 	NodeName string `json:"nodeName"`
 	// AssignedInformationCollectors is the list of information collectors to execute

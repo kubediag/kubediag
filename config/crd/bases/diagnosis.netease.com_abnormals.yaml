@@ -356,17 +356,6 @@ spec:
                 - type
                 type: object
               type: array
-            skipDiagnosis:
-              description: SkipDiagnosis indicates whether the diagnosis should be
-                skipped.
-              type: boolean
-            skipInformationCollection:
-              description: SkipInformationCollection indicates whether the information
-                collection should be skipped.
-              type: boolean
-            skipRecovery:
-              description: SkipRecovery indicates whether the recovery should be skipped.
-              type: boolean
             source:
               description: Source is the abnormal source. Valid sources are KubernetesEvent
                 and Custom.
