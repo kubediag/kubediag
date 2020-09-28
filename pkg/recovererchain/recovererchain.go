@@ -214,8 +214,8 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		}
 	}
 
-	// Skip recovery if SkipRecovery is true.
-	if abnormal.Spec.SkipRecovery {
+	// Skip recovery if AssignedRecoverers is empty.
+	if len(abnormal.Spec.AssignedRecoverers) == 0 {
 		rc.Info("skipping recovery", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
@@ -232,23 +232,19 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 	}
 
 	for _, recoverer := range recoverers {
-		// Execute only matched recoverers if AssignedRecoverers is not empty.
+		// Execute only matched recoverers.
 		matched := false
-		if len(abnormal.Spec.AssignedRecoverers) == 0 {
-			matched = true
-		} else {
-			for _, assignedRecoverer := range abnormal.Spec.AssignedRecoverers {
-				if recoverer.Name == assignedRecoverer.Name && recoverer.Namespace == assignedRecoverer.Namespace {
-					rc.Info("assigned recoverer matched", "recoverer", client.ObjectKey{
-						Name:      recoverer.Name,
-						Namespace: recoverer.Namespace,
-					}, "abnormal", client.ObjectKey{
-						Name:      abnormal.Name,
-						Namespace: abnormal.Namespace,
-					})
-					matched = true
-					break
-				}
+		for _, assignedRecoverer := range abnormal.Spec.AssignedRecoverers {
+			if recoverer.Name == assignedRecoverer.Name && recoverer.Namespace == assignedRecoverer.Namespace {
+				rc.Info("assigned recoverer matched", "recoverer", client.ObjectKey{
+					Name:      recoverer.Name,
+					Namespace: recoverer.Namespace,
+				}, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				matched = true
+				break
 			}
 		}
 

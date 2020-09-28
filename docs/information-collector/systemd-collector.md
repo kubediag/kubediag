@@ -31,9 +31,6 @@ metadata:
   name: systemd-collection
 spec:
   source: Custom
-  skipInformationCollection: false
-  skipDiagnosis: true
-  skipRecovery: true
   assignedInformationCollectors:
   - name: systemd-collector
     namespace: kube-diagnoser

@@ -654,10 +654,7 @@ func TestValidateAbnormalResult(t *testing.T) {
 					Name: "event1",
 				},
 			},
-			SkipInformationCollection: false,
-			SkipDiagnosis:             false,
-			SkipRecovery:              false,
-			NodeName:                  "node1",
+			NodeName: "node1",
 			AssignedInformationCollectors: []diagnosisv1.NamespacedName{
 				{
 					Name: "collector1",

@@ -24,9 +24,6 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | source | 故障的来源。该字段支持 KubernetesEvent 和 Custom。 | string | true |
 | kubernetesEvent | 表示故障的 Kubernetes Event 详细信息，对应 source 字段的 KubernetesEvent。 | [corev1.Event](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#event-v1-core) | false |
-| skipInformationCollection | 跳过信息采集步骤。 | bool | false |
-| skipDiagnosis | 跳过故障分析步骤。 | bool | false |
-| skipRecovery | 跳过故障恢复步骤。 | bool | false |
 | nodeName | Abnormal 所在节点名。 | string | true |
 | assignedInformationCollectors | 指定进行信息采集的信息采集器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedDiagnosers | 指定进行诊断的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |

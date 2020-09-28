@@ -32,9 +32,6 @@ spec:
   - name: container-collector
     namespace: kube-diagnoser
   nodeName: 10.177.16.22
-  skipDiagnosis: true
-  skipInformationCollection: false
-  skipRecovery: true
   source: Custom
 ```
 

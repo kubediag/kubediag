@@ -226,8 +226,8 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		}
 	}
 
-	// Skip collection if SkipInformationCollection is true.
-	if abnormal.Spec.SkipInformationCollection {
+	// Skip collection if AssignedInformationCollectors is empty.
+	if len(abnormal.Spec.AssignedInformationCollectors) == 0 {
 		im.Info("skipping collection", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
@@ -245,23 +245,19 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 
 	informationCollected := false
 	for _, collector := range informationCollectors {
-		// Execute only matched information collectors if AssignedInformationCollectors is not empty.
+		// Execute only matched information collectors.
 		matched := false
-		if len(abnormal.Spec.AssignedInformationCollectors) == 0 {
-			matched = true
-		} else {
-			for _, assignedCollector := range abnormal.Spec.AssignedInformationCollectors {
-				if collector.Name == assignedCollector.Name && collector.Namespace == assignedCollector.Namespace {
-					im.Info("assigned collector matched", "collector", client.ObjectKey{
-						Name:      collector.Name,
-						Namespace: collector.Namespace,
-					}, "abnormal", client.ObjectKey{
-						Name:      abnormal.Name,
-						Namespace: abnormal.Namespace,
-					})
-					matched = true
-					break
-				}
+		for _, assignedCollector := range abnormal.Spec.AssignedInformationCollectors {
+			if collector.Name == assignedCollector.Name && collector.Namespace == assignedCollector.Namespace {
+				im.Info("assigned collector matched", "collector", client.ObjectKey{
+					Name:      collector.Name,
+					Namespace: collector.Namespace,
+				}, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				matched = true
+				break
 			}
 		}
 

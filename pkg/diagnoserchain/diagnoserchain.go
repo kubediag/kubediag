@@ -218,8 +218,8 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		}
 	}
 
-	// Skip diagnosis if SkipDiagnosis is true.
-	if abnormal.Spec.SkipDiagnosis {
+	// Skip diagnosis if AssignedDiagnosers is empty.
+	if len(abnormal.Spec.AssignedDiagnosers) == 0 {
 		dc.Info("skipping diagnosis", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
@@ -236,23 +236,19 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 	}
 
 	for _, diagnoser := range diagnosers {
-		// Execute only matched diagnosers if AssignedDiagnosers is not empty.
+		// Execute only matched diagnosers.
 		matched := false
-		if len(abnormal.Spec.AssignedDiagnosers) == 0 {
-			matched = true
-		} else {
-			for _, assignedDiagnoser := range abnormal.Spec.AssignedDiagnosers {
-				if diagnoser.Name == assignedDiagnoser.Name && diagnoser.Namespace == assignedDiagnoser.Namespace {
-					dc.Info("assigned diagnoser matched", "diagnoser", client.ObjectKey{
-						Name:      diagnoser.Name,
-						Namespace: diagnoser.Namespace,
-					}, "abnormal", client.ObjectKey{
-						Name:      abnormal.Name,
-						Namespace: abnormal.Namespace,
-					})
-					matched = true
-					break
-				}
+		for _, assignedDiagnoser := range abnormal.Spec.AssignedDiagnosers {
+			if diagnoser.Name == assignedDiagnoser.Name && diagnoser.Namespace == assignedDiagnoser.Namespace {
+				dc.Info("assigned diagnoser matched", "diagnoser", client.ObjectKey{
+					Name:      diagnoser.Name,
+					Namespace: diagnoser.Namespace,
+				}, "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+				matched = true
+				break
 			}
 		}
 

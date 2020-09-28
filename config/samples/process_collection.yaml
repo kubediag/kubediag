@@ -4,9 +4,6 @@ metadata:
   name: process-collection
 spec:
   source: Custom
-  skipInformationCollection: false
-  skipDiagnosis: true
-  skipRecovery: true
   assignedInformationCollectors:
   - name: process-collector
     namespace: kube-diagnoser
