@@ -1,14 +1,74 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
-  name: kube-diagnoser
+  name: kube-diagnoser-master
   namespace: kube-diagnoser
   labels:
     control-plane: kube-diagnoser
+    mode: master
 spec:
   selector:
     matchLabels:
       control-plane: kube-diagnoser
+      mode: master
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        control-plane: kube-diagnoser
+        mode: master
+    spec:
+      containers:
+      - command:
+        - /kube-diagnoser
+        args:
+        - --mode=master
+        - --address=0.0.0.0:8089
+        - --metrics-address=0.0.0.0:10357
+        - --enable-leader-election=true
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.3
+        name: kube-diagnoser
+        ports:
+        - containerPort: 10357
+          name: metrics
+        - containerPort: 8089
+          name: http
+        resources:
+          limits:
+            cpu: 400m
+            memory: 400Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        securityContext:
+          privileged: true
+      hostNetwork: true
+      hostPID: true
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccountName: kube-diagnoser
+      terminationGracePeriodSeconds: 10
+      tolerations:
+      - operator: Exists
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-diagnoser-agent
+  namespace: kube-diagnoser
+  labels:
+    control-plane: kube-diagnoser
+    mode: agent
+spec:
+  selector:
+    matchLabels:
+      control-plane: kube-diagnoser
+      mode: agent
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 5
@@ -17,13 +77,15 @@ spec:
     metadata:
       labels:
         control-plane: kube-diagnoser
+        mode: agent
     spec:
       containers:
       - command:
         - /kube-diagnoser
         args:
+        - --mode=agent
         - --address=0.0.0.0:8090
-        - --metrics-address=0.0.0.0:10357
+        - --metrics-address=0.0.0.0:10355
         - --node-name=$(NODE_NAME)
         image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.3
         env:
@@ -33,7 +95,7 @@ spec:
               fieldPath: spec.nodeName
         name: kube-diagnoser
         ports:
-        - containerPort: 10357
+        - containerPort: 10355
           name: metrics
         - containerPort: 8090
           name: http
@@ -42,8 +104,8 @@ spec:
             cpu: 400m
             memory: 400Mi
           requests:
-            cpu: 200m
-            memory: 200Mi
+            cpu: 100m
+            memory: 100Mi
         securityContext:
           privileged: true
         volumeMounts:
@@ -73,6 +135,8 @@ spec:
         runAsUser: 0
       serviceAccountName: kube-diagnoser
       terminationGracePeriodSeconds: 10
+      tolerations:
+      - operator: Exists
 ---
 apiVersion: v1
 kind: ServiceAccount

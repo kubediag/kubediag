@@ -37,8 +37,9 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/deploy && kustomize edit set image kube-diagnoser=${IMG}:${TAG}
-	kustomize build config/default | kubectl apply -f -
+	cd config/manager && kustomize edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
+	kustomize build config/default > config/deploy/manifests.yaml
+	kubectl apply -f config/deploy
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen

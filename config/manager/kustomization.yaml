@@ -3,6 +3,6 @@ resources:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- name: kube-diagnoser
+- name: hub.c.163.com/combk8s/kube-diagnoser
   newName: hub.c.163.com/combk8s/kube-diagnoser
   newTag: v0.1.3

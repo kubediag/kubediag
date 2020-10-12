@@ -55,7 +55,7 @@ spec:
               type: string
             timeoutSeconds:
               description: Number of seconds after which the information collector
-                times out. Defaults to 1 second. Minimum value is 1.
+                times out. Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
           required:
