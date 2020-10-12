@@ -838,7 +838,7 @@ func DiskUsage(path string) (int, error) {
 	// Uses -B 1 to always scale to a blocksize of 1 byte.
 	// Set 10 seconds timeout for "du" command.
 	command := []string{"nice", "-n", "19", "du", "-s", "-B", "1", path}
-	out, err := BlockingRunCommandWithTimeout(command, 10)
+	out, err := BlockingRunCommandWithTimeout(command, 60)
 	if err != nil {
 		return 0, fmt.Errorf("execute command du ($ nice -n 19 du -s -B 1) on path %s with error %v", path, err)
 	}

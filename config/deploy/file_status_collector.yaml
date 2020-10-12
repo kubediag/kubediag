@@ -8,4 +8,4 @@ spec:
   port: "8090"
   path: /informationcollector/filestatuscollector
   scheme: http
-  timeoutSeconds: 120
+  timeoutSeconds: 300
