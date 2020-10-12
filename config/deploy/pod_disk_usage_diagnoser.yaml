@@ -8,4 +8,4 @@ spec:
   port: "8090"
   path: /diagnoser/poddiskusagediagnoser
   scheme: http
-  timeoutSeconds: 120
+  timeoutSeconds: 300
