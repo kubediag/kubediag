@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.1.4](#v014)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.3](#v013)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -36,6 +45,40 @@
     - [Added](#added)
     - [Changed](#changed)
     - [Removed](#removed)
+
+## v0.1.4
+
+### Changes by Kind
+
+#### API Change
+
+- Remove `SkipInformationCollection`, `SkipDiagnosis` and `SkipRecovery` fields in Abnormal and skips unassigned information collectors, diagnosers and recoverers to reduce risks in running uncensored information collectors, diagnosers and recoverers. ([#48](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/48))
+- Implement kube diagnoser master with webhook server. ([#50](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/50))
+
+#### Bug or Regression
+
+- Wait for cache sync on abnormal reaper start. ([#46](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/46))
+- Check abnormal data size in `DoHTTPRequestWithAbnormal` function to avoid commit of any huge abnormal to apiserver. ([#47](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/47))
+- Fix blocked error channel in `RunGoProfiler` function. ([#49](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/49))
+- Increment `du` timeout for `DiskUsage` function. ([#51](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/51))
+
+#### Other
+
+- Implement systemd collector for collecting properties of the specified systemd units. ([#45](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/45))
+
+## Dependencies
+
+### Added
+
+_Nothing has changed._
+
+### Changed
+
+_Nothing has changed._
+
+### Removed
+
+_Nothing has changed._
 
 ## v0.1.3
 
