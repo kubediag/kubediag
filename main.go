@@ -53,16 +53,20 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// KubeDiagnoserAgentOptions is the main context object for the kube diagnoser agent.
+// KubeDiagnoserAgentOptions is the main context object for the kube diagnoser.
 type KubeDiagnoserAgentOptions struct {
+	// Mode specifies whether the kube diagnoser is running as a master or an agnet.
+	Mode string
 	// Address is the address on which to advertise.
 	Address string
 	// NodeName specifies the node name.
 	NodeName string
 	// MetricsAddress is the address the metric endpoint binds to.
 	MetricsAddress string
-	// EnableLeaderElection enables leader election for kube diagnoser agent.
+	// EnableLeaderElection enables leader election for kube diagnoser master.
 	EnableLeaderElection bool
+	// CertDir is the directory that contains the server key and certificate.
+	CertDir string
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// AbnormalTTL is amount of time to retain abnormals.
@@ -89,7 +93,7 @@ func main() {
 and executes information collection, diagnosis and recovery according to specification
 of an Abnormal.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			setupLog.Error(opts.Run(), "failed to run kube diagnoser agent")
+			setupLog.Error(opts.Run(), "failed to run kube diagnoser")
 			os.Exit(1)
 		},
 	}
@@ -105,9 +109,11 @@ of an Abnormal.`,
 // NewKubeDiagnoserAgentOptions creates a new KubeDiagnoserAgentOptions with a default config.
 func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 	return &KubeDiagnoserAgentOptions{
+		Mode:                       "agent",
 		Address:                    "0.0.0.0:8090",
 		MetricsAddress:             "0.0.0.0:10357",
 		EnableLeaderElection:       false,
+		CertDir:                    "/etc/kube-diagnoser/serving-certs",
 		AbnormalTTL:                240 * time.Hour,
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
@@ -118,210 +124,270 @@ func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 func (opts *KubeDiagnoserAgentOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: opts.MetricsAddress,
-		Port:               9443,
-		LeaderElection:     opts.EnableLeaderElection,
-		LeaderElectionID:   "8a2b2861.netease.com",
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		return fmt.Errorf("unable to start manager: %v", err)
-	}
+	if opts.Mode == "master" {
+		setupLog.Info("kube diagnoser is running in master mode")
 
-	stopCh := SetupSignalHandler()
-
-	// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
-	sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
-	informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
-	diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
-	recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
-
-	// Run source manager, information manager, diagnoser chain and recoverer chain.
-	sourceManager := sourcemanager.NewSourceManager(
-		context.Background(),
-		ctrl.Log.WithName("sourcemanager"),
-		mgr.GetClient(),
-		mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
-		mgr.GetScheme(),
-		mgr.GetCache(),
-		opts.NodeName,
-		sourceManagerCh,
-		informationManagerCh,
-	)
-	go func(stopCh chan struct{}) {
-		sourceManager.Run(stopCh)
-	}(stopCh)
-	informationManager := informationmanager.NewInformationManager(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager"),
-		mgr.GetClient(),
-		mgr.GetEventRecorderFor("kube-diagnoser/informationmanager"),
-		mgr.GetScheme(),
-		mgr.GetCache(),
-		opts.NodeName,
-		informationManagerCh,
-		diagnoserChainCh,
-	)
-	go func(stopCh chan struct{}) {
-		informationManager.Run(stopCh)
-	}(stopCh)
-	diagnoserChain := diagnoserchain.NewDiagnoserChain(
-		context.Background(),
-		ctrl.Log.WithName("diagnoserchain"),
-		mgr.GetClient(),
-		mgr.GetEventRecorderFor("kube-diagnoser/diagnoserchain"),
-		mgr.GetScheme(),
-		mgr.GetCache(),
-		opts.NodeName,
-		diagnoserChainCh,
-		recovererChainCh,
-	)
-	go func(stopCh chan struct{}) {
-		diagnoserChain.Run(stopCh)
-	}(stopCh)
-	recovererChain := recovererchain.NewRecovererChain(
-		context.Background(),
-		ctrl.Log.WithName("recovererchain"),
-		mgr.GetClient(),
-		mgr.GetEventRecorderFor("kube-diagnoser/recovererchain"),
-		mgr.GetScheme(),
-		mgr.GetCache(),
-		opts.NodeName,
-		recovererChainCh,
-	)
-	go func(stopCh chan struct{}) {
-		recovererChain.Run(stopCh)
-	}(stopCh)
-
-	// Run abnormal reaper for garbage collection.
-	abnormalreaper := abnormalreaper.NewAbnormalReaper(
-		context.Background(),
-		ctrl.Log.WithName("abnormalreaper"),
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetCache(),
-		opts.NodeName,
-		opts.AbnormalTTL,
-		opts.MinimumAbnormalTTLDuration,
-		opts.MaximumAbnormalsPerNode,
-	)
-	go func(stopCh chan struct{}) {
-		abnormalreaper.Run(stopCh)
-	}(stopCh)
-
-	// Setup information collectors, diagnosers and recoverers.
-	podCollector := informationcollector.NewPodCollector(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager/podcollector"),
-		mgr.GetCache(),
-		opts.NodeName,
-	)
-	containerCollector, err := informationcollector.NewContainerCollector(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager/containercollector"),
-		opts.DockerEndpoint,
-	)
-	if err != nil {
-		setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
-		return fmt.Errorf("unable to create information collector: %v", err)
-	}
-	processCollector := informationcollector.NewProcessCollector(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager/processcollector"),
-	)
-	fileStatusCollector := informationcollector.NewFileStatusCollector(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager/filestatuscollector"),
-	)
-	systemdCollector := informationcollector.NewSystemdCollector(
-		context.Background(),
-		ctrl.Log.WithName("informationmanager/systemdcollector"),
-	)
-	podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
-		context.Background(),
-		ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
-	)
-	terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
-		context.Background(),
-		ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
-	)
-	signalRecoverer := recoverer.NewSignalRecoverer(
-		context.Background(),
-		ctrl.Log.WithName("recovererchain/signalrecoverer"),
-	)
-
-	// Start http server.
-	go func(stopCh chan struct{}) {
-		r := mux.NewRouter()
-		r.HandleFunc("/informationcollector", informationManager.Handler)
-		r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
-		r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
-		r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
-		r.HandleFunc("/informationcollector/filestatuscollector", fileStatusCollector.Handler)
-		r.HandleFunc("/informationcollector/systemdcollector", systemdCollector.Handler)
-		r.HandleFunc("/diagnoser", diagnoserChain.Handler)
-		r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
-		r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
-		r.HandleFunc("/recoverer", recovererChain.Handler)
-		r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
-		r.HandleFunc("/healthz", HealthCheckHandler)
-
-		// Start pprof server.
-		r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
-		if err := http.ListenAndServe(opts.Address, r); err != nil {
-			setupLog.Error(err, "unable to start http server")
-			close(stopCh)
+		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			Scheme:             scheme,
+			MetricsBindAddress: opts.MetricsAddress,
+			Port:               9443,
+			LeaderElection:     opts.EnableLeaderElection,
+			LeaderElectionID:   "8a2b2861.netease.com",
+			CertDir:            opts.CertDir,
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to start manager")
+			return fmt.Errorf("unable to start manager: %v", err)
 		}
-	}(stopCh)
 
-	// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.
-	if err = (controllers.NewAbnormalReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Abnormal"),
-		mgr.GetScheme(),
-		sourceManagerCh,
-		informationManagerCh,
-		diagnoserChainCh,
-		recovererChainCh,
-	)).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
-		return fmt.Errorf("unable to create controller for Abnormal: %v", err)
-	}
-	if err = (controllers.NewInformationCollectorReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("InformationCollector"),
-		mgr.GetScheme(),
-		informationManagerCh,
-	)).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
-		return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
-	}
-	if err = (controllers.NewDiagnoserReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Diagnoser"),
-		mgr.GetScheme(),
-		diagnoserChainCh,
-	)).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
-		return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
-	}
-	if err = (controllers.NewRecovererReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("Recoverer"),
-		mgr.GetScheme(),
-		recovererChainCh,
-	)).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
-		return fmt.Errorf("unable to create controller for Recoverer: %v", err)
-	}
-	// +kubebuilder:scaffold:builder
+		stopCh := SetupSignalHandler()
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(stopCh); err != nil {
-		setupLog.Error(err, "problem running manager")
-		return fmt.Errorf("problem running manager: %v", err)
+		// Start http server.
+		go func(stopCh chan struct{}) {
+			r := mux.NewRouter()
+
+			// Start pprof server.
+			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+			if err := http.ListenAndServe(opts.Address, r); err != nil {
+				setupLog.Error(err, "unable to start http server")
+				close(stopCh)
+			}
+		}(stopCh)
+
+		// Setup webhooks for Abnormal, InformationCollector, Diagnoser and Recoverer.
+		if err = (&diagnosisv1.Abnormal{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Abnormal")
+			return fmt.Errorf("unable to create webhook for Abnormal: %v", err)
+		}
+		if err = (&diagnosisv1.Diagnoser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnoser")
+			return fmt.Errorf("unable to create webhook for Diagnoser: %v", err)
+		}
+		if err = (&diagnosisv1.InformationCollector{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "InformationCollector")
+			return fmt.Errorf("unable to create webhook for InformationCollector: %v", err)
+		}
+		if err = (&diagnosisv1.Recoverer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Recoverer")
+			return fmt.Errorf("unable to create webhook for Recoverer: %v", err)
+		}
+		// +kubebuilder:scaffold:builder
+
+		setupLog.Info("starting manager")
+		if err := mgr.Start(stopCh); err != nil {
+			setupLog.Error(err, "problem running manager")
+			return fmt.Errorf("problem running manager: %v", err)
+		}
+	} else if opts.Mode == "agent" {
+		setupLog.Info("kube diagnoser is running in agent mode")
+
+		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			Scheme:             scheme,
+			MetricsBindAddress: opts.MetricsAddress,
+			Port:               9443,
+			LeaderElection:     false,
+			LeaderElectionID:   "8a2b2861.netease.com",
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to start manager")
+			return fmt.Errorf("unable to start manager: %v", err)
+		}
+
+		stopCh := SetupSignalHandler()
+
+		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
+		sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+		informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+		diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
+		recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
+
+		// Run source manager, information manager, diagnoser chain and recoverer chain.
+		sourceManager := sourcemanager.NewSourceManager(
+			context.Background(),
+			ctrl.Log.WithName("sourcemanager"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			sourceManagerCh,
+			informationManagerCh,
+		)
+		go func(stopCh chan struct{}) {
+			sourceManager.Run(stopCh)
+		}(stopCh)
+		informationManager := informationmanager.NewInformationManager(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/informationmanager"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			informationManagerCh,
+			diagnoserChainCh,
+		)
+		go func(stopCh chan struct{}) {
+			informationManager.Run(stopCh)
+		}(stopCh)
+		diagnoserChain := diagnoserchain.NewDiagnoserChain(
+			context.Background(),
+			ctrl.Log.WithName("diagnoserchain"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/diagnoserchain"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			diagnoserChainCh,
+			recovererChainCh,
+		)
+		go func(stopCh chan struct{}) {
+			diagnoserChain.Run(stopCh)
+		}(stopCh)
+		recovererChain := recovererchain.NewRecovererChain(
+			context.Background(),
+			ctrl.Log.WithName("recovererchain"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/recovererchain"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			recovererChainCh,
+		)
+		go func(stopCh chan struct{}) {
+			recovererChain.Run(stopCh)
+		}(stopCh)
+
+		// Run abnormal reaper for garbage collection.
+		abnormalreaper := abnormalreaper.NewAbnormalReaper(
+			context.Background(),
+			ctrl.Log.WithName("abnormalreaper"),
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			opts.AbnormalTTL,
+			opts.MinimumAbnormalTTLDuration,
+			opts.MaximumAbnormalsPerNode,
+		)
+		go func(stopCh chan struct{}) {
+			abnormalreaper.Run(stopCh)
+		}(stopCh)
+
+		// Setup information collectors, diagnosers and recoverers.
+		podCollector := informationcollector.NewPodCollector(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager/podcollector"),
+			mgr.GetCache(),
+			opts.NodeName,
+		)
+		containerCollector, err := informationcollector.NewContainerCollector(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager/containercollector"),
+			opts.DockerEndpoint,
+		)
+		if err != nil {
+			setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
+			return fmt.Errorf("unable to create information collector: %v", err)
+		}
+		processCollector := informationcollector.NewProcessCollector(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager/processcollector"),
+		)
+		fileStatusCollector := informationcollector.NewFileStatusCollector(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager/filestatuscollector"),
+		)
+		systemdCollector := informationcollector.NewSystemdCollector(
+			context.Background(),
+			ctrl.Log.WithName("informationmanager/systemdcollector"),
+		)
+		podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
+			context.Background(),
+			ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
+		)
+		terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
+			context.Background(),
+			ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
+		)
+		signalRecoverer := recoverer.NewSignalRecoverer(
+			context.Background(),
+			ctrl.Log.WithName("recovererchain/signalrecoverer"),
+		)
+
+		// Start http server.
+		go func(stopCh chan struct{}) {
+			r := mux.NewRouter()
+			r.HandleFunc("/informationcollector", informationManager.Handler)
+			r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
+			r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
+			r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
+			r.HandleFunc("/informationcollector/filestatuscollector", fileStatusCollector.Handler)
+			r.HandleFunc("/informationcollector/systemdcollector", systemdCollector.Handler)
+			r.HandleFunc("/diagnoser", diagnoserChain.Handler)
+			r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
+			r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
+			r.HandleFunc("/recoverer", recovererChain.Handler)
+			r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
+			r.HandleFunc("/healthz", HealthCheckHandler)
+
+			// Start pprof server.
+			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+			if err := http.ListenAndServe(opts.Address, r); err != nil {
+				setupLog.Error(err, "unable to start http server")
+				close(stopCh)
+			}
+		}(stopCh)
+
+		// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.
+		if err = (controllers.NewAbnormalReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Abnormal"),
+			mgr.GetScheme(),
+			sourceManagerCh,
+			informationManagerCh,
+			diagnoserChainCh,
+			recovererChainCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
+			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
+		}
+		if err = (controllers.NewInformationCollectorReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("InformationCollector"),
+			mgr.GetScheme(),
+			informationManagerCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
+			return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
+		}
+		if err = (controllers.NewDiagnoserReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Diagnoser"),
+			mgr.GetScheme(),
+			diagnoserChainCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
+			return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
+		}
+		if err = (controllers.NewRecovererReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Recoverer"),
+			mgr.GetScheme(),
+			recovererChainCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
+			return fmt.Errorf("unable to create controller for Recoverer: %v", err)
+		}
+		// +kubebuilder:scaffold:builder
+
+		setupLog.Info("starting manager")
+		if err := mgr.Start(stopCh); err != nil {
+			setupLog.Error(err, "problem running manager")
+			return fmt.Errorf("problem running manager: %v", err)
+		}
+	} else {
+		return fmt.Errorf("invalid kube diagnoser mode: %s", opts.Mode)
 	}
 
 	return nil
@@ -329,11 +395,13 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 
 // AddFlags adds flags to fs and binds them to options.
 func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kube diagnoser is running as a master or an agnet.")
 	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
-	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser agent.")
+	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
+	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")

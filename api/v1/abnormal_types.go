@@ -134,7 +134,7 @@ type CommandExecutor struct {
 	// +optional
 	Error string `json:"error,omitempty"`
 	// Number of seconds after which the command times out.
-	// Defaults to 1 second. Minimum value is 1.
+	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
@@ -157,7 +157,7 @@ type Profiler struct {
 	// +optional
 	Error string `json:"error,omitempty"`
 	// Number of seconds after which the profiler times out.
-	// Defaults to 1 second. Minimum value is 1.
+	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 	// Endpoint specifies how to navigate through a performance profile.
