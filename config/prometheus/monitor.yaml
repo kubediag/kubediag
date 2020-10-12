@@ -5,7 +5,8 @@ kind: ServiceMonitor
 metadata:
   labels:
     control-plane: kube-diagnoser
-  name: kube-diagnoser-metrics-monitor
+    mode: agent
+  name: kube-diagnoser-agent-metrics-monitor
   namespace: kube-diagnoser
 spec:
   endpoints:
@@ -17,20 +18,23 @@ spec:
   selector:
     matchLabels:
       control-plane: kube-diagnoser
+      mode: agent
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
     control-plane: kube-diagnoser
-  name: kube-diagnoser-metrics-monitor
+    mode: agent
+  name: kube-diagnoser-agent-metrics-monitor
   namespace: kube-diagnoser
 spec:
   ports:
   - name: metrics
-    port: 10357
+    port: 10355
     targetPort: metrics
   selector:
     control-plane: kube-diagnoser
+    mode: agent
   type: ClusterIP
   clusterIP: None

@@ -3,7 +3,8 @@ kind: Service
 metadata:
   labels:
     control-plane: kube-diagnoser
-  name: kube-diagnoser-metrics-service
+    mode: agent
+  name: kube-diagnoser-agent-metrics-service
   namespace: kube-diagnoser
 spec:
   ports:
@@ -12,3 +13,4 @@ spec:
     targetPort: https
   selector:
     control-plane: kube-diagnoser
+    mode: agent
