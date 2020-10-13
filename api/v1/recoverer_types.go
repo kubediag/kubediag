@@ -25,7 +25,7 @@ type RecovererSpec struct {
 	// IP is the serving ip of the recoverer.
 	IP string `json:"ip"`
 	// Port is the serving port of the recoverer.
-	Port string `json:"port"`
+	Port int32 `json:"port"`
 	// Path is the serving http path of recoverer.
 	// +optional
 	Path string `json:"path,omitempty"`

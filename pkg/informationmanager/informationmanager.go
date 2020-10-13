@@ -277,7 +277,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		host := collector.Spec.IP
 		port := collector.Spec.Port
 		path := collector.Spec.Path
-		url := util.FormatURL(scheme, host, port, path)
+		url := util.FormatURL(scheme, host, string(port), path)
 		timeout := time.Duration(collector.Spec.TimeoutSeconds) * time.Second
 
 		cli := &http.Client{

@@ -18,7 +18,6 @@ package v1
 
 import (
 	"net"
-	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,13 +100,16 @@ func (r *Diagnoser) validateDiagnoser() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip"),
 			r.Spec.IP, "must be valid ip"))
 	}
-	if _, err := strconv.Atoi(r.Spec.Port); err == nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip"),
+	if r.Spec.Port < 1 || 65535 < r.Spec.Port {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("port"),
 			r.Spec.Port, "must be valid port"))
 	}
 	if r.Spec.Scheme != "http" && r.Spec.Scheme != "https" {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("scheme"),
 			r.Spec.Scheme, "must be either http or https"))
+	}
+	if len(allErrs) == 0 {
+		return nil
 	}
 
 	return apierrors.NewInvalid(

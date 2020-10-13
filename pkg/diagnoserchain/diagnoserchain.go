@@ -268,7 +268,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		host := diagnoser.Spec.IP
 		port := diagnoser.Spec.Port
 		path := diagnoser.Spec.Path
-		url := util.FormatURL(scheme, host, port, path)
+		url := util.FormatURL(scheme, host, string(port), path)
 		timeout := time.Duration(diagnoser.Spec.TimeoutSeconds) * time.Second
 
 		cli := &http.Client{
