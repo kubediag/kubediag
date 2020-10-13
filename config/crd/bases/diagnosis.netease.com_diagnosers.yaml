@@ -44,7 +44,8 @@ spec:
               type: string
             port:
               description: Port is the serving port of the diagnoser.
-              type: string
+              format: int32
+              type: integer
             scheme:
               description: Scheme is the serving scheme of diagnoser.
               type: string
