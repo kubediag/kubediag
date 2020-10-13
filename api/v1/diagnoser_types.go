@@ -25,7 +25,7 @@ type DiagnoserSpec struct {
 	// IP is the serving ip of the diagnoser.
 	IP string `json:"ip"`
 	// Port is the serving port of the diagnoser.
-	Port string `json:"port"`
+	Port int32 `json:"port"`
 	// Path is the serving http path of diagnoser.
 	// +optional
 	Path string `json:"path,omitempty"`

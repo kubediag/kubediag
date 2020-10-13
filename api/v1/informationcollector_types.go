@@ -25,7 +25,7 @@ type InformationCollectorSpec struct {
 	// IP is the serving ip of the information collector.
 	IP string `json:"ip"`
 	// Port is the serving port of the information collector.
-	Port string `json:"port"`
+	Port int32 `json:"port"`
 	// Path is the serving http path of information collector.
 	// +optional
 	Path string `json:"path,omitempty"`

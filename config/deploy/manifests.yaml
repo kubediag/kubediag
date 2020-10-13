@@ -613,7 +613,8 @@ spec:
               type: string
             port:
               description: Port is the serving port of the diagnoser.
-              type: string
+              format: int32
+              type: integer
             scheme:
               description: Scheme is the serving scheme of diagnoser.
               type: string
@@ -715,7 +716,8 @@ spec:
               type: string
             port:
               description: Port is the serving port of the information collector.
-              type: string
+              format: int32
+              type: integer
             scheme:
               description: Scheme is the serving scheme of information collector.
               type: string
@@ -795,7 +797,8 @@ spec:
               type: string
             port:
               description: Port is the serving port of the recoverer.
-              type: string
+              format: int32
+              type: integer
             scheme:
               description: Scheme is the serving scheme of recoverer.
               type: string
