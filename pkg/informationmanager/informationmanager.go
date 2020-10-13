@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -277,7 +278,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		host := collector.Spec.IP
 		port := collector.Spec.Port
 		path := collector.Spec.Path
-		url := util.FormatURL(scheme, host, string(port), path)
+		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(collector.Spec.TimeoutSeconds) * time.Second
 
 		cli := &http.Client{
