@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -264,7 +265,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		host := recoverer.Spec.IP
 		port := recoverer.Spec.Port
 		path := recoverer.Spec.Path
-		url := util.FormatURL(scheme, host, string(port), path)
+		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(recoverer.Spec.TimeoutSeconds) * time.Second
 
 		cli := &http.Client{

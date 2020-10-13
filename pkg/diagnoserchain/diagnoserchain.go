@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -268,7 +269,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		host := diagnoser.Spec.IP
 		port := diagnoser.Spec.Port
 		path := diagnoser.Spec.Path
-		url := util.FormatURL(scheme, host, string(port), path)
+		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(diagnoser.Spec.TimeoutSeconds) * time.Second
 
 		cli := &http.Client{
