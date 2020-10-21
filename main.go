@@ -37,6 +37,7 @@ import (
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
+	"netease.com/k8s/kube-diagnoser/pkg/alertmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
@@ -53,8 +54,8 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// KubeDiagnoserAgentOptions is the main context object for the kube diagnoser.
-type KubeDiagnoserAgentOptions struct {
+// KubeDiagnoserOptions is the main context object for the kube diagnoser.
+type KubeDiagnoserOptions struct {
 	// Mode specifies whether the kube diagnoser is running as a master or an agnet.
 	Mode string
 	// Address is the address on which to advertise.
@@ -67,6 +68,9 @@ type KubeDiagnoserAgentOptions struct {
 	EnableLeaderElection bool
 	// CertDir is the directory that contains the server key and certificate.
 	CertDir string
+	// RepeatInterval specifies how long to wait before sending a notification again if it has already
+	// been sent successfully for an alert.
+	RepeatInterval time.Duration
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// AbnormalTTL is amount of time to retain abnormals.
@@ -85,12 +89,15 @@ func init() {
 }
 
 func main() {
-	opts := NewKubeDiagnoserAgentOptions()
+	opts := NewKubeDiagnoserOptions()
 
 	cmd := &cobra.Command{
 		Use: "kube-diagnoser",
-		Long: `The Kubernetes diagnoser agent runs on each node. This watches Abnormals
-and executes information collection, diagnosis and recovery according to specification
+		Long: `The Kubernetes diagnoser is a daemon that embeds the core pipeline of
+abnormal diagnosis and recovery. It could be run in either master mode or
+agent mode. In master mode it processes prometheus alerts and monitors
+cluster health status. In agent mode it watches Abnormals and executes
+information collection, diagnosis and recovery according to specification
 of an Abnormal.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			setupLog.Error(opts.Run(), "failed to run kube diagnoser")
@@ -106,14 +113,15 @@ of an Abnormal.`,
 	}
 }
 
-// NewKubeDiagnoserAgentOptions creates a new KubeDiagnoserAgentOptions with a default config.
-func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
-	return &KubeDiagnoserAgentOptions{
+// NewKubeDiagnoserOptions creates a new KubeDiagnoserOptions with a default config.
+func NewKubeDiagnoserOptions() *KubeDiagnoserOptions {
+	return &KubeDiagnoserOptions{
 		Mode:                       "agent",
 		Address:                    "0.0.0.0:8090",
 		MetricsAddress:             "0.0.0.0:10357",
 		EnableLeaderElection:       false,
 		CertDir:                    "/etc/kube-diagnoser/serving-certs",
+		RepeatInterval:             6 * time.Hour,
 		AbnormalTTL:                240 * time.Hour,
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
@@ -121,7 +129,7 @@ func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 }
 
 // Run setups all controllers and starts the manager.
-func (opts *KubeDiagnoserAgentOptions) Run() error {
+func (opts *KubeDiagnoserOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	if opts.Mode == "master" {
@@ -142,9 +150,18 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 
 		stopCh := SetupSignalHandler()
 
+		// Create alertmanager for managing prometheus alerts.
+		alertmanager := alertmanager.NewAlertmanager(
+			context.Background(),
+			ctrl.Log.WithName("alertmanager"),
+			mgr.GetClient(),
+			opts.RepeatInterval,
+		)
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			r := mux.NewRouter()
+			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -394,7 +411,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 }
 
 // AddFlags adds flags to fs and binds them to options.
-func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
+func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kube diagnoser is running as a master or an agnet.")
 	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
@@ -402,6 +419,7 @@ func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
+	fs.DurationVar(&opts.RepeatInterval, "repeat-interval", opts.RepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
