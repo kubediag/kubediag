@@ -37,6 +37,7 @@ import (
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
+	"netease.com/k8s/kube-diagnoser/pkg/alertmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
@@ -67,6 +68,9 @@ type KubeDiagnoserAgentOptions struct {
 	EnableLeaderElection bool
 	// CertDir is the directory that contains the server key and certificate.
 	CertDir string
+	// RepeatInterval specifies how long to wait before sending a notification again if it has already
+	// been sent successfully for an alert.
+	RepeatInterval time.Duration
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// AbnormalTTL is amount of time to retain abnormals.
@@ -114,6 +118,7 @@ func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 		MetricsAddress:             "0.0.0.0:10357",
 		EnableLeaderElection:       false,
 		CertDir:                    "/etc/kube-diagnoser/serving-certs",
+		RepeatInterval:             6 * time.Hour,
 		AbnormalTTL:                240 * time.Hour,
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
@@ -142,9 +147,18 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 
 		stopCh := SetupSignalHandler()
 
+		// Create alertmanager for managing prometheus alerts.
+		alertmanager := alertmanager.NewAlertmanager(
+			context.Background(),
+			ctrl.Log.WithName("alertmanager"),
+			mgr.GetClient(),
+			opts.RepeatInterval,
+		)
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			r := mux.NewRouter()
+			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -402,6 +416,7 @@ func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
+	fs.DurationVar(&opts.RepeatInterval, "repeat-interval", opts.RepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
