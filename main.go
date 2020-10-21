@@ -54,8 +54,8 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// KubeDiagnoserAgentOptions is the main context object for the kube diagnoser.
-type KubeDiagnoserAgentOptions struct {
+// KubeDiagnoserOptions is the main context object for the kube diagnoser.
+type KubeDiagnoserOptions struct {
 	// Mode specifies whether the kube diagnoser is running as a master or an agnet.
 	Mode string
 	// Address is the address on which to advertise.
@@ -89,12 +89,15 @@ func init() {
 }
 
 func main() {
-	opts := NewKubeDiagnoserAgentOptions()
+	opts := NewKubeDiagnoserOptions()
 
 	cmd := &cobra.Command{
 		Use: "kube-diagnoser",
-		Long: `The Kubernetes diagnoser agent runs on each node. This watches Abnormals
-and executes information collection, diagnosis and recovery according to specification
+		Long: `The Kubernetes diagnoser is a daemon that embeds the core pipeline of
+abnormal diagnosis and recovery. It could be run in either master mode or
+agent mode. In master mode it processes prometheus alerts and monitors
+cluster health status. In agent mode it watches Abnormals and executes
+information collection, diagnosis and recovery according to specification
 of an Abnormal.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			setupLog.Error(opts.Run(), "failed to run kube diagnoser")
@@ -110,9 +113,9 @@ of an Abnormal.`,
 	}
 }
 
-// NewKubeDiagnoserAgentOptions creates a new KubeDiagnoserAgentOptions with a default config.
-func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
-	return &KubeDiagnoserAgentOptions{
+// NewKubeDiagnoserOptions creates a new KubeDiagnoserOptions with a default config.
+func NewKubeDiagnoserOptions() *KubeDiagnoserOptions {
+	return &KubeDiagnoserOptions{
 		Mode:                       "agent",
 		Address:                    "0.0.0.0:8090",
 		MetricsAddress:             "0.0.0.0:10357",
@@ -126,7 +129,7 @@ func NewKubeDiagnoserAgentOptions() *KubeDiagnoserAgentOptions {
 }
 
 // Run setups all controllers and starts the manager.
-func (opts *KubeDiagnoserAgentOptions) Run() error {
+func (opts *KubeDiagnoserOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	if opts.Mode == "master" {
@@ -408,7 +411,7 @@ func (opts *KubeDiagnoserAgentOptions) Run() error {
 }
 
 // AddFlags adds flags to fs and binds them to options.
-func (opts *KubeDiagnoserAgentOptions) AddFlags(fs *pflag.FlagSet) {
+func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kube diagnoser is running as a master or an agnet.")
 	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
