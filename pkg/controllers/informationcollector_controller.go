@@ -30,21 +30,17 @@ type InformationCollectorReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
-
-	informationManagerCh chan diagnosisv1.Abnormal
 }
 
 func NewInformationCollectorReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
-	informationManagerCh chan diagnosisv1.Abnormal,
 ) *InformationCollectorReconciler {
 	return &InformationCollectorReconciler{
-		Client:               cli,
-		Log:                  log,
-		Scheme:               scheme,
-		informationManagerCh: informationManagerCh,
+		Client: cli,
+		Log:    log,
+		Scheme: scheme,
 	}
 }
 

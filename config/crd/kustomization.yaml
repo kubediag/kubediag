@@ -6,6 +6,7 @@ resources:
 - bases/diagnosis.netease.com_diagnosers.yaml
 - bases/diagnosis.netease.com_informationcollectors.yaml
 - bases/diagnosis.netease.com_recoverers.yaml
+- bases/diagnosis.netease.com_abnormalsources.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -15,6 +16,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_diagnosers.yaml
 #- patches/webhook_in_informationcollectors.yaml
 #- patches/webhook_in_recoverers.yaml
+#- patches/webhook_in_abnormalsources.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
@@ -23,6 +25,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_diagnosers.yaml
 #- patches/cainjection_in_informationcollectors.yaml
 #- patches/cainjection_in_recoverers.yaml
+#- patches/cainjection_in_abnormalsources.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

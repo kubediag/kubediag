@@ -18,7 +18,7 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 ## 架构
 
-故障诊断恢复平台 Agent 组件可以监听 APIServer 或 Prometheus 获取集群故障信息。故障诊断恢复平台 Master 组件通过 Deployment 的方式部署在集群中：
+故障诊断恢复平台 Master 组件可以监听 APIServer 或 Prometheus 获取集群故障信息。故障诊断恢复平台 Master 组件通过 Deployment 的方式部署在集群中：
 
 ```
                                                              ----------------------

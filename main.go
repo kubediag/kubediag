@@ -188,6 +188,16 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Recoverer")
 			return fmt.Errorf("unable to create webhook for Recoverer: %v", err)
 		}
+
+		// Setup reconcilers for AbnormalSource.
+		if err = (controllers.NewAbnormalSourceReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("AbnormalSource"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AbnormalSource")
+			return fmt.Errorf("unable to create controller for AbnormalSource: %v", err)
+		}
 		// +kubebuilder:scaffold:builder
 
 		setupLog.Info("starting manager")
@@ -373,7 +383,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("InformationCollector"),
 			mgr.GetScheme(),
-			informationManagerCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
 			return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
@@ -382,7 +391,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnoser"),
 			mgr.GetScheme(),
-			diagnoserChainCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
 			return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
@@ -391,7 +399,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Recoverer"),
 			mgr.GetScheme(),
-			recovererChainCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
 			return fmt.Errorf("unable to create controller for Recoverer: %v", err)
