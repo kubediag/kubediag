@@ -17,16 +17,19 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/prometheus/common/model"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
+	// PrometheusAlertSource means that the abnormal is detected via prometheus alert.
+	PrometheusAlertSource AbnormalSourceType = "PrometheusAlert"
 	// KubernetesEventSource means that the abnormal is detected via kubernetes event.
-	KubernetesEventSource AbnormalSource = "KubernetesEvent"
+	KubernetesEventSource AbnormalSourceType = "KubernetesEvent"
 	// CustomSource means that the abnormal is a customized abnormal created by user.
-	CustomSource AbnormalSource = "Custom"
+	CustomSource AbnormalSourceType = "Custom"
 
 	// InformationCollecting means that the information manager is sending abnormal to assigned
 	// information collectors.
@@ -63,8 +66,12 @@ const (
 
 // AbnormalSpec defines the desired state of Abnormal.
 type AbnormalSpec struct {
-	// Source is the abnormal source. Valid sources are KubernetesEvent and Custom.
-	Source AbnormalSource `json:"source"`
+	// Source is the abnormal source. Valid sources are PrometheusAlert, KubernetesEvent and Custom.
+	Source AbnormalSourceType `json:"source"`
+	// PrometheusAlert contains the prometheus alert about the abnormal from prometheus
+	// alert source. This must be specified if abnormal source is PrometheusAlert.
+	// +optional
+	PrometheusAlert *PrometheusAlert `json:"prometheusAlert,omitempty"`
 	// KubernetesEvent contains the kubernetes event about the abnormal from kubernetes
 	// event source. This must be specified if abnormal source is KubernetesEvent.
 	// +optional
@@ -73,18 +80,17 @@ type AbnormalSpec struct {
 	NodeName string `json:"nodeName"`
 	// AssignedInformationCollectors is the list of information collectors to execute
 	// information collecting logics. Information collectors would be executed in the
-	// specified sequence. No extra information collectors will be executed if the list
-	// is empty.
+	// specified sequence. Only assigned information collectors will be executed.
 	// +optional
 	AssignedInformationCollectors []NamespacedName `json:"assignedInformationCollectors,omitempty"`
 	// AssignedDiagnosers is the list of diagnosers to execute diagnosing logics.
-	// Diagnosers would be executed in the specified sequence. All diagnosers will
-	// be executed until the abnormal is diagnosed if the list is empty.
+	// Diagnosers would be executed in the specified sequence. Only assigned diagnosers
+	// will be executed.
 	// +optional
 	AssignedDiagnosers []NamespacedName `json:"assignedDiagnosers,omitempty"`
 	// AssignedRecoverers is the list of recoverers to execute recovering logics.
-	// Recoverers would be executed in the specified sequence. All recoverers will
-	// be executed until the abnormal is recovered if the list is empty.
+	// Recoverers would be executed in the specified sequence. Only assigned recoverers
+	// will be executed.
 	// +optional
 	AssignedRecoverers []NamespacedName `json:"assignedRecoverers,omitempty"`
 	// CommandExecutors is the list of commands to execute during information collecting, diagnosing
@@ -102,8 +108,26 @@ type AbnormalSpec struct {
 	Context *runtime.RawExtension `json:"context,omitempty"`
 }
 
-// AbnormalSource is the source of abnormals.
-type AbnormalSource string
+// AbnormalSourceType is the source of abnormals.
+type AbnormalSourceType string
+
+// PrometheusAlert is a generic representation of an prometheus alert.
+// It is the "Alert" type in model.go: https://github.com/prometheus/common/blob/v0.12.0/model/alert.go#L29.
+type PrometheusAlert struct {
+	// Labels contains label value pairs for purpose of aggregation, matching, and disposition
+	// dispatching. This must minimally include an "alertname" label.
+	Labels model.LabelSet `json:"labels"`
+	// Annotations contains extra key value information which does not define alert identity.
+	Annotations model.LabelSet `json:"annotations"`
+	// StartsAt specifies the known start time for this alert.
+	// +optional
+	StartsAt metav1.Time `json:"startsAt,omitempty"`
+	// EndsAt specifies the known end time for this alert.
+	// +optional
+	EndsAt metav1.Time `json:"endsAt,omitempty"`
+	// GeneratorURL specifies the url of alert generator.
+	GeneratorURL string `json:"generatorURL"`
+}
 
 // NamespacedName represents a kubernetes api resource.
 type NamespacedName struct {

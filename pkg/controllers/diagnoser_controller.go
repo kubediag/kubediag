@@ -30,21 +30,17 @@ type DiagnoserReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
-
-	diagnoserChainCh chan diagnosisv1.Abnormal
 }
 
 func NewDiagnoserReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
-	diagnoserChainCh chan diagnosisv1.Abnormal,
 ) *DiagnoserReconciler {
 	return &DiagnoserReconciler{
-		Client:           cli,
-		Log:              log,
-		Scheme:           scheme,
-		diagnoserChainCh: diagnoserChainCh,
+		Client: cli,
+		Log:    log,
+		Scheme: scheme,
 	}
 }
 

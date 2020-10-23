@@ -25,34 +25,34 @@ import (
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 )
 
-// RecovererReconciler reconciles a Recoverer object
-type RecovererReconciler struct {
+// AbnormalSourceReconciler reconciles a AbnormalSource object
+type AbnormalSourceReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-func NewRecovererReconciler(
+func NewAbnormalSourceReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
-) *RecovererReconciler {
-	return &RecovererReconciler{
+) *AbnormalSourceReconciler {
+	return &AbnormalSourceReconciler{
 		Client: cli,
 		Log:    log,
 		Scheme: scheme,
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=recoverers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=recoverers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormalsources,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormalsources/status,verbs=get;update;patch
 
-func (r *RecovererReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *AbnormalSourceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (r *RecovererReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *AbnormalSourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&diagnosisv1.Recoverer{}).
+		For(&diagnosisv1.AbnormalSource{}).
 		Complete(r)
 }
