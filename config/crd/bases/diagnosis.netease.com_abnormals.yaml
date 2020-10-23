@@ -39,8 +39,7 @@ spec:
             assignedDiagnosers:
               description: AssignedDiagnosers is the list of diagnosers to execute
                 diagnosing logics. Diagnosers would be executed in the specified sequence.
-                All diagnosers will be executed until the abnormal is diagnosed if
-                the list is empty.
+                Only assigned diagnosers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -59,8 +58,8 @@ spec:
             assignedInformationCollectors:
               description: AssignedInformationCollectors is the list of information
                 collectors to execute information collecting logics. Information collectors
-                would be executed in the specified sequence. No extra information
-                collectors will be executed if the list is empty.
+                would be executed in the specified sequence. Only assigned information
+                collectors will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -79,8 +78,7 @@ spec:
             assignedRecoverers:
               description: AssignedRecoverers is the list of recoverers to execute
                 recovering logics. Recoverers would be executed in the specified sequence.
-                All recoverers will be executed until the abnormal is recovered if
-                the list is empty.
+                Only assigned recoverers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -356,9 +354,45 @@ spec:
                 - type
                 type: object
               type: array
+            prometheusAlert:
+              description: PrometheusAlert contains the prometheus alert about the
+                abnormal from prometheus alert source. This must be specified if abnormal
+                source is PrometheusAlert.
+              properties:
+                annotations:
+                  additionalProperties:
+                    description: A LabelValue is an associated value for a LabelName.
+                    type: string
+                  description: Annotations contains extra key value information which
+                    does not define alert identity.
+                  type: object
+                endsAt:
+                  description: EndsAt specifies the known end time for this alert.
+                  format: date-time
+                  type: string
+                generatorURL:
+                  description: GeneratorURL specifies the url of alert generator.
+                  type: string
+                labels:
+                  additionalProperties:
+                    description: A LabelValue is an associated value for a LabelName.
+                    type: string
+                  description: Labels contains label value pairs for purpose of aggregation,
+                    matching, and disposition dispatching. This must minimally include
+                    an "alertname" label.
+                  type: object
+                startsAt:
+                  description: StartsAt specifies the known start time for this alert.
+                  format: date-time
+                  type: string
+              required:
+              - annotations
+              - generatorURL
+              - labels
+              type: object
             source:
-              description: Source is the abnormal source. Valid sources are KubernetesEvent
-                and Custom.
+              description: Source is the abnormal source. Valid sources are PrometheusAlert,
+                KubernetesEvent and Custom.
               type: string
           required:
           - nodeName

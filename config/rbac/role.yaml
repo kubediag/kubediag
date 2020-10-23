@@ -53,6 +53,26 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
+  - abnormalsources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormalsources/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
   - diagnosers
   verbs:
   - create

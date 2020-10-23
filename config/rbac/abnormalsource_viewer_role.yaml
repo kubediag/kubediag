@@ -1,0 +1,20 @@
+# permissions for end users to view abnormalsources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: abnormalsource-viewer-role
+rules:
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormalsources
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormalsources/status
+  verbs:
+  - get
