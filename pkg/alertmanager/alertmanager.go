@@ -107,7 +107,6 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 			if ok && lastFiring.After(now.Add(-am.repeatInterval)) {
 				continue
 			}
-			am.firingAlertSet[uint64(fingerprint)] = now
 
 			am.Info("starting to handling prometheus alert", "alert", alert)
 
@@ -125,13 +124,15 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 				},
 			}
 			if err := am.client.Create(am, &abnormal); err != nil {
-				if apierrors.IsAlreadyExists(err) {
-					continue
+				if !apierrors.IsAlreadyExists(err) {
+					am.Error(err, "unable to create abnormal")
+					http.Error(w, fmt.Sprintf("unable to create abnormal: %v", err), http.StatusInternalServerError)
+					return
 				}
-				am.Error(err, "unable to create abnormal")
-				http.Error(w, fmt.Sprintf("unable to create abnormal: %v", err), http.StatusInternalServerError)
-				return
 			}
+
+			// Update alert fired time if the abnormal is created successfully.
+			am.firingAlertSet[uint64(fingerprint)] = now
 		}
 
 		w.Write([]byte("OK"))
