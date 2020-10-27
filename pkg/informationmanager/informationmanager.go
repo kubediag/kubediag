@@ -60,8 +60,6 @@ type informationManager struct {
 	transport *http.Transport
 	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
 	informationManagerCh chan diagnosisv1.Abnormal
-	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
-	diagnoserChainCh chan diagnosisv1.Abnormal
 }
 
 // NewInformationManager creates a new informationManager.
@@ -74,7 +72,6 @@ func NewInformationManager(
 	cache cache.Cache,
 	nodeName string,
 	informationManagerCh chan diagnosisv1.Abnormal,
-	diagnoserChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
@@ -93,7 +90,6 @@ func NewInformationManager(
 		nodeName:             nodeName,
 		transport:            transport,
 		informationManagerCh: informationManagerCh,
-		diagnoserChainCh:     diagnoserChainCh,
 	}
 }
 

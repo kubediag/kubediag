@@ -20,9 +20,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1684,6 +1686,275 @@ func TestRetrieveAbnormalsOnNode(t *testing.T) {
 	for _, test := range tests {
 		resultAbnormals := RetrieveAbnormalsOnNode(test.abnormals, test.nodeName)
 		assert.Equal(t, test.expected, resultAbnormals, test.desc)
+	}
+}
+
+func TestMatchPrometheusAlert(t *testing.T) {
+	type expectedStruct struct {
+		matched bool
+		err     error
+	}
+
+	time := time.Now()
+	tests := []struct {
+		prometheusAlertTemplate diagnosisv1.PrometheusAlertTemplate
+		abnormal                diagnosisv1.Abnormal
+		expected                expectedStruct
+		desc                    string
+	}{
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					AlertName: "alert1",
+					Labels: model.LabelSet{
+						"alertname": "alert1",
+						"node":      "node1",
+					},
+					Annotations: model.LabelSet{
+						"message":   "message1",
+						"namespace": "namespace1",
+					},
+					StartsAt:     regexp.QuoteMeta(time.String()),
+					EndsAt:       regexp.QuoteMeta(time.String()),
+					GeneratorURL: "url1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Labels: model.LabelSet{
+							"alertname": "alert1",
+							"node":      "node1",
+						},
+						Annotations: model.LabelSet{
+							"message":   "message1",
+							"namespace": "namespace1",
+						},
+						StartsAt:     metav1.NewTime(time),
+						EndsAt:       metav1.NewTime(time),
+						GeneratorURL: "url1",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: true,
+				err:     nil,
+			},
+			desc: "exact match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Labels: model.LabelSet{
+							"alertname": "alert1",
+							"node":      "node1",
+						},
+						Annotations: model.LabelSet{
+							"message":   "message1",
+							"namespace": "namespace1",
+						},
+						StartsAt:     metav1.NewTime(time),
+						EndsAt:       metav1.NewTime(time),
+						GeneratorURL: "url1",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: true,
+				err:     nil,
+			},
+			desc: "empty prometheus alert template",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					AlertName: "alert1",
+					Labels: model.LabelSet{
+						"alertname": "alert1",
+						"node":      "node1",
+					},
+					Annotations: model.LabelSet{
+						"message":   "message1",
+						"namespace": "namespace1",
+					},
+					StartsAt:     regexp.QuoteMeta(time.String()),
+					EndsAt:       regexp.QuoteMeta(time.String()),
+					GeneratorURL: "url1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "empty abnormal prometheus alert",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					AlertName: "alert1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Labels: model.LabelSet{
+							"alertname": "alert2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "alert name not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					AlertName: "alert1",
+					Labels: model.LabelSet{
+						"alertname": "alert1",
+						"node":      "node1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Labels: model.LabelSet{
+							"alertname": "alert1",
+							"node":      "node2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "labels not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					Annotations: model.LabelSet{
+						"message":   "message1",
+						"namespace": "namespace1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Annotations: model.LabelSet{
+							"message":   "message1",
+							"namespace": "namespace2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "annotations not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					StartsAt: "invalid time",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						StartsAt: metav1.NewTime(time),
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "start time not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					EndsAt: "invalid time",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						EndsAt: metav1.NewTime(time),
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "end time not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					GeneratorURL: "url1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						GeneratorURL: "url2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "generator url not match",
+		},
+		{
+			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
+				Regexp: diagnosisv1.PrometheusAlertTemplateRegexp{
+					AlertName: "(alert1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					PrometheusAlert: &diagnosisv1.PrometheusAlert{
+						Labels: model.LabelSet{
+							"alertname": "alert1",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     fmt.Errorf("error parsing regexp: missing closing ): `(alert1`"),
+			},
+			desc: "invalid regular expression pattern",
+		},
+	}
+
+	for _, test := range tests {
+		matched, err := MatchPrometheusAlert(test.prometheusAlertTemplate, test.abnormal)
+		assert.Equal(t, test.expected.matched, matched, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
 	}
 }
 

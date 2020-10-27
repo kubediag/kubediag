@@ -503,16 +503,18 @@ spec:
               description: "Phase is a simple, high-level summary of where the abnormal
                 is in its lifecycle. The conditions array, the reason and message
                 fields contain more detail about the pod's status. There are six possible
-                phase values: \n Pending: The abnormal has been accepted by the system,
-                but diagnosis and recovery have not been started. Diagnosing: The
-                abnormal has been passed to diagnoser chain and some of the diagnosers
-                have been started. At least one diagnoser is still running. Recovering:
-                The abnormal has been passed to recoverer chain and some of the recoverers
-                have been started. At least one recoverer is still running. Succeeded:
-                The abnormal has been successfully recovered by some of the recoverers.
-                Failed: All diagnosers and recoverers have been executed, and none
-                of diagnosers and recoverers is able to diagnose and recover the abnormal.
-                Unknown: For some reason the state of the abnormal could not be obtained."
+                phase values: \n InformationCollecting: The abnormal has been passed
+                to information manager and some of the information collectors have
+                been started. At least one information collector is still running.
+                Diagnosing: The abnormal has been passed to diagnoser chain and some
+                of the diagnosers have been started. At least one diagnoser is still
+                running. Recovering: The abnormal has been passed to recoverer chain
+                and some of the recoverers have been started. At least one recoverer
+                is still running. Succeeded: The abnormal has been successfully recovered
+                by some of the recoverers. Failed: All diagnosers and recoverers have
+                been executed, and none of diagnosers and recoverers is able to diagnose
+                and recover the abnormal. Unknown: For some reason the state of the
+                abnormal could not be obtained."
               type: string
             profilers:
               description: Profilers is the list of profilers to be performed during

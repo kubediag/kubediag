@@ -1,0 +1,17 @@
+apiVersion: diagnosis.netease.com/v1
+kind: AbnormalSource
+metadata:
+  name: pod-not-ready-source
+spec:
+  sourceTemplate:
+    type: PrometheusAlert
+    prometheusAlertTemplate:
+      regexp:
+        alertName: KubePodNotReady
+        labels:
+          alertname: KubePodNotReady
+          severity: critical
+      nodeNameReferenceLabel: pod
+  assignedInformationCollectors:
+  - name: pod-collector
+    namespace: kube-diagnoser

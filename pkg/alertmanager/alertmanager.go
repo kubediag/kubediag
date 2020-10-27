@@ -27,7 +27,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/alertmanager/types"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
@@ -47,30 +46,30 @@ type alertmanager struct {
 	// Logger represents the ability to log messages.
 	logr.Logger
 
-	// client knows how to perform CRUD operations on Kubernetes objects.
-	client client.Client
 	// repeatInterval specifies how long to wait before sending a notification again if it has already
 	// been sent successfully for an alert.
 	repeatInterval time.Duration
 	// firingAlertSet contains all alerts fired by alertmanager.
 	firingAlertSet map[uint64]time.Time
+	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
+	sourceManagerCh chan diagnosisv1.Abnormal
 }
 
 // NewAlertmanager creates a new Alertmanager.
 func NewAlertmanager(
 	ctx context.Context,
 	logger logr.Logger,
-	cli client.Client,
 	repeatInterval time.Duration,
+	sourceManagerCh chan diagnosisv1.Abnormal,
 ) Alertmanager {
 	firingAlertSet := make(map[uint64]time.Time)
 
 	return &alertmanager{
-		Context:        ctx,
-		Logger:         logger,
-		client:         cli,
-		repeatInterval: repeatInterval,
-		firingAlertSet: firingAlertSet,
+		Context:         ctx,
+		Logger:          logger,
+		repeatInterval:  repeatInterval,
+		firingAlertSet:  firingAlertSet,
+		sourceManagerCh: sourceManagerCh,
 	}
 }
 
@@ -107,31 +106,45 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 			if ok && lastFiring.After(now.Add(-am.repeatInterval)) {
 				continue
 			}
-			am.firingAlertSet[uint64(fingerprint)] = now
 
 			am.Info("starting to handling prometheus alert", "alert", alert)
 
 			// Create abnormal according to the prometheus alert.
 			name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedAbnormalPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
 			namespace := util.DefautlNamespace
+			prometheusAlert := diagnosisv1.PrometheusAlert{
+				Labels:      alert.Labels,
+				Annotations: alert.Annotations,
+				StartsAt: metav1.Time{
+					Time: alert.StartsAt,
+				},
+				EndsAt: metav1.Time{
+					Time: alert.EndsAt,
+				},
+				GeneratorURL: alert.GeneratorURL,
+			}
 			abnormal := diagnosisv1.Abnormal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
 				Spec: diagnosisv1.AbnormalSpec{
-					Source:   diagnosisv1.CustomSource,
-					NodeName: "my-node",
+					Source:          diagnosisv1.PrometheusAlertSource,
+					PrometheusAlert: &prometheusAlert,
 				},
 			}
-			if err := am.client.Create(am, &abnormal); err != nil {
-				if apierrors.IsAlreadyExists(err) {
-					continue
-				}
-				am.Error(err, "unable to create abnormal")
-				http.Error(w, fmt.Sprintf("unable to create abnormal: %v", err), http.StatusInternalServerError)
-				return
+
+			// Add abnormal to the queue processed by source manager.
+			err := util.QueueAbnormal(am, am.sourceManagerCh, abnormal)
+			if err != nil {
+				am.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
 			}
+
+			// Update alert fired time if the abnormal is created successfully.
+			am.firingAlertSet[uint64(fingerprint)] = now
 		}
 
 		w.Write([]byte("OK"))

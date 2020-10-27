@@ -60,8 +60,6 @@ type diagnoserChain struct {
 	transport *http.Transport
 	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
 	diagnoserChainCh chan diagnosisv1.Abnormal
-	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
-	recovererChainCh chan diagnosisv1.Abnormal
 }
 
 // NewDiagnoserChain creates a new diagnoserChain.
@@ -74,7 +72,6 @@ func NewDiagnoserChain(
 	cache cache.Cache,
 	nodeName string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
-	recovererChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
@@ -93,7 +90,6 @@ func NewDiagnoserChain(
 		nodeName:         nodeName,
 		transport:        transport,
 		diagnoserChainCh: diagnoserChainCh,
-		recovererChainCh: recovererChainCh,
 	}
 }
 

@@ -205,8 +205,8 @@ type AbnormalStatus struct {
 	// pod's status.
 	// There are six possible phase values:
 	//
-	// Pending: The abnormal has been accepted by the system, but diagnosis and recovery have
-	// not been started.
+	// InformationCollecting: The abnormal has been passed to information manager and some of the
+	// information collectors have been started. At least one information collector is still running.
 	// Diagnosing: The abnormal has been passed to diagnoser chain and some of the diagnosers
 	// have been started. At least one diagnoser is still running.
 	// Recovering: The abnormal has been passed to recoverer chain and some of the recoverers
