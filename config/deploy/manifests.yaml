@@ -37,8 +37,7 @@ spec:
             assignedDiagnosers:
               description: AssignedDiagnosers is the list of diagnosers to execute
                 diagnosing logics. Diagnosers would be executed in the specified sequence.
-                All diagnosers will be executed until the abnormal is diagnosed if
-                the list is empty.
+                Only assigned diagnosers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -57,8 +56,8 @@ spec:
             assignedInformationCollectors:
               description: AssignedInformationCollectors is the list of information
                 collectors to execute information collecting logics. Information collectors
-                would be executed in the specified sequence. No extra information
-                collectors will be executed if the list is empty.
+                would be executed in the specified sequence. Only assigned information
+                collectors will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -77,8 +76,7 @@ spec:
             assignedRecoverers:
               description: AssignedRecoverers is the list of recoverers to execute
                 recovering logics. Recoverers would be executed in the specified sequence.
-                All recoverers will be executed until the abnormal is recovered if
-                the list is empty.
+                Only assigned recoverers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -354,9 +352,45 @@ spec:
                 - type
                 type: object
               type: array
+            prometheusAlert:
+              description: PrometheusAlert contains the prometheus alert about the
+                abnormal from prometheus alert source. This must be specified if abnormal
+                source is PrometheusAlert.
+              properties:
+                annotations:
+                  additionalProperties:
+                    description: A LabelValue is an associated value for a LabelName.
+                    type: string
+                  description: Annotations contains extra key value information which
+                    does not define alert identity.
+                  type: object
+                endsAt:
+                  description: EndsAt specifies the known end time for this alert.
+                  format: date-time
+                  type: string
+                generatorURL:
+                  description: GeneratorURL specifies the url of alert generator.
+                  type: string
+                labels:
+                  additionalProperties:
+                    description: A LabelValue is an associated value for a LabelName.
+                    type: string
+                  description: Labels contains label value pairs for purpose of aggregation,
+                    matching, and disposition dispatching. This must minimally include
+                    an "alertname" label.
+                  type: object
+                startsAt:
+                  description: StartsAt specifies the known start time for this alert.
+                  format: date-time
+                  type: string
+              required:
+              - annotations
+              - generatorURL
+              - labels
+              type: object
             source:
-              description: Source is the abnormal source. Valid sources are KubernetesEvent
-                and Custom.
+              description: Source is the abnormal source. Valid sources are PrometheusAlert,
+                KubernetesEvent and Custom.
               type: string
           required:
           - nodeName
@@ -467,16 +501,18 @@ spec:
               description: "Phase is a simple, high-level summary of where the abnormal
                 is in its lifecycle. The conditions array, the reason and message
                 fields contain more detail about the pod's status. There are six possible
-                phase values: \n Pending: The abnormal has been accepted by the system,
-                but diagnosis and recovery have not been started. Diagnosing: The
-                abnormal has been passed to diagnoser chain and some of the diagnosers
-                have been started. At least one diagnoser is still running. Recovering:
-                The abnormal has been passed to recoverer chain and some of the recoverers
-                have been started. At least one recoverer is still running. Succeeded:
-                The abnormal has been successfully recovered by some of the recoverers.
-                Failed: All diagnosers and recoverers have been executed, and none
-                of diagnosers and recoverers is able to diagnose and recover the abnormal.
-                Unknown: For some reason the state of the abnormal could not be obtained."
+                phase values: \n InformationCollecting: The abnormal has been passed
+                to information manager and some of the information collectors have
+                been started. At least one information collector is still running.
+                Diagnosing: The abnormal has been passed to diagnoser chain and some
+                of the diagnosers have been started. At least one diagnoser is still
+                running. Recovering: The abnormal has been passed to recoverer chain
+                and some of the recoverers have been started. At least one recoverer
+                is still running. Succeeded: The abnormal has been successfully recovered
+                by some of the recoverers. Failed: All diagnosers and recoverers have
+                been executed, and none of diagnosers and recoverers is able to diagnose
+                and recover the abnormal. Unknown: For some reason the state of the
+                abnormal could not be obtained."
               type: string
             profilers:
               description: Profilers is the list of profilers to be performed during
@@ -555,6 +591,330 @@ spec:
           required:
           - identifiable
           - recoverable
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: abnormalsources.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: AbnormalSource
+    listKind: AbnormalSourceList
+    plural: abnormalsources
+    singular: abnormalsource
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: AbnormalSource is the Schema for the abnormalsources API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: AbnormalSourceSpec defines the desired state of AbnormalSource.
+          properties:
+            assignedDiagnosers:
+              description: AssignedDiagnosers is the list of diagnosers to execute
+                diagnosing logics. Abnormals generated by the source contains predefined
+                diagnosers.
+              items:
+                description: NamespacedName represents a kubernetes api resource.
+                properties:
+                  name:
+                    description: Name specifies the name of a kubernetes api resource.
+                    type: string
+                  namespace:
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              type: array
+            assignedInformationCollectors:
+              description: AssignedInformationCollectors is the list of information
+                collectors to execute information collecting logics. Abnormals generated
+                by the source contains predefined information collectors.
+              items:
+                description: NamespacedName represents a kubernetes api resource.
+                properties:
+                  name:
+                    description: Name specifies the name of a kubernetes api resource.
+                    type: string
+                  namespace:
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              type: array
+            assignedRecoverers:
+              description: AssignedRecoverers is the list of recoverers to execute
+                recovering logics. Abnormals generated by the source contains predefined
+                recoverers.
+              items:
+                description: NamespacedName represents a kubernetes api resource.
+                properties:
+                  name:
+                    description: Name specifies the name of a kubernetes api resource.
+                    type: string
+                  namespace:
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              type: array
+            commandExecutors:
+              description: CommandExecutors is the list of commands to execute during
+                information collecting, diagnosing and recovering. Abnormals generated
+                by the source contains predefined command executors.
+              items:
+                description: CommandExecutor executes a command with the given arguments.
+                  A CommandExecutor could be an information collector, a diagnoser
+                  or a recoverer.
+                properties:
+                  command:
+                    description: Command represents a command being prepared and run.
+                    items:
+                      type: string
+                    type: array
+                  error:
+                    description: Error is the command execution error.
+                    type: string
+                  stderr:
+                    description: Stderr is standard error of the command.
+                    type: string
+                  stdout:
+                    description: Stdout is standard output of the command.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the command times out.
+                      Defaults to 30 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
+                    type: string
+                required:
+                - command
+                - type
+                type: object
+              type: array
+            context:
+              description: Context is a blob of information about the abnormal, meant
+                to be user-facing content and display instructions. Abnormals generated
+                by the source contains predefined context.
+              type: object
+            profilers:
+              description: Profilers is the list of profilers to be performed during
+                information collecting, diagnosing and recovering. Abnormals generated
+                by the source contains predefined profilers.
+              items:
+                description: Profiler describes a profiler to be performed against
+                  a program to determine its performance status.
+                properties:
+                  endpoint:
+                    description: Endpoint specifies how to navigate through a performance
+                      profile.
+                    type: string
+                  error:
+                    description: Error is the profiler error.
+                    type: string
+                  go:
+                    description: One and only one of the following programming languages
+                      should be specified. Go specifies the action to perform for
+                      profiling a go program.
+                    properties:
+                      source:
+                        description: Source specifies the profile source. It must
+                          be a local file path or a URL.
+                        type: string
+                    required:
+                    - source
+                    type: object
+                  name:
+                    description: Name specifies the name of a profiler.
+                    type: string
+                  timeoutSeconds:
+                    description: Number of seconds after which the profiler times
+                      out. Defaults to 30 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  type:
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
+                    type: string
+                required:
+                - name
+                - type
+                type: object
+              type: array
+            sourceTemplate:
+              description: SourceTemplate is the template of abnormal source. An abnormal
+                source generates abnormal according to the template.
+              properties:
+                kubernetesEventTemplate:
+                  description: KubernetesEventTemplate specifies the template to create
+                    an abnormal from a kubernetes event.
+                  properties:
+                    regexp:
+                      description: Regexp is the regular expression for matching kubernetes
+                        event template.
+                      properties:
+                        alertName:
+                          description: AlertName is the regular expression for matching
+                            "AlertName" of prometheus alert.
+                          type: string
+                        annotations:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Annotations is the regular expression for matching
+                            "Annotations" of prometheus alert. Only annotation values
+                            are regular expressions while all annotation names must
+                            be identical to the prometheus alert annotation names.
+                          type: object
+                        endsAt:
+                          description: EndsAt is the regular expression for matching
+                            "EndsAt" of prometheus alert.
+                          type: string
+                        generatorURL:
+                          description: GeneratorURL is the regular expression for
+                            matching "GeneratorURL" of prometheus alert.
+                          type: string
+                        labels:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Labels is the regular expression for matching
+                            "Labels" of prometheus alert. Only label values are regular
+                            expressions while all label names must be identical to
+                            the prometheus alert label names.
+                          type: object
+                        startsAt:
+                          description: StartsAt is the regular expression for matching
+                            "StartsAt" of prometheus alert.
+                          type: string
+                      type: object
+                  required:
+                  - regexp
+                  type: object
+                prometheusAlertTemplate:
+                  description: One and only one of the following source should be
+                    specified. PrometheusAlertTemplate specifies the template to create
+                    an abnormal from a prometheus alert.
+                  properties:
+                    nodeNameReferenceLabel:
+                      description: NodeNameReferenceLabel specifies the label for
+                        setting NodeName of generated abnormal.
+                      type: string
+                    regexp:
+                      description: Regexp is the regular expression for matching prometheus
+                        alert template.
+                      properties:
+                        alertName:
+                          description: AlertName is the regular expression for matching
+                            "AlertName" of prometheus alert.
+                          type: string
+                        annotations:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Annotations is the regular expression for matching
+                            "Annotations" of prometheus alert. Only annotation values
+                            are regular expressions while all annotation names must
+                            be identical to the prometheus alert annotation names.
+                          type: object
+                        endsAt:
+                          description: EndsAt is the regular expression for matching
+                            "EndsAt" of prometheus alert.
+                          type: string
+                        generatorURL:
+                          description: GeneratorURL is the regular expression for
+                            matching "GeneratorURL" of prometheus alert.
+                          type: string
+                        labels:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Labels is the regular expression for matching
+                            "Labels" of prometheus alert. Only label values are regular
+                            expressions while all label names must be identical to
+                            the prometheus alert label names.
+                          type: object
+                        startsAt:
+                          description: StartsAt is the regular expression for matching
+                            "StartsAt" of prometheus alert.
+                          type: string
+                      type: object
+                  required:
+                  - nodeNameReferenceLabel
+                  - regexp
+                  type: object
+                type:
+                  description: "Type is the type of the source template. There are
+                    two possible type values: \n PrometheusAlert: The abnormal is
+                    generated from a prometheus alert. KubernetesEvent: The abnormal
+                    is generated from a kubernetes event."
+                  type: string
+              required:
+              - type
+              type: object
+          required:
+          - sourceTemplate
+          type: object
+        status:
+          description: AbnormalSourceStatus defines the observed state of AbnormalSource.
+          properties:
+            lastAbnormal:
+              description: LastAbnormal contains details about last abnormal generated
+                by the source.
+              type: object
           type: object
       type: object
   version: v1
@@ -1017,6 +1377,26 @@ rules:
   - diagnosis.netease.com
   resources:
   - abnormals/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormalsources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - abnormalsources/status
   verbs:
   - get
   - patch
