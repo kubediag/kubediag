@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -54,8 +55,6 @@ type sourceManager struct {
 	nodeName string
 	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
 	sourceManagerCh chan diagnosisv1.Abnormal
-	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
-	informationManagerCh chan diagnosisv1.Abnormal
 }
 
 // NewSourceManager creates a new sourceManager.
@@ -68,18 +67,16 @@ func NewSourceManager(
 	cache cache.Cache,
 	nodeName string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
-	informationManagerCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
 	return &sourceManager{
-		Context:              ctx,
-		Logger:               logger,
-		client:               cli,
-		eventRecorder:        eventRecorder,
-		scheme:               scheme,
-		cache:                cache,
-		nodeName:             nodeName,
-		sourceManagerCh:      sourceManagerCh,
-		informationManagerCh: informationManagerCh,
+		Context:         ctx,
+		Logger:          logger,
+		client:          cli,
+		eventRecorder:   eventRecorder,
+		scheme:          scheme,
+		cache:           cache,
+		nodeName:        nodeName,
+		sourceManagerCh: sourceManagerCh,
 	}
 }
 
@@ -94,17 +91,15 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in source manager channel.
 		case abnormal := <-sm.sourceManagerCh:
-			if util.IsAbnormalNodeNameMatched(abnormal, sm.nodeName) {
-				abnormal, err := sm.SyncAbnormal(abnormal)
-				if err != nil {
-					sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
-				}
-
-				sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
+			abnormal, err := sm.SyncAbnormal(abnormal)
+			if err != nil {
+				sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
 			}
+
+			sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
 		// Stop source manager on stop signal.
 		case <-stopCh:
 			return
@@ -119,12 +114,30 @@ func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv
 		Namespace: abnormal.Namespace,
 	})
 
-	sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Accepted", "Accepted abnormal")
-
-	abnormal, err := sm.sendAbnormalToInformationManager(abnormal)
+	abnormalSources, err := sm.listAbnormalSources()
 	if err != nil {
+		sm.Error(err, "failed to list AbnormalSources")
 		sm.addAbnormalToSourceManagerQueue(abnormal)
 		return abnormal, err
+	}
+
+	// Create an abnormal from specified source if it has not been created.
+	if abnormal.Generation == 0 {
+		if abnormal.Spec.Source == diagnosisv1.PrometheusAlertSource && abnormal.Spec.PrometheusAlert != nil {
+			abnormal, err := sm.createAbnormalFromPrometheusAlert(abnormalSources, abnormal)
+			if err != nil {
+				sm.addAbnormalToSourceManagerQueue(abnormal)
+				return abnormal, err
+			}
+		}
+	} else {
+		sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Accepted", "Accepted abnormal")
+
+		abnormal, err = sm.sendAbnormalToInformationManager(abnormal)
+		if err != nil {
+			sm.addAbnormalToSourceManagerQueue(abnormal)
+			return abnormal, err
+		}
 	}
 
 	return abnormal, nil
@@ -133,6 +146,55 @@ func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv
 // Handler handles http requests.
 func (sm *sourceManager) Handler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
+}
+
+// listAbnormalSources lists AbnormalSources from cache.
+func (sm *sourceManager) listAbnormalSources() ([]diagnosisv1.AbnormalSource, error) {
+	sm.Info("listing AbnormalSources")
+
+	var abnormalSourcesList diagnosisv1.AbnormalSourceList
+	if err := sm.cache.List(sm, &abnormalSourcesList); err != nil {
+		return nil, err
+	}
+
+	return abnormalSourcesList.Items, nil
+}
+
+// createAbnormalFromPrometheusAlert creates an Abnormal from prometheus alert and abnormal sources.
+func (sm *sourceManager) createAbnormalFromPrometheusAlert(abnormalSources []diagnosisv1.AbnormalSource, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	for _, abnormalSource := range abnormalSources {
+		sourceTemplate := abnormalSource.Spec.SourceTemplate
+		if sourceTemplate.Type == diagnosisv1.PrometheusAlertSource && sourceTemplate.PrometheusAlertTemplate != nil {
+			// Set all fields of the abnormal according to abnormal source if the prometheus alert contains
+			// all match of the regular expression pattern defined in prometheus alert template.
+			matched, err := util.MatchPrometheusAlert(*sourceTemplate.PrometheusAlertTemplate, abnormal)
+			if err != nil {
+				sm.Error(err, "failed to compare abnormal source template and prometheus alert")
+				continue
+			}
+
+			if matched {
+				abnormal.Spec.NodeName = string(abnormal.Spec.PrometheusAlert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
+				abnormal.Spec.AssignedInformationCollectors = abnormalSource.Spec.AssignedInformationCollectors
+				abnormal.Spec.AssignedDiagnosers = abnormalSource.Spec.AssignedDiagnosers
+				abnormal.Spec.AssignedRecoverers = abnormalSource.Spec.AssignedRecoverers
+				abnormal.Spec.CommandExecutors = abnormalSource.Spec.CommandExecutors
+				abnormal.Spec.Profilers = abnormalSource.Spec.Profilers
+				abnormal.Spec.Context = abnormalSource.Spec.Context
+
+				if err := sm.client.Create(sm, &abnormal); err != nil {
+					if !apierrors.IsAlreadyExists(err) {
+						sm.Error(err, "unable to create Abnormal")
+						return abnormal, err
+					}
+				}
+
+				return abnormal, nil
+			}
+		}
+	}
+
+	return abnormal, nil
 }
 
 // sendAbnormalToInformationManager sends Abnormal to information manager.
@@ -154,7 +216,7 @@ func (sm *sourceManager) sendAbnormalToInformationManager(abnormal diagnosisv1.A
 
 // addAbnormalToSourceManagerQueue adds Abnormal to the queue processed by source manager.
 func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormal(sm, sm.informationManagerCh, abnormal)
+	err := util.QueueAbnormal(sm, sm.sourceManagerCh, abnormal)
 	if err != nil {
 		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
@@ -165,7 +227,7 @@ func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Ab
 
 // addAbnormalToSourceManagerQueueWithTimer adds Abnormal to the queue processed by source manager with a timer.
 func (sm *sourceManager) addAbnormalToSourceManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
-	err := util.QueueAbnormalWithTimer(sm, 30*time.Second, sm.informationManagerCh, abnormal)
+	err := util.QueueAbnormalWithTimer(sm, 30*time.Second, sm.sourceManagerCh, abnormal)
 	if err != nil {
 		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,

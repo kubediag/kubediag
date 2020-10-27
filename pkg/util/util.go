@@ -27,12 +27,14 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/common/model"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -894,4 +896,76 @@ func ValidateProfilers(profilers []diagnosisv1.Profiler) error {
 	}
 
 	return nil
+}
+
+// MatchPrometheusAlert reports whether the abnormal contains all match of the regular expression pattern
+// defined in prometheus alert template.
+func MatchPrometheusAlert(prometheusAlertTemplate diagnosisv1.PrometheusAlertTemplate, abnormal diagnosisv1.Abnormal) (bool, error) {
+	re, err := regexp.Compile(prometheusAlertTemplate.Regexp.AlertName)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(string(abnormal.Spec.PrometheusAlert.Labels[model.AlertNameLabel])) {
+		return false, nil
+	}
+
+	// Template label key must be identical to the prometheus alert label key.
+	// Template label value should be a regular expression.
+	for templateKey, templateValue := range prometheusAlertTemplate.Regexp.Labels {
+		value, ok := abnormal.Spec.PrometheusAlert.Labels[templateKey]
+		if !ok {
+			return false, nil
+		}
+
+		re, err := regexp.Compile(string(templateValue))
+		if err != nil {
+			return false, err
+		}
+		if !re.MatchString(string(value)) {
+			return false, nil
+		}
+	}
+
+	// Template annotation key must be identical to the prometheus alert annotation key.
+	// Template annotation value should be a regular expression.
+	for templateKey, templateValue := range prometheusAlertTemplate.Regexp.Annotations {
+		value, ok := abnormal.Spec.PrometheusAlert.Annotations[templateKey]
+		if !ok {
+			return false, nil
+		}
+
+		re, err := regexp.Compile(string(templateValue))
+		if err != nil {
+			return false, err
+		}
+		if !re.MatchString(string(value)) {
+			return false, nil
+		}
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.StartsAt)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(string(abnormal.Spec.PrometheusAlert.StartsAt.String())) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.EndsAt)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(string(abnormal.Spec.PrometheusAlert.EndsAt.String())) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.GeneratorURL)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(string(abnormal.Spec.PrometheusAlert.GeneratorURL)) {
+		return false, nil
+	}
+
+	return true, nil
 }
