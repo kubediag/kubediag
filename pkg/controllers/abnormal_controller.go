@@ -34,6 +34,7 @@ type AbnormalReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
+	mode                 string
 	sourceManagerCh      chan diagnosisv1.Abnormal
 	informationManagerCh chan diagnosisv1.Abnormal
 	diagnoserChainCh     chan diagnosisv1.Abnormal
@@ -45,6 +46,7 @@ func NewAbnormalReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
+	mode string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 	informationManagerCh chan diagnosisv1.Abnormal,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
@@ -54,6 +56,7 @@ func NewAbnormalReconciler(
 		Client:               cli,
 		Log:                  log,
 		Scheme:               scheme,
+		mode:                 mode,
 		sourceManagerCh:      sourceManagerCh,
 		informationManagerCh: informationManagerCh,
 		diagnoserChainCh:     diagnoserChainCh,
@@ -79,37 +82,42 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	switch abnormal.Status.Phase {
-	case diagnosisv1.InformationCollecting:
-		_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
-		if condition != nil {
-			log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected")
-		} else {
-			err := util.QueueAbnormal(ctx, r.informationManagerCh, abnormal)
+	if r.mode == "master" {
+		switch abnormal.Status.Phase {
+		case "":
+			err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
 			if err != nil {
-				log.Error(err, "failed to send abnormal to information manager queue")
+				log.Error(err, "failed to send abnormal to source manager queue")
 			}
 		}
-	case diagnosisv1.AbnormalDiagnosing:
-		err := util.QueueAbnormal(ctx, r.diagnoserChainCh, abnormal)
-		if err != nil {
-			log.Error(err, "failed to send abnormal to diagnoser chain queue")
-		}
-	case diagnosisv1.AbnormalRecovering:
-		err := util.QueueAbnormal(ctx, r.recovererChainCh, abnormal)
-		if err != nil {
-			log.Error(err, "failed to send abnormal to recoverer chain queue")
-		}
-	case diagnosisv1.AbnormalSucceeded:
-		log.Info("ignoring Abnormal in phase Succeeded")
-	case diagnosisv1.AbnormalFailed:
-		log.Info("ignoring Abnormal in phase Failed")
-	case diagnosisv1.AbnormalUnknown:
-		log.Info("ignoring Abnormal in phase Unknown")
-	default:
-		err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
-		if err != nil {
-			log.Error(err, "failed to send abnormal to source manager queue")
+	} else if r.mode == "agent" {
+		switch abnormal.Status.Phase {
+		case diagnosisv1.InformationCollecting:
+			_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
+			if condition != nil {
+				log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected")
+			} else {
+				err := util.QueueAbnormal(ctx, r.informationManagerCh, abnormal)
+				if err != nil {
+					log.Error(err, "failed to send abnormal to information manager queue")
+				}
+			}
+		case diagnosisv1.AbnormalDiagnosing:
+			err := util.QueueAbnormal(ctx, r.diagnoserChainCh, abnormal)
+			if err != nil {
+				log.Error(err, "failed to send abnormal to diagnoser chain queue")
+			}
+		case diagnosisv1.AbnormalRecovering:
+			err := util.QueueAbnormal(ctx, r.recovererChainCh, abnormal)
+			if err != nil {
+				log.Error(err, "failed to send abnormal to recoverer chain queue")
+			}
+		case diagnosisv1.AbnormalSucceeded:
+			log.Info("ignoring Abnormal in phase Succeeded")
+		case diagnosisv1.AbnormalFailed:
+			log.Info("ignoring Abnormal in phase Failed")
+		case diagnosisv1.AbnormalUnknown:
+			log.Info("ignoring Abnormal in phase Unknown")
 		}
 	}
 

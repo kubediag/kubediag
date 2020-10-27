@@ -150,12 +150,30 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		stopCh := SetupSignalHandler()
 
+		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
+		sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+
+		// Run source manager.
+		sourceManager := sourcemanager.NewSourceManager(
+			context.Background(),
+			ctrl.Log.WithName("sourcemanager"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.NodeName,
+			sourceManagerCh,
+		)
+		go func(stopCh chan struct{}) {
+			sourceManager.Run(stopCh)
+		}(stopCh)
+
 		// Create alertmanager for managing prometheus alerts.
 		alertmanager := alertmanager.NewAlertmanager(
 			context.Background(),
 			ctrl.Log.WithName("alertmanager"),
-			mgr.GetClient(),
 			opts.RepeatInterval,
+			sourceManagerCh,
 		)
 
 		// Start http server.
@@ -170,6 +188,29 @@ func (opts *KubeDiagnoserOptions) Run() error {
 				close(stopCh)
 			}
 		}(stopCh)
+
+		// Setup reconcilers for Abnormal and AbnormalSource.
+		if err = (controllers.NewAbnormalReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Abnormal"),
+			mgr.GetScheme(),
+			opts.Mode,
+			sourceManagerCh,
+			nil,
+			nil,
+			nil,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
+			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
+		}
+		if err = (controllers.NewAbnormalSourceReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("AbnormalSource"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AbnormalSource")
+			return fmt.Errorf("unable to create controller for AbnormalSource: %v", err)
+		}
 
 		// Setup webhooks for Abnormal, InformationCollector, Diagnoser and Recoverer.
 		if err = (&diagnosisv1.Abnormal{}).SetupWebhookWithManager(mgr); err != nil {
@@ -187,16 +228,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		if err = (&diagnosisv1.Recoverer{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Recoverer")
 			return fmt.Errorf("unable to create webhook for Recoverer: %v", err)
-		}
-
-		// Setup reconcilers for AbnormalSource.
-		if err = (controllers.NewAbnormalSourceReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("AbnormalSource"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "AbnormalSource")
-			return fmt.Errorf("unable to create controller for AbnormalSource: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 
@@ -223,26 +254,11 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		stopCh := SetupSignalHandler()
 
 		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
-		sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 		informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
 		diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
 		recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
 
-		// Run source manager, information manager, diagnoser chain and recoverer chain.
-		sourceManager := sourcemanager.NewSourceManager(
-			context.Background(),
-			ctrl.Log.WithName("sourcemanager"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.NodeName,
-			sourceManagerCh,
-			informationManagerCh,
-		)
-		go func(stopCh chan struct{}) {
-			sourceManager.Run(stopCh)
-		}(stopCh)
+		// Run information manager, diagnoser chain and recoverer chain.
 		informationManager := informationmanager.NewInformationManager(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager"),
@@ -252,7 +268,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.NodeName,
 			informationManagerCh,
-			diagnoserChainCh,
 		)
 		go func(stopCh chan struct{}) {
 			informationManager.Run(stopCh)
@@ -266,7 +281,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.NodeName,
 			diagnoserChainCh,
-			recovererChainCh,
 		)
 		go func(stopCh chan struct{}) {
 			diagnoserChain.Run(stopCh)
@@ -371,7 +385,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Abnormal"),
 			mgr.GetScheme(),
-			sourceManagerCh,
+			opts.Mode,
+			nil,
 			informationManagerCh,
 			diagnoserChainCh,
 			recovererChainCh,
