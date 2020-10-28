@@ -56,6 +56,24 @@ spec:
       tolerations:
       - operator: Exists
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master
+  namespace: kube-diagnoser
+spec:
+  ports:
+  - name: http
+    port: 8089
+    targetPort: http
+  selector:
+    control-plane: kube-diagnoser
+    mode: master
+  type: ClusterIP
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
