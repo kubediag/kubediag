@@ -1569,6 +1569,43 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master
+  namespace: kube-diagnoser
+spec:
+  ports:
+  - name: http
+    port: 8089
+    targetPort: http
+  selector:
+    control-plane: kube-diagnoser
+    mode: master
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master-metrics-monitor
+  namespace: kube-diagnoser
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 10357
+    targetPort: metrics
+  selector:
+    control-plane: kube-diagnoser
+    mode: master
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: webhook-service
   namespace: kube-diagnoser
 spec:
@@ -1772,6 +1809,26 @@ spec:
     matchLabels:
       control-plane: kube-diagnoser
       mode: agent
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master-metrics-monitor
+  namespace: kube-diagnoser
+spec:
+  endpoints:
+  - path: /metrics
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - kube-diagnoser
+  selector:
+    matchLabels:
+      control-plane: kube-diagnoser
+      mode: master
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration

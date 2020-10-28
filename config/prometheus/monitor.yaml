@@ -5,6 +5,45 @@ kind: ServiceMonitor
 metadata:
   labels:
     control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master-metrics-monitor
+  namespace: kube-diagnoser
+spec:
+  endpoints:
+    - path: /metrics
+      port: metrics
+  namespaceSelector:
+    matchNames:
+    - kube-diagnoser
+  selector:
+    matchLabels:
+      control-plane: kube-diagnoser
+      mode: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: kube-diagnoser
+    mode: master
+  name: kube-diagnoser-master-metrics-monitor
+  namespace: kube-diagnoser
+spec:
+  ports:
+  - name: metrics
+    port: 10357
+    targetPort: metrics
+  selector:
+    control-plane: kube-diagnoser
+    mode: master
+  type: ClusterIP
+  clusterIP: None
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: kube-diagnoser
     mode: agent
   name: kube-diagnoser-agent-metrics-monitor
   namespace: kube-diagnoser
