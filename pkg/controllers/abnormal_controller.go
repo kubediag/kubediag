@@ -82,6 +82,8 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// The master will process an abnormal which has not been accept yet, while the agent will process
+	// an abnormal in InformationCollecting, Diagnosing, Recovering phases.
 	if r.mode == "master" {
 		switch abnormal.Status.Phase {
 		case "":

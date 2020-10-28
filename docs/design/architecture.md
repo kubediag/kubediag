@@ -48,17 +48,19 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 故障诊断恢复平台 Master 由下列部分组成：
 
+* 故障管理器（SourceManager）：用于产生和获取故障事件。
 * 报警管理器（Alertmanager）：管理接收的 Prometheus 报警并创建 Abnormal 自定义资源。
+* 事件管理器（Eventer）：管理接收的 Kubernetes 事件并创建 Abnormal 自定义资源。
 * 集群健康评估器（ClusterHealthEvaluator）：对集群健康状况进行评估。
 
 故障诊断恢复平台 Agent 组件可以监听 APIServer 获取 Abnormal 自定义资源，Abnormal 自定义资源是对故障状态机的抽象。故障诊断恢复平台 Agent 组件可以通过 Abnormal 自定义资源触发故障诊断恢复的流水线。故障诊断恢复平台 Agent 组件通过 DaemonSet 的方式部署在集群中：
 
 ```
------------------                 ---------                 ----------------------
-|               |     Abnormal    |       |      Watch      |                    |
-| Custom Source |---------------->| Agent |---------------->|     API Server     |
-|               |                 |       |                 |                    |
------------------                 ---------                 ----------------------
+-----------------                 ---------                 --------------
+|               |     Abnormal    |       |      Watch      |            |
+| Custom Source |---------------->| Agent |---------------->| API Server |
+|               |                 |       |                 |            |
+-----------------                 ---------                 --------------
                                       |
                                       |
                                       |
@@ -79,7 +81,6 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 故障诊断恢复平台 Agent 组件由下列部分组成：
 
-* 故障管理器（SourceManager）
 * 故障分析链（DiagnoserChain）
 * 信息管理器（InformationManager）
 * 故障恢复链（RecovererChain）
@@ -127,7 +128,6 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 故障诊断恢复平台 Agent 组件功能如下：
 
-* 获取 Event 等作为故障源。
 * 监听故障诊断 Abnormal 自定义资源并进行处理和状态同步。
 * 对本节点故障进行诊断和恢复。
 * 获取节点相关信息。
@@ -136,7 +136,7 @@ Kubernetes 故障诊断恢复平台的设计目标包括：
 
 故障诊断恢复平台中 Abnormal 的状态迁移流程如下：
 
-* 故障诊断恢复平台 Agent 或用户自行创建 Abnormal 自定义资源。
+* 故障诊断恢复平台 Master 生成或用户自行创建 Abnormal 自定义资源。
 * 将 Abnormal 发送至信息管理器，标记 Abnormal 的状态为 InformationCollecting 并采集故障诊断恢复的信息。
   * 如果信息能够被成功采集则记录 InformationCollected 状况并继续。
   * 如果信息无法被成功采集则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。
@@ -191,12 +191,13 @@ Recoverer 自定义资源用于注册故障恢复器，故障恢复器的元数�
 
 ### 故障管理器
 
-故障管理器是获取故障事件的接口，大致可分为以下几类：
+故障管理器用于产生和获取故障事件，大致可分为以下几类：
 
-* Event：Kubernetes 中的事件支持更细致的故障上报机制。
-* Custom：用于自定义故障，用户可以自定义进行扩展。
+* Prometheus 报警（PrometheusAlert）：基于 Prometheus 报警产生的故障。
+* Kubernetes 事件（KubernetesEvent）：基于 Kubernetes 事件产生的故障。
+* 自定义（Custom）：用于自定义故障，用户可以自定义进行扩展。
 
-故障管理器在消费 Event 后会生成 Abnormal 故障事件并发往故障分析链。用户也可以实现故障事件源并直接通过自定义资源来创建故障事件。
+故障管理器在消费 Prometheus 报警或 Kubernetes 事件后会生成 Abnormal 故障事件并发往信息管理器。用户也可以实现故障事件源并直接通过自定义资源来创建故障事件。详细信息参考 [Source Manager 设计](./source-manager.md)。
 
 ### 信息管理器
 
