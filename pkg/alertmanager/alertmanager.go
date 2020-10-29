@@ -28,9 +28,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/alertmanager/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Alertmanager can handle valid post alerts requests.
@@ -106,8 +107,6 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 			if ok && lastFiring.After(now.Add(-am.repeatInterval)) {
 				continue
 			}
-
-			am.Info("starting to handling prometheus alert", "alert", alert)
 
 			// Create abnormal according to the prometheus alert.
 			name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedAbnormalPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])

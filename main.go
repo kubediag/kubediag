@@ -29,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -41,6 +42,7 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
+	"netease.com/k8s/kube-diagnoser/pkg/eventer"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager/informationcollector"
 	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
@@ -85,6 +87,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = diagnosisv1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -152,6 +155,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
 		sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+		eventChainCh := make(chan corev1.Event, 1000)
 
 		// Run source manager.
 		sourceManager := sourcemanager.NewSourceManager(
@@ -175,6 +179,17 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.RepeatInterval,
 			sourceManagerCh,
 		)
+
+		// Create eventer for managing kubernetes events.
+		eventer := eventer.NewEventer(
+			context.Background(),
+			ctrl.Log.WithName("eventer"),
+			eventChainCh,
+			sourceManagerCh,
+		)
+		go func(stopCh chan struct{}) {
+			eventer.Run(stopCh)
+		}(stopCh)
 
 		// Start http server.
 		go func(stopCh chan struct{}) {
@@ -202,6 +217,15 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
 			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
+		}
+		if err = (controllers.NewEventReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Event"),
+			mgr.GetScheme(),
+			eventChainCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Event")
+			return fmt.Errorf("unable to create controller for Event: %v", err)
 		}
 		if err = (controllers.NewAbnormalSourceReconciler(
 			mgr.GetClient(),

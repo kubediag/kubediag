@@ -110,7 +110,7 @@ type PrometheusAlertTemplateRegexp struct {
 // KubernetesEventTemplate specifies the template to create an abnormal from a kubernetes event.
 type KubernetesEventTemplate struct {
 	// Regexp is the regular expression for matching kubernetes event template.
-	Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
+	Regexp KubernetesEventTemplateRegexp `json:"regexp"`
 }
 
 // KubernetesEventTemplateRegexp is the regular expression for matching kubernetes event template.
@@ -148,16 +148,9 @@ type KubernetesEventTemplateRegexp struct {
 	// Type is the regular expression for matching "Type" of kubernetes event.
 	// +optional
 	Type string `json:"type,omitempty"`
-	// EventTime is the regular expression for matching "EventTime" of kubernetes event.
-	// +optional
-	EventTime string `json:"eventTime,omitempty"`
 	// Action is the regular expression for matching "Action" of kubernetes event.
 	// +optional
 	Action string `json:"action,omitempty"`
-	// Related is the regular expression for matching "Related" of kubernetes event.
-	// All fields of "Related" are regular expressions.
-	// +optional
-	Related corev1.ObjectReference `json:"related,omitempty"`
 	// ReportingController is the regular expression for matching "ReportingController" of kubernetes event.
 	// +optional
 	ReportingController string `json:"reportingController,omitempty"`

@@ -96,10 +96,12 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 				sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
 			}
 
-			sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			})
+			if abnormal.Generation != 0 {
+				sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+			}
 		// Stop source manager on stop signal.
 		case <-stopCh:
 			return
@@ -109,31 +111,37 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 
 // SyncAbnormal syncs abnormals.
 func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	sm.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
-	})
-
-	abnormalSources, err := sm.listAbnormalSources()
-	if err != nil {
-		sm.Error(err, "failed to list AbnormalSources")
-		sm.addAbnormalToSourceManagerQueue(abnormal)
-		return abnormal, err
-	}
-
-	// Create an abnormal from specified source if it has not been created.
+	// Create an abnormal from specified source if it is nonexistent.
 	if abnormal.Generation == 0 {
+		abnormalSources, err := sm.listAbnormalSources()
+		if err != nil {
+			sm.Error(err, "failed to list AbnormalSources")
+			sm.addAbnormalToSourceManagerQueue(abnormal)
+			return abnormal, err
+		}
+
 		if abnormal.Spec.Source == diagnosisv1.PrometheusAlertSource && abnormal.Spec.PrometheusAlert != nil {
 			abnormal, err := sm.createAbnormalFromPrometheusAlert(abnormalSources, abnormal)
 			if err != nil {
 				sm.addAbnormalToSourceManagerQueue(abnormal)
 				return abnormal, err
 			}
+		} else if abnormal.Spec.Source == diagnosisv1.KubernetesEventSource && abnormal.Spec.KubernetesEvent != nil {
+			abnormal, err := sm.createAbnormalFromKubernetesEvent(abnormalSources, abnormal)
+			if err != nil {
+				sm.addAbnormalToSourceManagerQueue(abnormal)
+				return abnormal, err
+			}
 		}
 	} else {
+		sm.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
+			Name:      abnormal.Name,
+			Namespace: abnormal.Namespace,
+		})
+
 		sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Accepted", "Accepted abnormal")
 
-		abnormal, err = sm.sendAbnormalToInformationManager(abnormal)
+		abnormal, err := sm.sendAbnormalToInformationManager(abnormal)
 		if err != nil {
 			sm.addAbnormalToSourceManagerQueue(abnormal)
 			return abnormal, err
@@ -150,8 +158,6 @@ func (sm *sourceManager) Handler(w http.ResponseWriter, r *http.Request) {
 
 // listAbnormalSources lists AbnormalSources from cache.
 func (sm *sourceManager) listAbnormalSources() ([]diagnosisv1.AbnormalSource, error) {
-	sm.Info("listing AbnormalSources")
-
 	var abnormalSourcesList diagnosisv1.AbnormalSourceList
 	if err := sm.cache.List(sm, &abnormalSourcesList); err != nil {
 		return nil, err
@@ -174,7 +180,60 @@ func (sm *sourceManager) createAbnormalFromPrometheusAlert(abnormalSources []dia
 			}
 
 			if matched {
+				sm.Info("creating Abnormal from prometheus alert", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+
 				abnormal.Spec.NodeName = string(abnormal.Spec.PrometheusAlert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
+				abnormal.Spec.AssignedInformationCollectors = abnormalSource.Spec.AssignedInformationCollectors
+				abnormal.Spec.AssignedDiagnosers = abnormalSource.Spec.AssignedDiagnosers
+				abnormal.Spec.AssignedRecoverers = abnormalSource.Spec.AssignedRecoverers
+				abnormal.Spec.CommandExecutors = abnormalSource.Spec.CommandExecutors
+				abnormal.Spec.Profilers = abnormalSource.Spec.Profilers
+				abnormal.Spec.Context = abnormalSource.Spec.Context
+
+				if err := sm.client.Create(sm, &abnormal); err != nil {
+					if !apierrors.IsAlreadyExists(err) {
+						sm.Error(err, "unable to create Abnormal")
+						return abnormal, err
+					}
+				}
+
+				return abnormal, nil
+			}
+		}
+	}
+
+	return abnormal, nil
+}
+
+// createAbnormalFromKubernetesEvent creates an Abnormal from kubernetes event and abnormal sources.
+func (sm *sourceManager) createAbnormalFromKubernetesEvent(abnormalSources []diagnosisv1.AbnormalSource, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+	for _, abnormalSource := range abnormalSources {
+		sourceTemplate := abnormalSource.Spec.SourceTemplate
+		if sourceTemplate.Type == diagnosisv1.KubernetesEventSource && sourceTemplate.KubernetesEventTemplate != nil {
+			// Set all fields of the abnormal according to abnormal source if the kubernetes event contains
+			// all match of the regular expression pattern defined in kubernetes event template.
+			matched, err := util.MatchKubernetesEvent(*sourceTemplate.KubernetesEventTemplate, abnormal)
+			if err != nil {
+				sm.Error(err, "failed to compare abnormal source template and kubernetes event")
+				continue
+			}
+
+			if matched {
+				sm.Info("creating Abnormal from kubernetes event", "abnormal", client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				})
+
+				// Set EventTime of the event for compatibility since validation failure will be encountered
+				// if EventTime is nil.
+				if abnormal.Spec.KubernetesEvent.EventTime.IsZero() {
+					abnormal.Spec.KubernetesEvent.EventTime = metav1.NewMicroTime(time.Unix(0, 0))
+				}
+
+				abnormal.Spec.NodeName = abnormal.Spec.KubernetesEvent.Source.Host
 				abnormal.Spec.AssignedInformationCollectors = abnormalSource.Spec.AssignedInformationCollectors
 				abnormal.Spec.AssignedDiagnosers = abnormalSource.Spec.AssignedDiagnosers
 				abnormal.Spec.AssignedRecoverers = abnormalSource.Spec.AssignedRecoverers
