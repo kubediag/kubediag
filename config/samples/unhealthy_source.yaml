@@ -1,0 +1,18 @@
+apiVersion: diagnosis.netease.com/v1
+kind: AbnormalSource
+metadata:
+  name: unhealthy-source
+spec:
+  sourceTemplate:
+    type: KubernetesEvent
+    kubernetesEventTemplate:
+      regexp:
+        reason: Unhealthy
+        type: Warning
+        source:
+          component: kubelet
+  assignedInformationCollectors:
+  - name: pod-collector
+    namespace: kube-diagnoser
+  - name: process-collector
+    namespace: kube-diagnoser

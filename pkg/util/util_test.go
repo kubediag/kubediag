@@ -1958,6 +1958,576 @@ func TestMatchPrometheusAlert(t *testing.T) {
 	}
 }
 
+func TestMatchKubernetesEvent(t *testing.T) {
+	type expectedStruct struct {
+		matched bool
+		err     error
+	}
+
+	time := time.Now()
+	tests := []struct {
+		kubernetesEventTemplate diagnosisv1.KubernetesEventTemplate
+		abnormal                diagnosisv1.Abnormal
+		expected                expectedStruct
+		desc                    string
+	}{
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Name:      "event1",
+					Namespace: "namespace1",
+					InvolvedObject: corev1.ObjectReference{
+						Kind:            "kind1",
+						Namespace:       "namespace1",
+						Name:            "object1",
+						UID:             "uid1",
+						APIVersion:      "v1",
+						ResourceVersion: "1",
+						FieldPath:       "path1",
+					},
+					Reason:  "reason1",
+					Message: "message1",
+					Source: corev1.EventSource{
+						Component: "component1",
+						Host:      "host1",
+					},
+					FirstTimestamp:      regexp.QuoteMeta(time.String()),
+					LastTimestamp:       regexp.QuoteMeta(time.String()),
+					Count:               "1",
+					Type:                "type1",
+					Action:              "action1",
+					ReportingController: "controller1",
+					ReportingInstance:   "instance1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "event1",
+							Namespace: "namespace1",
+						},
+						InvolvedObject: corev1.ObjectReference{
+							Kind:            "kind1",
+							Namespace:       "namespace1",
+							Name:            "object1",
+							UID:             "uid1",
+							APIVersion:      "v1",
+							ResourceVersion: "1",
+							FieldPath:       "path1",
+						},
+						Reason:  "reason1",
+						Message: "message1",
+						Source: corev1.EventSource{
+							Component: "component1",
+							Host:      "host1",
+						},
+						FirstTimestamp:      metav1.NewTime(time),
+						LastTimestamp:       metav1.NewTime(time),
+						Count:               1,
+						Type:                "type1",
+						Action:              "action1",
+						ReportingController: "controller1",
+						ReportingInstance:   "instance1",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: true,
+				err:     nil,
+			},
+			desc: "exact match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "event1",
+							Namespace: "namespace1",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: true,
+				err:     nil,
+			},
+			desc: "empty kubernetes event template",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Name:      "event1",
+					Namespace: "namespace1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "empty abnormal kubernetes event",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Name: "event1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "event2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event name not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Namespace: "namespace1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: "namespace2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event namespace not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						Kind: "kind1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							Kind: "kind2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object kind not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						Namespace: "namespace1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							Namespace: "namespace2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object namespace not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						Name: "name1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							Name: "name2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object name not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						UID: "uid1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							UID: "uid2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object uid not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						APIVersion: "v1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							APIVersion: "v2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object api version not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						ResourceVersion: "1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							ResourceVersion: "2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object resource version not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					InvolvedObject: corev1.ObjectReference{
+						FieldPath: "path1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						InvolvedObject: corev1.ObjectReference{
+							FieldPath: "path2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event involved object field path not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Reason: "reason1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Reason: "reason2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event reason not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Message: "message1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Message: "message2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event message not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Source: corev1.EventSource{
+						Component: "component1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Source: corev1.EventSource{
+							Component: "component2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event source component not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Source: corev1.EventSource{
+						Host: "host1",
+					},
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Source: corev1.EventSource{
+							Host: "host2",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event source host not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					FirstTimestamp: "invalid time",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						FirstTimestamp: metav1.NewTime(time),
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event first timestamp not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					LastTimestamp: "invalid time",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						LastTimestamp: metav1.NewTime(time),
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event last timestamp not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Count: "1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Count: 2,
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event count not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Type: "type1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Type: "type2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event type not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Action: "action1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						Action: "action2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event action not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					ReportingController: "controller1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ReportingController: "controller2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event reporting controller not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					ReportingInstance: "instance1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ReportingInstance: "instance2",
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     nil,
+			},
+			desc: "event reporting instance not match",
+		},
+		{
+			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
+				Regexp: diagnosisv1.KubernetesEventTemplateRegexp{
+					Name: "(event1",
+				},
+			},
+			abnormal: diagnosisv1.Abnormal{
+				Spec: diagnosisv1.AbnormalSpec{
+					KubernetesEvent: &corev1.Event{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "event1",
+						},
+					},
+				},
+			},
+			expected: expectedStruct{
+				matched: false,
+				err:     fmt.Errorf("error parsing regexp: missing closing ): `(event1`"),
+			},
+			desc: "invalid regular expression pattern",
+		},
+	}
+
+	for _, test := range tests {
+		matched, err := MatchKubernetesEvent(test.kubernetesEventTemplate, test.abnormal)
+		assert.Equal(t, test.expected.matched, matched, test.desc)
+		if test.expected.err == nil {
+			assert.NoError(t, err, test.desc)
+		} else {
+			assert.EqualError(t, err, test.expected.err.Error(), test.desc)
+		}
+	}
+}
+
 func newTestingMap(keysAndValues ...string) ([]byte, error) {
 	if len(keysAndValues) < 2 || len(keysAndValues)%2 == 1 {
 		return nil, fmt.Errorf("invalid input for keys and values: %v", keysAndValues)

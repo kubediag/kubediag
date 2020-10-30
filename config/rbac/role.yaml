@@ -21,6 +21,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - create

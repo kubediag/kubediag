@@ -88,9 +88,7 @@ AbnormalSource 用于表示故障事件源实例。
 | lastTimestamp | 用于匹配 LastTimestamp 的正则表达式。 | string | false |
 | count | 用于匹配 Count 的正则表达式。 | string | false |
 | type | 用于匹配 Type 的正则表达式。 | string | false |
-| eventTime | 用于匹配 EventTime 的正则表达式。 | string | false |
 | action | 用于匹配 Action 的正则表达式。 | string | false |
-| related | 用于匹配 Related 的正则表达式。 | [corev1.ObjectReference](https://github.com/kubernetes/api/blob/release-1.17/core/v1/types.go#L4985) | false |
 | reportingController | 用于匹配 ReportingController 的正则表达式。 | string | false |
 | reportingInstance | 用于匹配 ReportingInstance 的正则表达式。 | string | false |
 
