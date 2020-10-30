@@ -68,6 +68,10 @@ type KubeDiagnoserOptions struct {
 	MetricsAddress string
 	// EnableLeaderElection enables leader election for kube diagnoser master.
 	EnableLeaderElection bool
+	// Port is the port that the webhook server serves at.
+	Port int
+	// Host is the hostname that the webhook server binds to.
+	Host string
 	// CertDir is the directory that contains the server key and certificate.
 	CertDir string
 	// RepeatInterval specifies how long to wait before sending a notification again if it has already
@@ -123,6 +127,7 @@ func NewKubeDiagnoserOptions() *KubeDiagnoserOptions {
 		Address:                    "0.0.0.0:8090",
 		MetricsAddress:             "0.0.0.0:10357",
 		EnableLeaderElection:       false,
+		Port:                       9443,
 		CertDir:                    "/etc/kube-diagnoser/serving-certs",
 		RepeatInterval:             6 * time.Hour,
 		AbnormalTTL:                240 * time.Hour,
@@ -141,10 +146,11 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
 			MetricsBindAddress: opts.MetricsAddress,
-			Port:               9443,
+			Port:               opts.Port,
+			Host:               opts.Host,
+			CertDir:            opts.CertDir,
 			LeaderElection:     opts.EnableLeaderElection,
 			LeaderElectionID:   "8a2b2861.netease.com",
-			CertDir:            opts.CertDir,
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to start manager")
@@ -266,7 +272,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
 			MetricsBindAddress: opts.MetricsAddress,
-			Port:               9443,
 			LeaderElection:     false,
 			LeaderElectionID:   "8a2b2861.netease.com",
 		})
@@ -464,6 +469,8 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
+	fs.IntVar(&opts.Port, "port", opts.Port, "The port that the webhook server serves at.")
+	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.RepeatInterval, "repeat-interval", opts.RepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
