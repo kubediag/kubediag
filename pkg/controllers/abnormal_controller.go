@@ -68,6 +68,7 @@ func NewAbnormalReconciler(
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile synchronizes a Abnormal object according to the phase.
 func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
