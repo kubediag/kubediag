@@ -139,6 +139,115 @@ func GetAbnormalConditionFromList(conditions []diagnosisv1.AbnormalCondition, co
 	return -1, nil
 }
 
+// GetPodUnhealthyReason extracts the reason of terminated or waiting container in the pod if the pod is
+// not ready. The parameter must be an unhealthy pod.
+// It returns the reason of the first terminated or waiting container.
+func GetPodUnhealthyReason(pod corev1.Pod) string {
+	// Return the reason of the first terminated or waiting container.
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		// Skip ready containers.
+		if containerStatus.Ready {
+			continue
+		}
+
+		if containerStatus.State.Terminated != nil {
+			return containerStatus.State.Terminated.Reason
+		} else if containerStatus.State.Waiting != nil {
+			return containerStatus.State.Waiting.Reason
+		}
+	}
+
+	// Return the reason of the first unready container if last termination state is documented.
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		// Skip ready containers.
+		if containerStatus.Ready {
+			continue
+		}
+
+		if containerStatus.LastTerminationState.Terminated != nil {
+			return containerStatus.LastTerminationState.Terminated.Reason
+		}
+	}
+
+	// The pod unhealthy reason will be Unknown if no unhealthy container status is reported.
+	return "Unknown"
+}
+
+// UpdatePodUnhealthyReasonStatistics updates container state reason map of unhealthy pods.
+// It returns true if the reason is not empty, otherwise false.
+func UpdatePodUnhealthyReasonStatistics(containerStateReasons map[string]int, reason string) bool {
+	if containerStateReasons == nil {
+		containerStateReasons = make(map[string]int)
+	}
+
+	if reason == "" {
+		return false
+	}
+	containerStateReasons[reason]++
+
+	return true
+}
+
+// CalculatePodHealthScore calculates pod health score according to pod statistics.
+func CalculatePodHealthScore(statistics types.PodStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy.Ready + statistics.Healthy.Succeeded
+	total := statistics.Total
+
+	return types.MaxHealthScore * healthy / total
+}
+
+// IsNodeReady returns true if its Ready condition is set to true and it does not have NetworkUnavailable
+// condition set to true.
+func IsNodeReady(node corev1.Node) bool {
+	nodeReady := false
+	networkReady := true
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			if condition.Status == corev1.ConditionTrue {
+				nodeReady = true
+			}
+		}
+		if condition.Type == corev1.NodeNetworkUnavailable {
+			if condition.Status == corev1.ConditionTrue {
+				networkReady = false
+			}
+		}
+	}
+
+	return nodeReady && networkReady
+}
+
+// GetNodeUnhealthyConditionType extracts the condition type of unhealthy node. The parameter must be an
+// unhealthy node.
+// It returns the type of the first unhealthy condition.
+func GetNodeUnhealthyConditionType(node corev1.Node) corev1.NodeConditionType {
+	for _, condition := range node.Status.Conditions {
+		// Return the reason of the first unhealthy condition.
+		if condition.Type != corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+			return condition.Type
+		}
+	}
+
+	// The node condition will be Unknown if no unhealthy condition is reported.
+	return "Unknown"
+}
+
+// CalculateNodeHealthScore calculates node health score according to node statistics.
+func CalculateNodeHealthScore(statistics types.NodeStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy
+	total := statistics.Total
+
+	return types.MaxHealthScore * healthy / total
+}
+
 // FormatURL formats a URL from args.
 func FormatURL(scheme string, host string, port string, path string) *url.URL {
 	u, err := url.Parse(path)
@@ -316,16 +425,16 @@ func ListSignalsFromSignalRecoveryContext(abnormal diagnosisv1.Abnormal, log log
 // ValidateAbnormalResult validates an abnormal after processed by a diagnoser, recoverer or information collector.
 // The following fields must not be modified after processed:
 //
-// .spec
-// .status.identifiable
-// .status.recoverable
-// .status.phase
-// .status.conditions
-// .status.message
-// .status.reason
-// .status.startTime
-// .status.diagnoser
-// .status.recoverer
+// Spec
+// Status.Identifiable
+// Status.Recoverable
+// Status.Phase
+// Status.Conditions
+// Status.Message
+// Status.Reason
+// Status.StartTime
+// Status.Diagnoser
+// Status.Recoverer
 func ValidateAbnormalResult(result diagnosisv1.Abnormal, current diagnosisv1.Abnormal) error {
 	if !reflect.DeepEqual(result.Spec, current.Spec) {
 		return fmt.Errorf("spec field of Abnormal must not be modified")
