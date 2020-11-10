@@ -39,6 +39,7 @@ import (
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
 	"netease.com/k8s/kube-diagnoser/pkg/alertmanager"
+	"netease.com/k8s/kube-diagnoser/pkg/clusterhealthevaluator"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
@@ -74,9 +75,11 @@ type KubeDiagnoserOptions struct {
 	Host string
 	// CertDir is the directory that contains the server key and certificate.
 	CertDir string
-	// RepeatInterval specifies how long to wait before sending a notification again if it has already
-	// been sent successfully for an alert.
-	RepeatInterval time.Duration
+	// AlertmanagerRepeatInterval specifies how long to wait before sending a notification again if it has
+	// already been sent successfully for an alert.
+	AlertmanagerRepeatInterval time.Duration
+	// ClusterHealthEvaluatorHousekeepingInterval specifies the interval between cluster health updates.
+	ClusterHealthEvaluatorHousekeepingInterval time.Duration
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// AbnormalTTL is amount of time to retain abnormals.
@@ -129,7 +132,8 @@ func NewKubeDiagnoserOptions() *KubeDiagnoserOptions {
 		EnableLeaderElection:       false,
 		Port:                       9443,
 		CertDir:                    "/etc/kube-diagnoser/serving-certs",
-		RepeatInterval:             6 * time.Hour,
+		AlertmanagerRepeatInterval: 6 * time.Hour,
+		ClusterHealthEvaluatorHousekeepingInterval: 30 * time.Second,
 		AbnormalTTL:                240 * time.Hour,
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
@@ -182,7 +186,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		alertmanager := alertmanager.NewAlertmanager(
 			context.Background(),
 			ctrl.Log.WithName("alertmanager"),
-			opts.RepeatInterval,
+			opts.AlertmanagerRepeatInterval,
 			sourceManagerCh,
 		)
 
@@ -197,10 +201,24 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			eventer.Run(stopCh)
 		}(stopCh)
 
+		clusterHealthEvaluator := clusterhealthevaluator.NewClusterHealthEvaluator(
+			context.Background(),
+			ctrl.Log.WithName("clusterhealthevaluator"),
+			mgr.GetClient(),
+			mgr.GetEventRecorderFor("kube-diagnoser/clusterhealthevaluator"),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.ClusterHealthEvaluatorHousekeepingInterval,
+		)
+		go func(stopCh chan struct{}) {
+			clusterHealthEvaluator.Run(stopCh)
+		}(stopCh)
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			r := mux.NewRouter()
 			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
+			r.HandleFunc("/clusterhealth", clusterHealthEvaluator.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -329,7 +347,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		}(stopCh)
 
 		// Run abnormal reaper for garbage collection.
-		abnormalreaper := abnormalreaper.NewAbnormalReaper(
+		abnormalReaper := abnormalreaper.NewAbnormalReaper(
 			context.Background(),
 			ctrl.Log.WithName("abnormalreaper"),
 			mgr.GetClient(),
@@ -341,7 +359,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.MaximumAbnormalsPerNode,
 		)
 		go func(stopCh chan struct{}) {
-			abnormalreaper.Run(stopCh)
+			abnormalReaper.Run(stopCh)
 		}(stopCh)
 
 		// Setup information collectors, diagnosers and recoverers.
@@ -472,7 +490,8 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&opts.Port, "port", opts.Port, "The port that the webhook server serves at.")
 	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
-	fs.DurationVar(&opts.RepeatInterval, "repeat-interval", opts.RepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
+	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
+	fs.DurationVar(&opts.ClusterHealthEvaluatorHousekeepingInterval, "cluster-health-evaluator-housekeeping-interval", opts.ClusterHealthEvaluatorHousekeepingInterval, "The interval between cluster health updates.")
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")

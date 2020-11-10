@@ -149,6 +149,319 @@ func TestGetAbnormalCondition(t *testing.T) {
 	}
 }
 
+func TestGetPodUnhealthyReason(t *testing.T) {
+	tests := []struct {
+		pod      corev1.Pod
+		expected string
+		desc     string
+	}{
+		{
+			pod:      corev1.Pod{},
+			expected: "Unknown",
+			desc:     "empty pod",
+		},
+		{
+			pod: corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Ready: true,
+						},
+					},
+				},
+			},
+			expected: "Unknown",
+			desc:     "ready pod",
+		},
+		{
+			pod: corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Ready: false,
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Reason: "reason1",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "reason1",
+			desc:     "terminated pod",
+		},
+		{
+			pod: corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Ready: false,
+							State: corev1.ContainerState{
+								Waiting: &corev1.ContainerStateWaiting{
+									Reason: "reason2",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "reason2",
+			desc:     "waiting pod",
+		},
+		{
+			pod: corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Ready: false,
+							LastTerminationState: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Reason: "reason3",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "reason3",
+			desc:     "pod with last termination",
+		},
+	}
+
+	for _, test := range tests {
+		reason := GetPodUnhealthyReason(test.pod)
+		assert.Equal(t, test.expected, reason, test.desc)
+	}
+}
+
+func TestUpdatePodUnhealthyReasonStatistics(t *testing.T) {
+	type expectedStruct struct {
+		updated               bool
+		containerStateReasons map[string]int
+	}
+
+	tests := []struct {
+		containerStateReasons map[string]int
+		reason                string
+		expected              expectedStruct
+		desc                  string
+	}{
+		{
+			containerStateReasons: map[string]int{},
+			reason:                "",
+			expected: expectedStruct{
+				updated:               false,
+				containerStateReasons: map[string]int{},
+			},
+			desc: "empty reason",
+		},
+		{
+			containerStateReasons: map[string]int{},
+			reason:                "reason1",
+			expected: expectedStruct{
+				updated:               true,
+				containerStateReasons: map[string]int{"reason1": 1},
+			},
+			desc: "new reason added",
+		},
+		{
+			containerStateReasons: map[string]int{"reason1": 1, "reason2": 1},
+			reason:                "reason1",
+			expected: expectedStruct{
+				updated:               true,
+				containerStateReasons: map[string]int{"reason1": 2, "reason2": 1},
+			},
+			desc: "reason updated",
+		},
+	}
+
+	for _, test := range tests {
+		updated := UpdatePodUnhealthyReasonStatistics(test.containerStateReasons, test.reason)
+		assert.Equal(t, test.expected.updated, updated, test.desc)
+		assert.Equal(t, test.expected.containerStateReasons, test.containerStateReasons, test.desc)
+	}
+}
+
+func TestCalculatePodHealthScore(t *testing.T) {
+	tests := []struct {
+		statistics types.PodStatistics
+		expected   int
+		desc       string
+	}{
+		{
+			statistics: types.PodStatistics{},
+			expected:   100,
+			desc:       "empty pod statistics",
+		},
+		{
+			statistics: types.PodStatistics{
+				Total: 50,
+			},
+			expected: 0,
+			desc:     "empty healthy pod statistics",
+		},
+		{
+			statistics: types.PodStatistics{
+				Total: 50,
+				Healthy: types.HealthyPodStatistics{
+					Ready:     10,
+					Succeeded: 10,
+				},
+			},
+			expected: 40,
+			desc:     "score calculated",
+		},
+	}
+
+	for _, test := range tests {
+		score := CalculatePodHealthScore(test.statistics)
+		assert.Equal(t, test.expected, score, test.desc)
+	}
+}
+
+func TestIsNodeReady(t *testing.T) {
+	tests := []struct {
+		node     corev1.Node
+		expected bool
+		desc     string
+	}{
+		{
+			node:     corev1.Node{},
+			expected: false,
+			desc:     "node status is empty",
+		},
+		{
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expected: true,
+			desc:     "node is ready",
+		},
+		{
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionFalse,
+						},
+					},
+				},
+			},
+			expected: false,
+			desc:     "node is not ready",
+		},
+		{
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeNetworkUnavailable,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expected: false,
+			desc:     "node is network unavailable",
+		},
+	}
+
+	for _, test := range tests {
+		ready := IsNodeReady(test.node)
+		assert.Equal(t, test.expected, ready, test.desc)
+	}
+}
+
+func TestGetNodeUnhealthyConditionType(t *testing.T) {
+	tests := []struct {
+		node     corev1.Node
+		expected corev1.NodeConditionType
+		desc     string
+	}{
+		{
+			node:     corev1.Node{},
+			expected: "Unknown",
+			desc:     "node status is empty",
+		},
+		{
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   "type1",
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expected: "type1",
+			desc:     "unhealthy node",
+		},
+		{
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expected: "Unknown",
+			desc:     "healthy node",
+		},
+	}
+
+	for _, test := range tests {
+		conditionType := GetNodeUnhealthyConditionType(test.node)
+		assert.Equal(t, test.expected, conditionType, test.desc)
+	}
+}
+
+func TestCalculateNodeHealthScore(t *testing.T) {
+	tests := []struct {
+		statistics types.NodeStatistics
+		expected   int
+		desc       string
+	}{
+		{
+			statistics: types.NodeStatistics{},
+			expected:   100,
+			desc:       "empty node statistics",
+		},
+		{
+			statistics: types.NodeStatistics{
+				Total: 50,
+			},
+			expected: 0,
+			desc:     "empty healthy node statistics",
+		},
+		{
+			statistics: types.NodeStatistics{
+				Total:   50,
+				Healthy: 20,
+			},
+			expected: 40,
+			desc:     "score calculated",
+		},
+	}
+
+	for _, test := range tests {
+		score := CalculateNodeHealthScore(test.statistics)
+		assert.Equal(t, test.expected, score, test.desc)
+	}
+}
+
 func TestFormatURL(t *testing.T) {
 	tests := []struct {
 		scheme   string
