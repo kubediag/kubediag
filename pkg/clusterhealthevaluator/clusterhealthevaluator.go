@@ -26,12 +26,15 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
@@ -139,6 +142,13 @@ func (ce *clusterHealthEvaluator) Run(stopCh <-chan struct{}) {
 		// Update kubernetes cluster health.
 		ce.setClusterHealth(workloadHealth, nodeHealth)
 		ce.Info("evaluating cluster health successfully")
+
+		// Create abnormals on terminating pods.
+		err = ce.generateTerminatingPodAbnormal(pods)
+		if err != nil {
+			ce.Error(err, "failed to create abnormals on terminating pods")
+			return
+		}
 	}, ce.housekeepingInterval, stopCh)
 }
 
@@ -312,4 +322,101 @@ func (ce *clusterHealthEvaluator) listNodes() ([]corev1.Node, error) {
 	}
 
 	return nodeList.Items, nil
+}
+
+// getAbnormal gets an Abnormal from cache.
+func (ce *clusterHealthEvaluator) getAbnormal(ctx context.Context, namespace string, name string) (diagnosisv1.Abnormal, error) {
+	var abnormal diagnosisv1.Abnormal
+	if err := ce.client.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}, &abnormal); err != nil {
+		return diagnosisv1.Abnormal{}, err
+	}
+
+	return abnormal, nil
+}
+
+// generateTerminatingPodAbnormal creates abnormals on terminating pods.
+func (ce *clusterHealthEvaluator) generateTerminatingPodAbnormal(pods []corev1.Pod) error {
+	for _, pod := range pods {
+		// Synchronize the pod if the pod is in terminating state and the state of the pod could be obtained.
+		if pod.DeletionTimestamp != nil && pod.Status.Phase != corev1.PodUnknown {
+			// Retrieve the grace period of pod.
+			var gracePeriod time.Duration
+			if pod.Spec.TerminationGracePeriodSeconds != nil {
+				gracePeriod = time.Duration(*pod.DeletionGracePeriodSeconds) * time.Second
+			} else {
+				gracePeriod = corev1.DefaultTerminationGracePeriodSeconds
+			}
+
+			// A terminating pod abnormal is created if the pod is not terminated by deadline.
+			deadline := metav1.NewTime(pod.DeletionTimestamp.Add(gracePeriod).Add(util.PodKillGracePeriodSeconds))
+			now := metav1.Now()
+			if (&deadline).Before(&now) {
+				name := fmt.Sprintf("%s.%s.%s", util.TerminatingPodAbnormalNamePrefix, pod.Name, pod.UID)
+				namespace := pod.Namespace
+
+				abnormal, err := ce.getAbnormal(ce, namespace, name)
+				if err != nil {
+					if !apierrors.IsNotFound(err) {
+						ce.Error(err, "unable to fetch abnormal", "abnormal", client.ObjectKey{
+							Namespace: namespace,
+							Name:      name,
+						})
+						continue
+					}
+
+					// Create an abnormal if the abormal on the terminating pod does not exist.
+					abnormal = diagnosisv1.Abnormal{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      name,
+							Namespace: namespace,
+						},
+						Spec: diagnosisv1.AbnormalSpec{
+							Source:   diagnosisv1.CustomSource,
+							NodeName: pod.Spec.NodeName,
+							AssignedInformationCollectors: []diagnosisv1.NamespacedName{
+								{
+									Name:      util.DefautlPodCollector,
+									Namespace: util.DefautlNamespace,
+								},
+								{
+									Name:      util.DefautlProcessCollector,
+									Namespace: util.DefautlNamespace,
+								},
+							},
+							AssignedDiagnosers: []diagnosisv1.NamespacedName{
+								{
+									Name:      util.DefautlTerminatingPodDiagnoser,
+									Namespace: util.DefautlNamespace,
+								},
+							},
+							AssignedRecoverers: []diagnosisv1.NamespacedName{
+								{
+									Name:      util.DefautlSignalRecoverer,
+									Namespace: util.DefautlNamespace,
+								},
+							},
+						},
+					}
+
+					if err := ce.client.Create(ce, &abnormal); err != nil {
+						ce.Error(err, "unable to create abnormal", "abnormal", client.ObjectKey{
+							Namespace: namespace,
+							Name:      name,
+						})
+						continue
+					}
+
+					ce.Info("create abnormal successfully", "abnormal", client.ObjectKey{
+						Namespace: namespace,
+						Name:      name,
+					})
+				}
+			}
+		}
+	}
+
+	return nil
 }
