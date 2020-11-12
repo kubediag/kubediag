@@ -18,6 +18,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/prometheus/alertmanager v0.21.0
+	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.12.0
 	github.com/shirou/gopsutil v2.20.7+incompatible
 	github.com/spf13/cobra v0.0.5
