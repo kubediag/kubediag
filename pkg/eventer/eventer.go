@@ -21,12 +21,35 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	eventReceivedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "event_received_count",
+			Help: "Counter of events received by eventer",
+		},
+	)
+	eventerAbnormalGenerationSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "eventer_abnormal_generation_success_count",
+			Help: "Counter of successful abnormal generations by eventer",
+		},
+	)
+	eventerAbnormalGenerationErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "eventer_abnormal_generation_error_count",
+			Help: "Counter of erroneous abnormal generations by eventer",
+		},
+	)
 )
 
 // Eventer generates abnormals from kubernetes events.
@@ -55,6 +78,12 @@ func NewEventer(
 	eventChainCh chan corev1.Event,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 ) Eventer {
+	metrics.Registry.MustRegister(
+		eventReceivedCount,
+		eventerAbnormalGenerationSuccessCount,
+		eventerAbnormalGenerationErrorCount,
+	)
+
 	return &eventer{
 		Context:         ctx,
 		Logger:          logger,
@@ -69,6 +98,8 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 		select {
 		// Process events queuing in event channel.
 		case event := <-ev.eventChainCh:
+			eventReceivedCount.Inc()
+
 			// Create abnormal according to the kubernetes event.
 			name := fmt.Sprintf("%s.%s.%s", util.KubernetesEventGeneratedAbnormalPrefix, event.Namespace, event.Name)
 			namespace := util.DefautlNamespace
@@ -86,11 +117,15 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 			// Add abnormal to the queue processed by source manager.
 			err := util.QueueAbnormal(ev, ev.sourceManagerCh, abnormal)
 			if err != nil {
+				eventerAbnormalGenerationErrorCount.Inc()
 				ev.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
 			}
+
+			// Increment counter of successful abnormal generations by eventer.
+			eventerAbnormalGenerationSuccessCount.Inc()
 		// Stop source manager on stop signal.
 		case <-stopCh:
 			return

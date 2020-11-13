@@ -27,16 +27,69 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	informationManagerSyncSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_sync_success_count",
+			Help: "Counter of successful abnormal syncs by information manager",
+		},
+	)
+	informationManagerSyncSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_sync_skip_count",
+			Help: "Counter of skipped abnormal syncs by information manager",
+		},
+	)
+	informationManagerSyncFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_sync_fail_count",
+			Help: "Counter of failed abnormal syncs by information manager",
+		},
+	)
+	informationManagerSyncErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_sync_error_count",
+			Help: "Counter of erroneous abnormal syncs by information manager",
+		},
+	)
+	informationManagerCommandExecutorSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_command_executor_success_count",
+			Help: "Counter of successful command executor runs by information manager",
+		},
+	)
+	informationManagerCommandExecutorFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_command_executor_fail_count",
+			Help: "Counter of failed command executor runs by information manager",
+		},
+	)
+	informationManagerProfilerSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_profiler_success_count",
+			Help: "Counter of successful profiler runs by information manager",
+		},
+	)
+	informationManagerProfilerFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "information_manager_profiler_fail_count",
+			Help: "Counter of failed profiler runs by information manager",
+		},
+	)
 )
 
 // informationManager manages information collectors in the system.
@@ -73,6 +126,17 @@ func NewInformationManager(
 	nodeName string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
+	metrics.Registry.MustRegister(
+		informationManagerSyncSuccessCount,
+		informationManagerSyncSkipCount,
+		informationManagerSyncFailCount,
+		informationManagerSyncErrorCount,
+		informationManagerCommandExecutorSuccessCount,
+		informationManagerCommandExecutorFailCount,
+		informationManagerProfilerSuccessCount,
+		informationManagerProfilerFailCount,
+	)
+
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -151,6 +215,9 @@ func (im *informationManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagn
 		}
 	}
 
+	// Increment counter of successful abnormal syncs by information manager.
+	informationManagerSyncSuccessCount.Inc()
+
 	return abnormal, nil
 }
 
@@ -196,6 +263,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		if executor.Type == diagnosisv1.InformationCollectorType {
 			executor, err := util.RunCommandExecutor(executor, im)
 			if err != nil {
+				informationManagerCommandExecutorFailCount.Inc()
 				im.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -203,6 +271,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 				executor.Error = err.Error()
 			}
 
+			informationManagerCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -212,6 +281,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 		if profiler.Type == diagnosisv1.InformationCollectorType {
 			profiler, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, profiler, im.client, im)
 			if err != nil {
+				informationManagerProfilerFailCount.Inc()
 				im.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -219,17 +289,18 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 				profiler.Error = err.Error()
 			}
 
+			informationManagerProfilerSuccessCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}
 
 	// Skip collection if AssignedInformationCollectors is empty.
 	if len(abnormal.Spec.AssignedInformationCollectors) == 0 {
+		informationManagerSyncSkipCount.Inc()
 		im.Info("skipping collection", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
-
 		im.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingCollection", "Skipping collection")
 
 		abnormal, err := im.sendAbnormalToDiagnoserChain(abnormal)
@@ -372,11 +443,15 @@ func (im *informationManager) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (
 		return abnormal, err
 	}
 
+	informationManagerSyncFailCount.Inc()
+
 	return abnormal, nil
 }
 
 // addAbnormalToInformationManagerQueue adds Abnormal to the queue processed by information manager.
 func (im *informationManager) addAbnormalToInformationManagerQueue(abnormal diagnosisv1.Abnormal) {
+	informationManagerSyncErrorCount.Inc()
+
 	err := util.QueueAbnormal(im, im.informationManagerCh, abnormal)
 	if err != nil {
 		im.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
@@ -388,6 +463,8 @@ func (im *informationManager) addAbnormalToInformationManagerQueue(abnormal diag
 
 // addAbnormalToInformationManagerQueueWithTimer adds Abnormal to the queue processed by information manager with a timer.
 func (im *informationManager) addAbnormalToInformationManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	informationManagerSyncErrorCount.Inc()
+
 	err := util.QueueAbnormalWithTimer(im, 30*time.Second, im.informationManagerCh, abnormal)
 	if err != nil {
 		im.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
