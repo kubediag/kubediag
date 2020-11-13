@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,10 +31,38 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	sourceManagerSyncSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "source_manager_sync_success_count",
+			Help: "Counter of successful abnormal syncs by source manager",
+		},
+	)
+	sourceManagerSyncErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "source_manager_sync_error_count",
+			Help: "Counter of erroneous abnormal syncs by source manager",
+		},
+	)
+	prometheusAlertGeneratedAbnormalCreationCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "prometheus_alert_generated_abnormal_creation_count",
+			Help: "Counter of prometheus alert generated abnormal creations by source manager",
+		},
+	)
+	eventGeneratedAbnormalCreationCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "event_generated_abnormal_creation_count",
+			Help: "Counter of event generated abnormal creations by source manager",
+		},
+	)
 )
 
 // sourceManager manages abnormal sources in the system.
@@ -68,6 +97,13 @@ func NewSourceManager(
 	nodeName string,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
+	metrics.Registry.MustRegister(
+		sourceManagerSyncSuccessCount,
+		sourceManagerSyncErrorCount,
+		prometheusAlertGeneratedAbnormalCreationCount,
+		eventGeneratedAbnormalCreationCount,
+	)
+
 	return &sourceManager{
 		Context:         ctx,
 		Logger:          logger,
@@ -148,6 +184,9 @@ func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv
 		}
 	}
 
+	// Increment counter of successful abnormal syncs by source manager.
+	sourceManagerSyncSuccessCount.Inc()
+
 	return abnormal, nil
 }
 
@@ -200,6 +239,9 @@ func (sm *sourceManager) createAbnormalFromPrometheusAlert(abnormalSources []dia
 					}
 				}
 
+				// Increment counter of prometheus alert generated abnormal creations by source manager.
+				prometheusAlertGeneratedAbnormalCreationCount.Inc()
+
 				return abnormal, nil
 			}
 		}
@@ -248,6 +290,9 @@ func (sm *sourceManager) createAbnormalFromKubernetesEvent(abnormalSources []dia
 					}
 				}
 
+				// Increment counter of event generated abnormal creations by source manager.
+				eventGeneratedAbnormalCreationCount.Inc()
+
 				return abnormal, nil
 			}
 		}
@@ -275,6 +320,8 @@ func (sm *sourceManager) sendAbnormalToInformationManager(abnormal diagnosisv1.A
 
 // addAbnormalToSourceManagerQueue adds Abnormal to the queue processed by source manager.
 func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
+	sourceManagerSyncErrorCount.Inc()
+
 	err := util.QueueAbnormal(sm, sm.sourceManagerCh, abnormal)
 	if err != nil {
 		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
@@ -286,6 +333,8 @@ func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Ab
 
 // addAbnormalToSourceManagerQueueWithTimer adds Abnormal to the queue processed by source manager with a timer.
 func (sm *sourceManager) addAbnormalToSourceManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	sourceManagerSyncErrorCount.Inc()
+
 	err := util.QueueAbnormalWithTimer(sm, 30*time.Second, sm.sourceManagerCh, abnormal)
 	if err != nil {
 		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{

@@ -27,11 +27,34 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/alertmanager/types"
+	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	prometheusAlertReceivedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "prometheus_alert_received_count",
+			Help: "Counter of prometheus alerts received by alertmanager",
+		},
+	)
+	alertmanagerAbnormalGenerationSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "alertmanager_abnormal_generation_success_count",
+			Help: "Counter of successful abnormal generations by alertmanager",
+		},
+	)
+	alertmanagerAbnormalGenerationErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "alertmanager_abnormal_generation_error_count",
+			Help: "Counter of erroneous abnormal generations by alertmanager",
+		},
+	)
 )
 
 // Alertmanager can handle valid post alerts requests.
@@ -63,6 +86,12 @@ func NewAlertmanager(
 	repeatInterval time.Duration,
 	sourceManagerCh chan diagnosisv1.Abnormal,
 ) Alertmanager {
+	metrics.Registry.MustRegister(
+		prometheusAlertReceivedCount,
+		alertmanagerAbnormalGenerationSuccessCount,
+		alertmanagerAbnormalGenerationErrorCount,
+	)
+
 	firingAlertSet := make(map[uint64]time.Time)
 
 	return &alertmanager{
@@ -78,8 +107,11 @@ func NewAlertmanager(
 func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		prometheusAlertReceivedCount.Inc()
+
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			alertmanagerAbnormalGenerationErrorCount.Inc()
 			am.Error(err, "unable to read request body")
 			http.Error(w, fmt.Sprintf("unable to read request body: %v", err), http.StatusBadRequest)
 			return
@@ -89,6 +121,7 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 		var alerts []*types.Alert
 		err = json.Unmarshal(body, &alerts)
 		if err != nil {
+			alertmanagerAbnormalGenerationErrorCount.Inc()
 			am.Error(err, "failed to unmarshal request body")
 			http.Error(w, fmt.Sprintf("failed to unmarshal request body: %v", err), http.StatusInternalServerError)
 			return
@@ -136,6 +169,7 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 			// Add abnormal to the queue processed by source manager.
 			err := util.QueueAbnormal(am, am.sourceManagerCh, abnormal)
 			if err != nil {
+				alertmanagerAbnormalGenerationErrorCount.Inc()
 				am.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -145,6 +179,9 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 			// Update alert fired time if the abnormal is created successfully.
 			am.firingAlertSet[uint64(fingerprint)] = now
 		}
+
+		// Increment counter of successful abnormal generations by alertmanager.
+		alertmanagerAbnormalGenerationSuccessCount.Inc()
 
 		w.Write([]byte("OK"))
 	default:

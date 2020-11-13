@@ -22,14 +22,37 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	abnormalGarbageCollectionSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "abnormal_garbage_collection_success_count",
+			Help: "Counter of successful abnormal garbage collections",
+		},
+	)
+	abnormalGarbageCollectionErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "abnormal_garbage_collection_error_count",
+			Help: "Counter of erroneous abnormal garbage collections",
+		},
+	)
+	nodeAbnormalCount = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "node_abnormal_count",
+			Help: "Number of abnormals currently on node",
+		},
+	)
 )
 
 // AbnormalReaper manages garbage collections of finished abnormals.
@@ -67,6 +90,12 @@ func NewAbnormalReaper(
 	minimumAbnormalTTLDuration time.Duration,
 	maximumAbnormalsPerNode int32,
 ) *AbnormalReaper {
+	metrics.Registry.MustRegister(
+		abnormalGarbageCollectionSuccessCount,
+		abnormalGarbageCollectionErrorCount,
+		nodeAbnormalCount,
+	)
+
 	return &AbnormalReaper{
 		Context:                    ctx,
 		Logger:                     logger,
@@ -93,9 +122,12 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 		// Garbage collect abnormals on node.
 		abnormals, err := ar.listAbnormals()
 		if err != nil {
+			abnormalGarbageCollectionErrorCount.Inc()
 			ar.Error(err, "failed to list abnormals")
 			return
 		}
+
+		nodeAbnormalCount.Set(float64(len(abnormals)))
 
 		reapedAbnormals := make([]diagnosisv1.Abnormal, 0)
 		retainedAbnormals := make([]diagnosisv1.Abnormal, 0)
@@ -129,6 +161,7 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 				for _, abnormal := range reapedAbnormals {
 					err := ar.client.Delete(ar, &abnormal)
 					if err != nil {
+						abnormalGarbageCollectionErrorCount.Inc()
 						ar.Error(err, "failed to delete abnormal", "abnormal", client.ObjectKey{
 							Name:      abnormal.Name,
 							Namespace: abnormal.Namespace,
@@ -137,6 +170,7 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 					}
 				}
 
+				abnormalGarbageCollectionSuccessCount.Inc()
 				ar.Info("abnormals has been garbage collected", "time", time.Now(), "count", len(reapedAbnormals))
 			}
 		}

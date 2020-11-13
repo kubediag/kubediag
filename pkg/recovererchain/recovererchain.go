@@ -27,16 +27,69 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	recovererChainSyncSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_sync_success_count",
+			Help: "Counter of successful abnormal syncs by recoverer chain",
+		},
+	)
+	recovererChainSyncSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_sync_skip_count",
+			Help: "Counter of skipped abnormal syncs by recoverer chain",
+		},
+	)
+	recovererChainSyncFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_sync_fail_count",
+			Help: "Counter of failed abnormal syncs by recoverer chain",
+		},
+	)
+	recovererChainSyncErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_sync_error_count",
+			Help: "Counter of erroneous abnormal syncs by recoverer chain",
+		},
+	)
+	recovererChainCommandExecutorSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_command_executor_success_count",
+			Help: "Counter of successful command executor runs by recoverer chain",
+		},
+	)
+	recovererChainCommandExecutorFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_command_executor_fail_count",
+			Help: "Counter of failed command executor runs by recoverer chain",
+		},
+	)
+	recovererChainProfilerSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_profiler_success_count",
+			Help: "Counter of successful profiler runs by recoverer chain",
+		},
+	)
+	recovererChainProfilerFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "recoverer_chain_profiler_fail_count",
+			Help: "Counter of failed profiler runs by recoverer chain",
+		},
+	)
 )
 
 // recovererChain manages recoverers in the system.
@@ -73,6 +126,17 @@ func NewRecovererChain(
 	nodeName string,
 	recovererChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
+	metrics.Registry.MustRegister(
+		recovererChainSyncSuccessCount,
+		recovererChainSyncSkipCount,
+		recovererChainSyncFailCount,
+		recovererChainSyncErrorCount,
+		recovererChainCommandExecutorSuccessCount,
+		recovererChainCommandExecutorFailCount,
+		recovererChainProfilerSuccessCount,
+		recovererChainProfilerFailCount,
+	)
+
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -143,6 +207,9 @@ func (rc *recovererChain) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosis
 		return abnormal, err
 	}
 
+	// Increment counter of successful abnormal syncs by recoverer chain.
+	recovererChainSyncSuccessCount.Inc()
+
 	return abnormal, nil
 }
 
@@ -188,6 +255,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		if executor.Type == diagnosisv1.RecovererType {
 			executor, err := util.RunCommandExecutor(executor, rc)
 			if err != nil {
+				recovererChainCommandExecutorFailCount.Inc()
 				rc.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -195,6 +263,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 				executor.Error = err.Error()
 			}
 
+			recovererChainCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -204,6 +273,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		if profiler.Type == diagnosisv1.RecovererType {
 			profiler, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, profiler, rc.client, rc)
 			if err != nil {
+				recovererChainProfilerFailCount.Inc()
 				rc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -211,17 +281,18 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 				profiler.Error = err.Error()
 			}
 
+			recovererChainProfilerSuccessCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}
 
 	// Skip recovery if AssignedRecoverers is empty.
 	if len(abnormal.Spec.AssignedRecoverers) == 0 {
+		recovererChainSyncSkipCount.Inc()
 		rc.Info("skipping recovery", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
-
 		rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
 
 		abnormal, err := rc.setAbnormalSucceeded(abnormal)
@@ -363,11 +434,15 @@ func (rc *recovererChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diag
 		return abnormal, err
 	}
 
+	recovererChainSyncFailCount.Inc()
+
 	return abnormal, nil
 }
 
 // addAbnormalToRecovererChainQueue adds Abnormal to the queue processed by recoverer chain.
 func (rc *recovererChain) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.Abnormal) {
+	recovererChainSyncErrorCount.Inc()
+
 	err := util.QueueAbnormal(rc, rc.recovererChainCh, abnormal)
 	if err != nil {
 		rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
@@ -379,6 +454,8 @@ func (rc *recovererChain) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.
 
 // addAbnormalToRecovererChainQueueWithTimer adds Abnormal to the queue processed by recoverer chain with a timer.
 func (rc *recovererChain) addAbnormalToRecovererChainQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	recovererChainSyncErrorCount.Inc()
+
 	err := util.QueueAbnormalWithTimer(rc, 30*time.Second, rc.recovererChainCh, abnormal)
 	if err != nil {
 		rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{

@@ -27,16 +27,69 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 	"netease.com/k8s/kube-diagnoser/pkg/util"
+)
+
+var (
+	diagnoserChainSyncSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_sync_success_count",
+			Help: "Counter of successful abnormal syncs by diagnoser chain",
+		},
+	)
+	diagnoserChainSyncSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_sync_skip_count",
+			Help: "Counter of skipped abnormal syncs by diagnoser chain",
+		},
+	)
+	diagnoserChainSyncFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_sync_fail_count",
+			Help: "Counter of failed abnormal syncs by diagnoser chain",
+		},
+	)
+	diagnoserChainSyncErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_sync_error_count",
+			Help: "Counter of erroneous abnormal syncs by diagnoser chain",
+		},
+	)
+	diagnoserChainCommandExecutorSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_command_executor_success_count",
+			Help: "Counter of successful command executor runs by diagnoser chain",
+		},
+	)
+	diagnoserChainCommandExecutorFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_command_executor_fail_count",
+			Help: "Counter of failed command executor runs by diagnoser chain",
+		},
+	)
+	diagnoserChainProfilerSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_profiler_success_count",
+			Help: "Counter of successful profiler runs by diagnoser chain",
+		},
+	)
+	diagnoserChainProfilerFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnoser_chain_profiler_fail_count",
+			Help: "Counter of failed profiler runs by diagnoser chain",
+		},
+	)
 )
 
 // diagnoserChain manages diagnosers in the system.
@@ -73,6 +126,17 @@ func NewDiagnoserChain(
 	nodeName string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
+	metrics.Registry.MustRegister(
+		diagnoserChainSyncSuccessCount,
+		diagnoserChainSyncSkipCount,
+		diagnoserChainSyncFailCount,
+		diagnoserChainSyncErrorCount,
+		diagnoserChainCommandExecutorSuccessCount,
+		diagnoserChainCommandExecutorFailCount,
+		diagnoserChainProfilerSuccessCount,
+		diagnoserChainProfilerFailCount,
+	)
+
 	transport := utilnet.SetTransportDefaults(
 		&http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -143,6 +207,9 @@ func (dc *diagnoserChain) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosis
 		return abnormal, err
 	}
 
+	// Increment counter of successful abnormal syncs by diagnoser chain.
+	diagnoserChainSyncSuccessCount.Inc()
+
 	return abnormal, nil
 }
 
@@ -188,6 +255,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		if executor.Type == diagnosisv1.DiagnoserType {
 			executor, err := util.RunCommandExecutor(executor, dc)
 			if err != nil {
+				diagnoserChainCommandExecutorFailCount.Inc()
 				dc.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -195,6 +263,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 				executor.Error = err.Error()
 			}
 
+			diagnoserChainCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -204,6 +273,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		if profiler.Type == diagnosisv1.DiagnoserType {
 			profiler, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, profiler, dc.client, dc)
 			if err != nil {
+				diagnoserChainProfilerFailCount.Inc()
 				dc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
@@ -211,17 +281,18 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 				profiler.Error = err.Error()
 			}
 
+			diagnoserChainProfilerFailCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}
 
 	// Skip diagnosis if AssignedDiagnosers is empty.
 	if len(abnormal.Spec.AssignedDiagnosers) == 0 {
+		diagnoserChainSyncSkipCount.Inc()
 		dc.Info("skipping diagnosis", "abnormal", client.ObjectKey{
 			Name:      abnormal.Name,
 			Namespace: abnormal.Namespace,
 		})
-
 		dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
 
 		abnormal, err := dc.sendAbnormalToRecovererChain(abnormal)
@@ -363,11 +434,15 @@ func (dc *diagnoserChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diag
 		return abnormal, err
 	}
 
+	diagnoserChainSyncFailCount.Inc()
+
 	return abnormal, nil
 }
 
 // addAbnormalToDiagnoserChainQueue adds Abnormal to the queue processed by diagnoser chain.
 func (dc *diagnoserChain) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.Abnormal) {
+	diagnoserChainSyncErrorCount.Inc()
+
 	err := util.QueueAbnormal(dc, dc.diagnoserChainCh, abnormal)
 	if err != nil {
 		dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
@@ -379,6 +454,8 @@ func (dc *diagnoserChain) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.
 
 // addAbnormalToDiagnoserChainQueueWithTimer adds Abnormal to the queue processed by diagnoser chain with a timer.
 func (dc *diagnoserChain) addAbnormalToDiagnoserChainQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+	diagnoserChainSyncErrorCount.Inc()
+
 	err := util.QueueAbnormalWithTimer(dc, 30*time.Second, dc.diagnoserChainCh, abnormal)
 	if err != nil {
 		dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
