@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -53,8 +54,10 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme           = runtime.NewScheme()
+	setupLog         = ctrl.Log.WithName("setup")
+	defaultTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	defaultCertDir   = "/etc/kube-diagnoser/serving-certs"
 )
 
 // KubeDiagnoserOptions is the main context object for the kube diagnoser.
@@ -88,6 +91,8 @@ type KubeDiagnoserOptions struct {
 	MinimumAbnormalTTLDuration time.Duration
 	// MaximumAbnormalsPerNode is maximum number of finished abnormals to retain per node.
 	MaximumAbnormalsPerNode int32
+	// APIServerAccessToken is the kubernetes apiserver access token.
+	APIServerAccessToken string
 }
 
 func init() {
@@ -99,7 +104,11 @@ func init() {
 }
 
 func main() {
-	opts := NewKubeDiagnoserOptions()
+	opts, err := NewKubeDiagnoserOptions()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 
 	cmd := &cobra.Command{
 		Use: "kube-diagnoser",
@@ -124,20 +133,32 @@ of an Abnormal.`,
 }
 
 // NewKubeDiagnoserOptions creates a new KubeDiagnoserOptions with a default config.
-func NewKubeDiagnoserOptions() *KubeDiagnoserOptions {
+func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
+	// Set token at /var/run/secrets/kubernetes.io/serviceaccount/token as default if kube diagnoser
+	// is running in a pod.
+	token := []byte{}
+	_, err := os.Stat(defaultTokenFile)
+	if err == nil {
+		token, err = ioutil.ReadFile(defaultTokenFile)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &KubeDiagnoserOptions{
 		Mode:                       "agent",
 		Address:                    "0.0.0.0:8090",
 		MetricsAddress:             "0.0.0.0:10357",
 		EnableLeaderElection:       false,
 		Port:                       9443,
-		CertDir:                    "/etc/kube-diagnoser/serving-certs",
+		CertDir:                    defaultCertDir,
 		AlertmanagerRepeatInterval: 6 * time.Hour,
 		ClusterHealthEvaluatorHousekeepingInterval: 30 * time.Second,
 		AbnormalTTL:                240 * time.Hour,
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
-	}
+		APIServerAccessToken:       string(token),
+	}, nil
 }
 
 // Run setups all controllers and starts the manager.
@@ -209,6 +230,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.ClusterHealthEvaluatorHousekeepingInterval,
+			opts.APIServerAccessToken,
 		)
 		go func(stopCh chan struct{}) {
 			clusterHealthEvaluator.Run(stopCh)
@@ -495,6 +517,7 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
+	fs.StringVar(&opts.APIServerAccessToken, "apiserver-access-token", opts.APIServerAccessToken, "The kubernetes apiserver access token.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

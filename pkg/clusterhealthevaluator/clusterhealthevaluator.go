@@ -68,6 +68,8 @@ type clusterHealthEvaluator struct {
 	housekeepingInterval time.Duration
 	// clusterHealth represents the health of kubernetes cluster.
 	clusterHealth *types.ClusterHealth
+	// apiserverAccessToken is the kubernetes apiserver access token.
+	apiserverAccessToken string
 }
 
 // NewClusterHealthEvaluator creates a new ClusterHealthEvaluator.
@@ -79,6 +81,7 @@ func NewClusterHealthEvaluator(
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	housekeepingInterval time.Duration,
+	apiserverAccessToken string,
 ) ClusterHealthEvaluator {
 	clusterHealth := new(types.ClusterHealth)
 
@@ -91,6 +94,7 @@ func NewClusterHealthEvaluator(
 		cache:                cache,
 		housekeepingInterval: housekeepingInterval,
 		clusterHealth:        clusterHealth,
+		apiserverAccessToken: apiserverAccessToken,
 	}
 }
 
