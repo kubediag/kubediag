@@ -127,17 +127,41 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in source manager channel.
 		case abnormal := <-sm.sourceManagerCh:
+			if abnormal.Generation != 0 {
+				err := sm.client.Get(sm, client.ObjectKey{
+					Name:      abnormal.Name,
+					Namespace: abnormal.Namespace,
+				}, &abnormal)
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						continue
+					}
+
+					err := util.QueueAbnormal(sm, sm.sourceManagerCh, abnormal)
+					if err != nil {
+						sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
+							Name:      abnormal.Name,
+							Namespace: abnormal.Namespace,
+						})
+					}
+					continue
+				}
+
+				// Only process abnormal which has not been accept yet.
+				if abnormal.Status.Phase != "" {
+					continue
+				}
+			}
+
 			abnormal, err := sm.SyncAbnormal(abnormal)
 			if err != nil {
 				sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
 			}
 
-			if abnormal.Generation != 0 {
-				sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				})
-			}
+			sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			})
 		// Stop source manager on stop signal.
 		case <-stopCh:
 			return
@@ -237,10 +261,10 @@ func (sm *sourceManager) createAbnormalFromPrometheusAlert(abnormalSources []dia
 						sm.Error(err, "unable to create Abnormal")
 						return abnormal, err
 					}
+				} else {
+					// Increment counter of prometheus alert generated abnormal creations by source manager.
+					prometheusAlertGeneratedAbnormalCreationCount.Inc()
 				}
-
-				// Increment counter of prometheus alert generated abnormal creations by source manager.
-				prometheusAlertGeneratedAbnormalCreationCount.Inc()
 
 				return abnormal, nil
 			}
@@ -288,10 +312,10 @@ func (sm *sourceManager) createAbnormalFromKubernetesEvent(abnormalSources []dia
 						sm.Error(err, "unable to create Abnormal")
 						return abnormal, err
 					}
+				} else {
+					// Increment counter of event generated abnormal creations by source manager.
+					eventGeneratedAbnormalCreationCount.Inc()
 				}
-
-				// Increment counter of event generated abnormal creations by source manager.
-				eventGeneratedAbnormalCreationCount.Inc()
 
 				return abnormal, nil
 			}
