@@ -46,6 +46,7 @@ spec:
             memory: 100Mi
         securityContext:
           privileged: true
+        terminationMessagePolicy: FallbackToLogsOnError
       hostNetwork: true
       hostPID: true
       securityContext:
@@ -133,6 +134,7 @@ spec:
           name: docker-data
         - mountPath: /var/lib/kubelet
           name: kubelet-data
+        terminationMessagePolicy: FallbackToLogsOnError
       volumes:
       - name: docker-sock
         hostPath:

@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
@@ -168,6 +169,30 @@ func (dc *diagnoserChain) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in diagnoser chain channel.
 		case abnormal := <-dc.diagnoserChainCh:
+			err := dc.client.Get(dc, client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			}, &abnormal)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+
+				err := util.QueueAbnormal(dc, dc.diagnoserChainCh, abnormal)
+				if err != nil {
+					dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
+					})
+				}
+				continue
+			}
+
+			// Only process abnormal in AbnormalDiagnosing phase.
+			if abnormal.Status.Phase != diagnosisv1.AbnormalDiagnosing {
+				continue
+			}
+
 			if util.IsAbnormalNodeNameMatched(abnormal, dc.nodeName) {
 				abnormal, err := dc.SyncAbnormal(abnormal)
 				if err != nil {

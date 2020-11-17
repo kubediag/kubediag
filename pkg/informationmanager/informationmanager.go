@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
@@ -168,6 +169,30 @@ func (im *informationManager) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in information manager channel.
 		case abnormal := <-im.informationManagerCh:
+			err := im.client.Get(im, client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			}, &abnormal)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+
+				err := util.QueueAbnormal(im, im.informationManagerCh, abnormal)
+				if err != nil {
+					im.Error(err, "failed to send abnormal to information manager queue", "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
+					})
+				}
+				continue
+			}
+
+			// Only process abnormal in InformationCollecting phase.
+			if abnormal.Status.Phase != diagnosisv1.InformationCollecting {
+				continue
+			}
+
 			if util.IsAbnormalNodeNameMatched(abnormal, im.nodeName) {
 				abnormal, err := im.SyncAbnormal(abnormal)
 				if err != nil {

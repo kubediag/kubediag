@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/tools/record"
@@ -168,6 +169,30 @@ func (rc *recovererChain) Run(stopCh <-chan struct{}) {
 		select {
 		// Process abnormals queuing in recoverer chain channel.
 		case abnormal := <-rc.recovererChainCh:
+			err := rc.client.Get(rc, client.ObjectKey{
+				Name:      abnormal.Name,
+				Namespace: abnormal.Namespace,
+			}, &abnormal)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+
+				err := util.QueueAbnormal(rc, rc.recovererChainCh, abnormal)
+				if err != nil {
+					rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
+						Name:      abnormal.Name,
+						Namespace: abnormal.Namespace,
+					})
+				}
+				continue
+			}
+
+			// Only process abnormal in AbnormalRecovering phase.
+			if abnormal.Status.Phase != diagnosisv1.AbnormalRecovering {
+				continue
+			}
+
 			if util.IsAbnormalNodeNameMatched(abnormal, rc.nodeName) {
 				abnormal, err := rc.SyncAbnormal(abnormal)
 				if err != nil {
