@@ -77,6 +77,8 @@ type alertmanager struct {
 	firingAlertSet map[uint64]time.Time
 	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
 	sourceManagerCh chan diagnosisv1.Abnormal
+	// alertmanagerEnabled indicates whether alertmanager is enabled.
+	alertmanagerEnabled bool
 }
 
 // NewAlertmanager creates a new Alertmanager.
@@ -85,6 +87,7 @@ func NewAlertmanager(
 	logger logr.Logger,
 	repeatInterval time.Duration,
 	sourceManagerCh chan diagnosisv1.Abnormal,
+	alertmanagerEnabled bool,
 ) Alertmanager {
 	metrics.Registry.MustRegister(
 		prometheusAlertReceivedCount,
@@ -95,16 +98,22 @@ func NewAlertmanager(
 	firingAlertSet := make(map[uint64]time.Time)
 
 	return &alertmanager{
-		Context:         ctx,
-		Logger:          logger,
-		repeatInterval:  repeatInterval,
-		firingAlertSet:  firingAlertSet,
-		sourceManagerCh: sourceManagerCh,
+		Context:             ctx,
+		Logger:              logger,
+		repeatInterval:      repeatInterval,
+		firingAlertSet:      firingAlertSet,
+		sourceManagerCh:     sourceManagerCh,
+		alertmanagerEnabled: alertmanagerEnabled,
 	}
 }
 
 // Handler handles http requests for sending prometheus alerts.
 func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
+	if !am.alertmanagerEnabled {
+		http.Error(w, fmt.Sprintf("alertmanager is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		prometheusAlertReceivedCount.Inc()

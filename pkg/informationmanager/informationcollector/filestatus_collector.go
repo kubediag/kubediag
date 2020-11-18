@@ -40,21 +40,31 @@ type fileStatusCollector struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
+
+	// fileStatusCollectorEnabled indicates whether fileStatusCollector is enabled.
+	fileStatusCollectorEnabled bool
 }
 
 // NewFileStatusCollector creates a new fileStatusCollector.
 func NewFileStatusCollector(
 	ctx context.Context,
 	logger logr.Logger,
+	fileStatusCollectorEnabled bool,
 ) types.AbnormalProcessor {
 	return &fileStatusCollector{
-		Context: ctx,
-		Logger:  logger,
+		Context:                    ctx,
+		Logger:                     logger,
+		fileStatusCollectorEnabled: fileStatusCollectorEnabled,
 	}
 }
 
 // Handler handles http requests for file information.
 func (fc *fileStatusCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !fc.fileStatusCollectorEnabled {
+		http.Error(w, fmt.Sprintf("file status collector is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)

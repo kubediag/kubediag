@@ -37,21 +37,31 @@ type systemdCollector struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
+
+	// systemdCollectorEnabled indicates whether systemdCollector is enabled.
+	systemdCollectorEnabled bool
 }
 
 // NewSystemdCollector creates a new systemdCollector.
 func NewSystemdCollector(
 	ctx context.Context,
 	logger logr.Logger,
+	systemdCollectorEnabled bool,
 ) types.AbnormalProcessor {
 	return &systemdCollector{
-		Context: ctx,
-		Logger:  logger,
+		Context:                 ctx,
+		Logger:                  logger,
+		systemdCollectorEnabled: systemdCollectorEnabled,
 	}
 }
 
 // Handler handles http requests for systemd information.
 func (sc *systemdCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !sc.systemdCollectorEnabled {
+		http.Error(w, fmt.Sprintf("systemd collector is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)

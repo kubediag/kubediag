@@ -42,21 +42,31 @@ type terminatingPodDiagnoser struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
+
+	// terminatingPodDiagnoserEnabled indicates whether terminatingPodDiagnoser is enabled.
+	terminatingPodDiagnoserEnabled bool
 }
 
 // NewTerminatingPodDiagnoser creates a new terminatingPodDiagnoser.
 func NewTerminatingPodDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,
+	terminatingPodDiagnoserEnabled bool,
 ) types.AbnormalProcessor {
 	return &terminatingPodDiagnoser{
-		Context: ctx,
-		Logger:  logger,
+		Context:                        ctx,
+		Logger:                         logger,
+		terminatingPodDiagnoserEnabled: terminatingPodDiagnoserEnabled,
 	}
 }
 
 // Handler handles http requests for diagnosing terminating pods.
 func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Request) {
+	if !td.terminatingPodDiagnoserEnabled {
+		http.Error(w, fmt.Sprintf("terminating pod diagnoser is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)
