@@ -69,6 +69,8 @@ type eventer struct {
 	eventChainCh chan corev1.Event
 	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
 	sourceManagerCh chan diagnosisv1.Abnormal
+	// eventerEnabled indicates whether eventer is enabled.
+	eventerEnabled bool
 }
 
 // NewEventer creates a new Eventer.
@@ -77,6 +79,7 @@ func NewEventer(
 	logger logr.Logger,
 	eventChainCh chan corev1.Event,
 	sourceManagerCh chan diagnosisv1.Abnormal,
+	eventerEnabled bool,
 ) Eventer {
 	metrics.Registry.MustRegister(
 		eventReceivedCount,
@@ -89,11 +92,16 @@ func NewEventer(
 		Logger:          logger,
 		eventChainCh:    eventChainCh,
 		sourceManagerCh: sourceManagerCh,
+		eventerEnabled:  eventerEnabled,
 	}
 }
 
 // Run runs the eventer.
 func (ev *eventer) Run(stopCh <-chan struct{}) {
+	if !ev.eventerEnabled {
+		return
+	}
+
 	for {
 		select {
 		// Process events queuing in event channel.

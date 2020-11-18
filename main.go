@@ -24,6 +24,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/component-base/cli/flag"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -45,6 +47,7 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
 	"netease.com/k8s/kube-diagnoser/pkg/eventer"
+	"netease.com/k8s/kube-diagnoser/pkg/features"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager/informationcollector"
 	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
@@ -93,6 +96,9 @@ type KubeDiagnoserOptions struct {
 	MaximumAbnormalsPerNode int32
 	// APIServerAccessToken is the kubernetes apiserver access token.
 	APIServerAccessToken string
+	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
+	// piecemeal the default values from "netease.com/k8s/kube-diagnoser/pkg/features/features.go".
+	FeatureGates map[string]bool
 }
 
 func init() {
@@ -165,6 +171,13 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 func (opts *KubeDiagnoserOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	featureGate := features.NewFeatureGate()
+	err := featureGate.SetFromMap(opts.FeatureGates)
+	if err != nil {
+		setupLog.Error(err, "unable to set feature gates")
+		return fmt.Errorf("unable to set feature gates: %v", err)
+	}
+
 	if opts.Mode == "master" {
 		setupLog.Info("kube diagnoser is running in master mode")
 
@@ -209,6 +222,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("alertmanager"),
 			opts.AlertmanagerRepeatInterval,
 			sourceManagerCh,
+			featureGate.Enabled(features.Alertmanager),
 		)
 
 		// Create eventer for managing kubernetes events.
@@ -217,6 +231,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("eventer"),
 			eventChainCh,
 			sourceManagerCh,
+			featureGate.Enabled(features.Eventer),
 		)
 		go func(stopCh chan struct{}) {
 			eventer.Run(stopCh)
@@ -231,6 +246,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.ClusterHealthEvaluatorHousekeepingInterval,
 			opts.APIServerAccessToken,
+			featureGate.Enabled(features.ClusterHealthEvaluator),
 		)
 		go func(stopCh chan struct{}) {
 			clusterHealthEvaluator.Run(stopCh)
@@ -264,14 +280,16 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
 			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
 		}
-		if err = (controllers.NewEventReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Event"),
-			mgr.GetScheme(),
-			eventChainCh,
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Event")
-			return fmt.Errorf("unable to create controller for Event: %v", err)
+		if featureGate.Enabled(features.Eventer) {
+			if err = (controllers.NewEventReconciler(
+				mgr.GetClient(),
+				ctrl.Log.WithName("controllers").WithName("Event"),
+				mgr.GetScheme(),
+				eventChainCh,
+			)).SetupWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "Event")
+				return fmt.Errorf("unable to create controller for Event: %v", err)
+			}
 		}
 		if err = (controllers.NewAbnormalSourceReconciler(
 			mgr.GetClient(),
@@ -390,11 +408,13 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("informationmanager/podcollector"),
 			mgr.GetCache(),
 			opts.NodeName,
+			featureGate.Enabled(features.PodCollector),
 		)
 		containerCollector, err := informationcollector.NewContainerCollector(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager/containercollector"),
 			opts.DockerEndpoint,
+			featureGate.Enabled(features.ContainerCollector),
 		)
 		if err != nil {
 			setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
@@ -403,26 +423,32 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		processCollector := informationcollector.NewProcessCollector(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager/processcollector"),
+			featureGate.Enabled(features.ProcessCollector),
 		)
 		fileStatusCollector := informationcollector.NewFileStatusCollector(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager/filestatuscollector"),
+			featureGate.Enabled(features.FileStatusCollector),
 		)
 		systemdCollector := informationcollector.NewSystemdCollector(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager/systemdcollector"),
+			featureGate.Enabled(features.SystemdCollector),
 		)
 		podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
 			context.Background(),
 			ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
+			featureGate.Enabled(features.PodDiskUsageDiagnoser),
 		)
 		terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
 			context.Background(),
 			ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
+			featureGate.Enabled(features.TerminatingPodDiagnoser),
 		)
 		signalRecoverer := recoverer.NewSignalRecoverer(
 			context.Background(),
 			ctrl.Log.WithName("recovererchain/signalrecoverer"),
+			featureGate.Enabled(features.SignalRecoverer),
 		)
 
 		// Start http server.
@@ -518,6 +544,7 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
 	fs.StringVar(&opts.APIServerAccessToken, "apiserver-access-token", opts.APIServerAccessToken, "The kubernetes apiserver access token.")
+	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

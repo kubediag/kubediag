@@ -43,6 +43,8 @@ type podCollector struct {
 	cache cache.Cache
 	// nodeName specifies the node name.
 	nodeName string
+	// podCollectorEnabled indicates whether podCollector is enabled.
+	podCollectorEnabled bool
 }
 
 // NewPodCollector creates a new podCollector.
@@ -51,17 +53,24 @@ func NewPodCollector(
 	logger logr.Logger,
 	cache cache.Cache,
 	nodeName string,
+	podCollectorEnabled bool,
 ) types.AbnormalProcessor {
 	return &podCollector{
-		Context:  ctx,
-		Logger:   logger,
-		cache:    cache,
-		nodeName: nodeName,
+		Context:             ctx,
+		Logger:              logger,
+		cache:               cache,
+		nodeName:            nodeName,
+		podCollectorEnabled: podCollectorEnabled,
 	}
 }
 
 // Handler handles http requests for pod information.
 func (pc *podCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !pc.podCollectorEnabled {
+		http.Error(w, fmt.Sprintf("pod collector is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)

@@ -38,21 +38,31 @@ type processCollector struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
+
+	// processCollectorEnabled indicates whether processCollector is enabled.
+	processCollectorEnabled bool
 }
 
 // NewProcessCollector creates a new processCollector.
 func NewProcessCollector(
 	ctx context.Context,
 	logger logr.Logger,
+	processCollectorEnabled bool,
 ) types.AbnormalProcessor {
 	return &processCollector{
-		Context: ctx,
-		Logger:  logger,
+		Context:                 ctx,
+		Logger:                  logger,
+		processCollectorEnabled: processCollectorEnabled,
 	}
 }
 
 // Handler handles http requests for process information.
 func (pc *processCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !pc.processCollectorEnabled {
+		http.Error(w, fmt.Sprintf("process collector is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)

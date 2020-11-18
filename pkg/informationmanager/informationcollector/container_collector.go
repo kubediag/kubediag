@@ -41,6 +41,8 @@ type containerCollector struct {
 
 	// client is the API client that performs all operations against a docker server.
 	client *client.Client
+	// containerCollectorEnabled indicates whether containerCollector is enabled.
+	containerCollectorEnabled bool
 }
 
 // NewContainerCollector creates a new containerCollector.
@@ -48,6 +50,7 @@ func NewContainerCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	dockerEndpoint string,
+	containerCollectorEnabled bool,
 ) (types.AbnormalProcessor, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerEndpoint))
 	if err != nil {
@@ -55,14 +58,20 @@ func NewContainerCollector(
 	}
 
 	return &containerCollector{
-		Context: ctx,
-		Logger:  logger,
-		client:  cli,
+		Context:                   ctx,
+		Logger:                    logger,
+		client:                    cli,
+		containerCollectorEnabled: containerCollectorEnabled,
 	}, nil
 }
 
 // Handler handles http requests for container information.
 func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !cc.containerCollectorEnabled {
+		http.Error(w, fmt.Sprintf("container collector is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)

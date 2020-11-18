@@ -70,6 +70,8 @@ type clusterHealthEvaluator struct {
 	clusterHealth *types.ClusterHealth
 	// apiserverAccessToken is the kubernetes apiserver access token.
 	apiserverAccessToken string
+	// clusterHealthEvaluatorEnabled indicates whether clusterHealthEvaluator is enabled.
+	clusterHealthEvaluatorEnabled bool
 }
 
 // NewClusterHealthEvaluator creates a new ClusterHealthEvaluator.
@@ -82,24 +84,30 @@ func NewClusterHealthEvaluator(
 	cache cache.Cache,
 	housekeepingInterval time.Duration,
 	apiserverAccessToken string,
+	clusterHealthEvaluatorEnabled bool,
 ) ClusterHealthEvaluator {
 	clusterHealth := new(types.ClusterHealth)
 
 	return &clusterHealthEvaluator{
-		Context:              ctx,
-		Logger:               logger,
-		client:               cli,
-		eventRecorder:        eventRecorder,
-		scheme:               scheme,
-		cache:                cache,
-		housekeepingInterval: housekeepingInterval,
-		clusterHealth:        clusterHealth,
-		apiserverAccessToken: apiserverAccessToken,
+		Context:                       ctx,
+		Logger:                        logger,
+		client:                        cli,
+		eventRecorder:                 eventRecorder,
+		scheme:                        scheme,
+		cache:                         cache,
+		housekeepingInterval:          housekeepingInterval,
+		clusterHealth:                 clusterHealth,
+		apiserverAccessToken:          apiserverAccessToken,
+		clusterHealthEvaluatorEnabled: clusterHealthEvaluatorEnabled,
 	}
 }
 
 // Run runs the clusterHealthEvaluator.
 func (ce *clusterHealthEvaluator) Run(stopCh <-chan struct{}) {
+	if !ce.clusterHealthEvaluatorEnabled {
+		return
+	}
+
 	// Wait for all caches to sync before processing.
 	if !ce.cache.WaitForCacheSync(stopCh) {
 		return
@@ -158,6 +166,11 @@ func (ce *clusterHealthEvaluator) Run(stopCh <-chan struct{}) {
 
 // Handler handles http requests for sending prometheus alerts.
 func (ce *clusterHealthEvaluator) Handler(w http.ResponseWriter, r *http.Request) {
+	if !ce.clusterHealthEvaluatorEnabled {
+		http.Error(w, fmt.Sprintf("cluster health evaluator is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "GET":
 		clusterHealth := ce.getClusterHealth()

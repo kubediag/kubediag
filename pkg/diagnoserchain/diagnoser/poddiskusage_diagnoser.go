@@ -38,21 +38,31 @@ type podDiskUsageDiagnoser struct {
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
+
+	// podDiskUsageDiagnoserEnabled indicates whether podDiskUsageDiagnoser is enabled.
+	podDiskUsageDiagnoserEnabled bool
 }
 
 // NewPodDiskUsageDiagnoser creates a new podDiskUsageDiagnoser.
 func NewPodDiskUsageDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,
+	podDiskUsageDiagnoserEnabled bool,
 ) types.AbnormalProcessor {
 	return &podDiskUsageDiagnoser{
-		Context: ctx,
-		Logger:  logger,
+		Context:                      ctx,
+		Logger:                       logger,
+		podDiskUsageDiagnoserEnabled: podDiskUsageDiagnoserEnabled,
 	}
 }
 
 // Handler handles http requests for diagnosing pod disk usage.
 func (pd *podDiskUsageDiagnoser) Handler(w http.ResponseWriter, r *http.Request) {
+	if !pd.podDiskUsageDiagnoserEnabled {
+		http.Error(w, fmt.Sprintf("pod disk usage diagnoser is not enabled"), http.StatusUnprocessableEntity)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		body, err := ioutil.ReadAll(r.Body)
