@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -130,8 +131,50 @@ func (ce *clusterHealthEvaluator) Run(stopCh <-chan struct{}) {
 			return
 		}
 
+		// List all deployments.
+		deployments, err := ce.listDeployments()
+		if err != nil {
+			ce.Error(err, "failed to list deployments")
+			return
+		}
+
+		// Evaluate deployment health.
+		deploymentHealth, err := ce.evaluateDeploymentHealth(deployments)
+		if err != nil {
+			ce.Error(err, "failed to evaluate deployment health")
+			return
+		}
+
+		// List all statefulsets.
+		statefulsets, err := ce.listStatefulSets()
+		if err != nil {
+			ce.Error(err, "failed to list statefulsets")
+			return
+		}
+
+		// Evaluate statefulset health.
+		statefulsetHealth, err := ce.evaluateStatefulSetHealth(statefulsets)
+		if err != nil {
+			ce.Error(err, "failed to evaluate statefulset health")
+			return
+		}
+
+		// List all daemonsets.
+		daemonsets, err := ce.listDaemonSets()
+		if err != nil {
+			ce.Error(err, "failed to list daemonsets")
+			return
+		}
+
+		// Evaluate daemonset health.
+		daemonsetHealth, err := ce.evaluateDaemonSetHealth(daemonsets)
+		if err != nil {
+			ce.Error(err, "failed to evaluate daemonset health")
+			return
+		}
+
 		// Evaluate workload health.
-		workloadHealth, err := ce.evaluateWorkloadHealth(podHealth)
+		workloadHealth, err := ce.evaluateWorkloadHealth(podHealth, deploymentHealth, statefulsetHealth, daemonsetHealth)
 		if err != nil {
 			ce.Error(err, "failed to evaluate workload health")
 			return
@@ -260,17 +303,187 @@ func (ce *clusterHealthEvaluator) evaluatePodHealth(pods []corev1.Pod) (types.Po
 	}
 
 	podHealth.Statistics.Unhealthy.ContainerStateReasons = containerStateReasons
-	podHealth.Score = util.CalculatePodHealthScore(podHealth.Statistics)
+	podHealth.Score = calculatePodHealthScore(podHealth.Statistics)
 
 	return podHealth, nil
 }
 
+// calculatePodHealthScore calculates pod health score according to pod statistics.
+func calculatePodHealthScore(statistics types.PodStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy.Ready + statistics.Healthy.Succeeded
+	total := statistics.Total
+
+	return types.MaxHealthScore * healthy / total
+}
+
+// evaluateDeploymentHealth evaluates deployment health by traversing all deployments and calculates a
+// health score according to deployment statistics. It takes a slice containing all deployments in the
+// cluster as a parameter.
+func (ce *clusterHealthEvaluator) evaluateDeploymentHealth(deployments []appsv1.Deployment) (types.DeploymentHealth, error) {
+	var deploymentHealth types.DeploymentHealth
+
+	// Update deployment health statistics.
+	for _, deployment := range deployments {
+		deploymentHealth.Statistics.Total++
+
+		// Update the deployment health state according to the pod availability.
+		if deployment.Status.AvailableReplicas == deployment.Status.Replicas {
+			deploymentHealth.Statistics.Healthy++
+		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.OneQuarter {
+			deploymentHealth.Statistics.Unhealthy.OneQuarterAvailable++
+		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.OneQuarter &&
+			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.TwoQuarters {
+			deploymentHealth.Statistics.Unhealthy.TwoQuartersAvailable++
+		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.TwoQuarters &&
+			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.ThreeQuarters {
+			deploymentHealth.Statistics.Unhealthy.ThreeQuartersAvailable++
+		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.ThreeQuarters &&
+			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.FourQuarters {
+			deploymentHealth.Statistics.Unhealthy.FourQuartersAvailable++
+		}
+	}
+
+	deploymentHealth.Score = calculateDeploymentHealthScore(deploymentHealth.Statistics)
+
+	return deploymentHealth, nil
+}
+
+// calculateDeploymentHealthScore calculates deployment health score according to deployment statistics.
+func calculateDeploymentHealthScore(statistics types.DeploymentStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy
+	total := statistics.Total
+	unhealthyAvailability := int((float32(statistics.Unhealthy.OneQuarterAvailable)*0 +
+		float32(statistics.Unhealthy.TwoQuartersAvailable)*types.OneQuarter +
+		float32(statistics.Unhealthy.ThreeQuartersAvailable)*types.TwoQuarters +
+		float32(statistics.Unhealthy.FourQuartersAvailable)*types.ThreeQuarters))
+	unhealthyScore := types.MaxHealthScore * unhealthyAvailability / total
+	healthyScore := types.MaxHealthScore * healthy / total
+
+	return healthyScore + unhealthyScore
+}
+
+// evaluateStatefulSetHealth evaluates statefulset health by traversing all statefulsets and calculates a
+// health score according to statefulset statistics. It takes a slice containing all statefulsets in the
+// cluster as a parameter.
+func (ce *clusterHealthEvaluator) evaluateStatefulSetHealth(statefulsets []appsv1.StatefulSet) (types.StatefulSetHealth, error) {
+	var statefulsetHealth types.StatefulSetHealth
+
+	// Update statefulset health statistics.
+	for _, statefulset := range statefulsets {
+		statefulsetHealth.Statistics.Total++
+
+		// Update the statefulset health state according to the pod readiness.
+		if statefulset.Status.ReadyReplicas == statefulset.Status.Replicas {
+			statefulsetHealth.Statistics.Healthy++
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.OneQuarter {
+			statefulsetHealth.Statistics.Unhealthy.OneQuarterReady++
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.OneQuarter &&
+			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.TwoQuarters {
+			statefulsetHealth.Statistics.Unhealthy.TwoQuartersReady++
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.TwoQuarters &&
+			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.ThreeQuarters {
+			statefulsetHealth.Statistics.Unhealthy.ThreeQuartersReady++
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.ThreeQuarters &&
+			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.FourQuarters {
+			statefulsetHealth.Statistics.Unhealthy.FourQuartersReady++
+		}
+	}
+
+	statefulsetHealth.Score = calculateStatefulSetHealthScore(statefulsetHealth.Statistics)
+
+	return statefulsetHealth, nil
+}
+
+// calculateStatefulSetHealthScore calculates statefulset health score according to statefulset statistics.
+func calculateStatefulSetHealthScore(statistics types.StatefulSetStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy
+	total := statistics.Total
+	unhealthyAvailability := int((float32(statistics.Unhealthy.OneQuarterReady)*0 +
+		float32(statistics.Unhealthy.TwoQuartersReady)*types.OneQuarter +
+		float32(statistics.Unhealthy.ThreeQuartersReady)*types.TwoQuarters +
+		float32(statistics.Unhealthy.FourQuartersReady)*types.ThreeQuarters))
+	unhealthyScore := types.MaxHealthScore * unhealthyAvailability / total
+	healthyScore := types.MaxHealthScore * healthy / total
+
+	return healthyScore + unhealthyScore
+}
+
+// evaluateDaemonSetHealth evaluates daemonset health by traversing all daemonsets and calculates a
+// health score according to daemonset statistics. It takes a slice containing all daemonsets in the
+// cluster as a parameter.
+func (ce *clusterHealthEvaluator) evaluateDaemonSetHealth(daemonsets []appsv1.DaemonSet) (types.DaemonSetHealth, error) {
+	var daemonsetHealth types.DaemonSetHealth
+
+	// Update daemonset health statistics.
+	for _, daemonset := range daemonsets {
+		daemonsetHealth.Statistics.Total++
+
+		// Update the daemonset health state according to the pod availability and schedule correctness.
+		if daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled == daemonset.Status.DesiredNumberScheduled {
+			daemonsetHealth.Statistics.Healthy++
+		} else if float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) < types.OneQuarter {
+			daemonsetHealth.Statistics.Unhealthy.OneQuarterAvailableAndScheduled++
+		} else if float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) >= types.OneQuarter &&
+			float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) < types.TwoQuarters {
+			daemonsetHealth.Statistics.Unhealthy.TwoQuartersAvailableAndScheduled++
+		} else if float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) >= types.TwoQuarters &&
+			float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) < types.ThreeQuarters {
+			daemonsetHealth.Statistics.Unhealthy.ThreeQuartersAvailableAndScheduled++
+		} else if float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) >= types.ThreeQuarters &&
+			float32(daemonset.Status.NumberAvailable-daemonset.Status.NumberMisscheduled)/float32(daemonset.Status.DesiredNumberScheduled) < types.FourQuarters {
+			daemonsetHealth.Statistics.Unhealthy.FourQuartersAvailableAndScheduled++
+		}
+	}
+
+	daemonsetHealth.Score = calculateDaemonSetHealthScore(daemonsetHealth.Statistics)
+
+	return daemonsetHealth, nil
+}
+
+// calculateDaemonSetHealthScore calculates daemonset health score according to daemonset statistics.
+func calculateDaemonSetHealthScore(statistics types.DaemonSetStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy
+	total := statistics.Total
+	unhealthyAvailability := int((float32(statistics.Unhealthy.OneQuarterAvailableAndScheduled)*0 +
+		float32(statistics.Unhealthy.TwoQuartersAvailableAndScheduled)*types.OneQuarter +
+		float32(statistics.Unhealthy.ThreeQuartersAvailableAndScheduled)*types.TwoQuarters +
+		float32(statistics.Unhealthy.FourQuartersAvailableAndScheduled)*types.ThreeQuarters))
+	unhealthyScore := types.MaxHealthScore * unhealthyAvailability / total
+	healthyScore := types.MaxHealthScore * healthy / total
+
+	return healthyScore + unhealthyScore
+}
+
 // evaluateWorkloadHealth evaluates workload health according to health of workload resources including
-// pod, deployment, statefulset, daemonset and job.
-func (ce *clusterHealthEvaluator) evaluateWorkloadHealth(podHealth types.PodHealth) (types.WorkloadHealth, error) {
+// pod, deployment, statefulset and daemonset.
+func (ce *clusterHealthEvaluator) evaluateWorkloadHealth(
+	podHealth types.PodHealth,
+	deploymentHealth types.DeploymentHealth,
+	statefulsetHealth types.StatefulSetHealth,
+	daemonsetHealth types.DaemonSetHealth,
+) (types.WorkloadHealth, error) {
 	var workloadHealth types.WorkloadHealth
 	workloadHealth.PodHealth = podHealth
-	workloadHealth.Score = podHealth.Score
+	workloadHealth.DeploymentHealth = deploymentHealth
+	workloadHealth.StatefulSetHealth = statefulsetHealth
+	workloadHealth.DaemonSetHealth = daemonsetHealth
+	workloadHealth.Score = (podHealth.Score + deploymentHealth.Score + statefulsetHealth.Score + daemonsetHealth.Score) / 4
 
 	return workloadHealth, nil
 }
@@ -295,9 +508,21 @@ func (ce *clusterHealthEvaluator) evaluateNodeHealth(nodes []corev1.Node) (types
 	}
 
 	nodeHealth.Statistics.Unhealthy = unhealthy
-	nodeHealth.Score = util.CalculateNodeHealthScore(nodeHealth.Statistics)
+	nodeHealth.Score = calculateNodeHealthScore(nodeHealth.Statistics)
 
 	return nodeHealth, nil
+}
+
+// calculateNodeHealthScore calculates node health score according to node statistics.
+func calculateNodeHealthScore(statistics types.NodeStatistics) int {
+	if statistics.Total == 0 {
+		return types.MaxHealthScore
+	}
+
+	healthy := statistics.Healthy
+	total := statistics.Total
+
+	return types.MaxHealthScore * healthy / total
 }
 
 // setClusterHealth updates kubernetes cluster health.
@@ -329,6 +554,36 @@ func (ce *clusterHealthEvaluator) listPods() ([]corev1.Pod, error) {
 	}
 
 	return podList.Items, nil
+}
+
+// listDeployments lists Deployments from cache.
+func (ce *clusterHealthEvaluator) listDeployments() ([]appsv1.Deployment, error) {
+	var deploymentList appsv1.DeploymentList
+	if err := ce.cache.List(ce, &deploymentList); err != nil {
+		return nil, err
+	}
+
+	return deploymentList.Items, nil
+}
+
+// listStatefulSets lists StatefulSets from cache.
+func (ce *clusterHealthEvaluator) listStatefulSets() ([]appsv1.StatefulSet, error) {
+	var statefulsetList appsv1.StatefulSetList
+	if err := ce.cache.List(ce, &statefulsetList); err != nil {
+		return nil, err
+	}
+
+	return statefulsetList.Items, nil
+}
+
+// listDaemonSets lists DaemonSets from cache.
+func (ce *clusterHealthEvaluator) listDaemonSets() ([]appsv1.DaemonSet, error) {
+	var daemonsetList appsv1.DaemonSetList
+	if err := ce.cache.List(ce, &daemonsetList); err != nil {
+		return nil, err
+	}
+
+	return daemonsetList.Items, nil
 }
 
 // listNodes lists Nodes from cache.

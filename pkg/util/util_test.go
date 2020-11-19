@@ -283,43 +283,6 @@ func TestUpdatePodUnhealthyReasonStatistics(t *testing.T) {
 	}
 }
 
-func TestCalculatePodHealthScore(t *testing.T) {
-	tests := []struct {
-		statistics types.PodStatistics
-		expected   int
-		desc       string
-	}{
-		{
-			statistics: types.PodStatistics{},
-			expected:   100,
-			desc:       "empty pod statistics",
-		},
-		{
-			statistics: types.PodStatistics{
-				Total: 50,
-			},
-			expected: 0,
-			desc:     "empty healthy pod statistics",
-		},
-		{
-			statistics: types.PodStatistics{
-				Total: 50,
-				Healthy: types.HealthyPodStatistics{
-					Ready:     10,
-					Succeeded: 10,
-				},
-			},
-			expected: 40,
-			desc:     "score calculated",
-		},
-	}
-
-	for _, test := range tests {
-		score := CalculatePodHealthScore(test.statistics)
-		assert.Equal(t, test.expected, score, test.desc)
-	}
-}
-
 func TestIsNodeReady(t *testing.T) {
 	tests := []struct {
 		node     corev1.Node
@@ -425,40 +388,6 @@ func TestGetNodeUnhealthyConditionType(t *testing.T) {
 	for _, test := range tests {
 		conditionType := GetNodeUnhealthyConditionType(test.node)
 		assert.Equal(t, test.expected, conditionType, test.desc)
-	}
-}
-
-func TestCalculateNodeHealthScore(t *testing.T) {
-	tests := []struct {
-		statistics types.NodeStatistics
-		expected   int
-		desc       string
-	}{
-		{
-			statistics: types.NodeStatistics{},
-			expected:   100,
-			desc:       "empty node statistics",
-		},
-		{
-			statistics: types.NodeStatistics{
-				Total: 50,
-			},
-			expected: 0,
-			desc:     "empty healthy node statistics",
-		},
-		{
-			statistics: types.NodeStatistics{
-				Total:   50,
-				Healthy: 20,
-			},
-			expected: 40,
-			desc:     "score calculated",
-		},
-	}
-
-	for _, test := range tests {
-		score := CalculateNodeHealthScore(test.statistics)
-		assert.Equal(t, test.expected, score, test.desc)
 	}
 }
 
