@@ -286,9 +286,10 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 					Namespace: abnormal.Namespace,
 				})
 				executor.Error = err.Error()
+			} else {
+				recovererChainCommandExecutorSuccessCount.Inc()
 			}
 
-			recovererChainCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -304,9 +305,10 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 					Namespace: abnormal.Namespace,
 				})
 				profiler.Error = err.Error()
+			} else {
+				recovererChainProfilerSuccessCount.Inc()
 			}
 
-			recovererChainProfilerSuccessCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}
