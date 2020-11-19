@@ -55,6 +55,8 @@ type WorkloadHealth struct {
 	PodHealth PodHealth
 	// DeploymentHealth represents the health of deployments in kubernetes cluster.
 	DeploymentHealth DeploymentHealth
+	// StatefulSetHealth represents the health of statefulsets in kubernetes cluster.
+	StatefulSetHealth StatefulSetHealth
 }
 
 // PodHealth represents the health of pods in kubernetes cluster.
@@ -167,6 +169,51 @@ type UnhealthyDeploymentStatistics struct {
 	// FourQuartersAvailable is the number of deployments which the fraction of available pods divided by
 	// desired pods is less than four quarters and greater than or equal to three quarters.
 	FourQuartersAvailable int
+}
+
+// StatefulSetHealth represents the health of statefulsets in kubernetes cluster.
+type StatefulSetHealth struct {
+	// Score is a weighted score of statefulset health.
+	Score int
+	// Statistics contains information about healthy and unhealthy statefulsets.
+	Statistics StatefulSetStatistics
+}
+
+// StatefulSetStatistics contains information about healthy and unhealthy statefulsets.
+type StatefulSetStatistics struct {
+	// Total is the total number of statefulsets in kubernetes cluster.
+	Total int
+	// Healthy contains information about healthy statefulsets. The is one condition type of a healthy statefulset:
+	//
+	// Ready: All pods of the statefulset are ready.
+	Healthy int
+	// Unhealthy contains information about unhealthy statefulsets.
+	Unhealthy UnhealthyStatefulSetStatistics
+}
+
+// UnhealthyStatefulSetStatistics contains information about unhealthy statefulsets. The are four types of
+// unhealthy statefulsets:
+//
+// OneQuarterReady: The fraction of ready pods divided by desired pods is less than one quarter.
+// TwoQuartersReady: The fraction of ready pods divided by desired pods is less than two quarters
+// and greater than or equal to one quarter.
+// ThreeQuartersReady: The fraction of ready pods divided by desired pods is less than three quarters
+// and greater than or equal to two quarters.
+// FourQuartersReady: The fraction of ready pods divided by desired pods is less than four quarters
+// and greater than or equal to three quarters.
+type UnhealthyStatefulSetStatistics struct {
+	// OneQuarterReady is the number of statefulsets which the fraction of ready pods divided by
+	// desired pods is less than one quarter.
+	OneQuarterReady int
+	// TwoQuartersReady is the number of statefulsets which the fraction of ready pods divided by
+	// desired pods is less than two quarters and greater than or equal to one quarter.
+	TwoQuartersReady int
+	// ThreeQuartersReady is the number of statefulsets which the fraction of ready pods divided by
+	// desired pods is less than three quarters and greater than or equal to two quarters.
+	ThreeQuartersReady int
+	// FourQuartersReady is the number of statefulsets which the fraction of ready pods divided by
+	// desired pods is less than four quarters and greater than or equal to three quarters.
+	FourQuartersReady int
 }
 
 // NodeHealth represents the health of nodes in kubernetes cluster.

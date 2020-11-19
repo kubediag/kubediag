@@ -100,6 +100,46 @@ func TestCalculateDeploymentHealthScore(t *testing.T) {
 	}
 }
 
+func TestCalculateStatefulSetHealthScore(t *testing.T) {
+	tests := []struct {
+		statistics types.StatefulSetStatistics
+		expected   int
+		desc       string
+	}{
+		{
+			statistics: types.StatefulSetStatistics{},
+			expected:   100,
+			desc:       "empty statefulset statistics",
+		},
+		{
+			statistics: types.StatefulSetStatistics{
+				Total: 50,
+			},
+			expected: 0,
+			desc:     "empty healthy statefulset statistics",
+		},
+		{
+			statistics: types.StatefulSetStatistics{
+				Total:   100,
+				Healthy: 50,
+				Unhealthy: types.UnhealthyStatefulSetStatistics{
+					OneQuarterReady:    5,
+					TwoQuartersReady:   10,
+					ThreeQuartersReady: 15,
+					FourQuartersReady:  20,
+				},
+			},
+			expected: 50*1 + int(5.0*0+10.0*0.25+15.0*0.5+20.0*0.75),
+			desc:     "score calculated",
+		},
+	}
+
+	for _, test := range tests {
+		score := calculateStatefulSetHealthScore(test.statistics)
+		assert.Equal(t, test.expected, score, test.desc)
+	}
+}
+
 func TestCalculateNodeHealthScore(t *testing.T) {
 	tests := []struct {
 		statistics types.NodeStatistics
