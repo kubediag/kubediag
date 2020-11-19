@@ -57,6 +57,8 @@ type WorkloadHealth struct {
 	DeploymentHealth DeploymentHealth
 	// StatefulSetHealth represents the health of statefulsets in kubernetes cluster.
 	StatefulSetHealth StatefulSetHealth
+	// DaemonSetHealth represents the health of daemonsets in kubernetes cluster.
+	DaemonSetHealth DaemonSetHealth
 }
 
 // PodHealth represents the health of pods in kubernetes cluster.
@@ -214,6 +216,52 @@ type UnhealthyStatefulSetStatistics struct {
 	// FourQuartersReady is the number of statefulsets which the fraction of ready pods divided by
 	// desired pods is less than four quarters and greater than or equal to three quarters.
 	FourQuartersReady int
+}
+
+// DaemonSetHealth represents the health of daemonsets in kubernetes cluster.
+type DaemonSetHealth struct {
+	// Score is a weighted score of daemonset health.
+	Score int
+	// Statistics contains information about healthy and unhealthy daemonsets.
+	Statistics DaemonSetStatistics
+}
+
+// DaemonSetStatistics contains information about healthy and unhealthy daemonsets.
+type DaemonSetStatistics struct {
+	// Total is the total number of daemonsets in kubernetes cluster.
+	Total int
+	// Healthy contains information about healthy daemonsets. The is one condition type of a healthy daemonset:
+	//
+	// AvailableAndScheduled: All pods of the daemonset are available and all pods are scheduled correctly.
+	Healthy int
+	// Unhealthy contains information about unhealthy daemonsets.
+	Unhealthy UnhealthyDaemonSetStatistics
+}
+
+// UnhealthyDaemonSetStatistics contains information about unhealthy daemonsets. The are four types of
+// unhealthy daemonsets:
+//
+// OneQuarterAvailableAndScheduled: The fraction of available and correctly scheduled pods divided by desired
+// pods is less than one quarter.
+// TwoQuartersAvailableAndScheduled: The fraction of available and correctly scheduled pods divided by desired
+// pods is less than two quarters and greater than or equal to one quarter.
+// ThreeQuartersAvailableAndScheduled: The fraction of available and correctly scheduled pods divided by desired
+// pods is less than three quarters and greater than or equal to two quarters.
+// FourQuartersAvailableAndScheduled: The fraction of available and correctly scheduled pods divided by desired
+// pods is less than four quarters and greater than or equal to three quarters.
+type UnhealthyDaemonSetStatistics struct {
+	// OneQuarterAvailableAndScheduled is the number of daemonsets which the fraction of available and correctly
+	// scheduled pods divided by desired pods is less than one quarter.
+	OneQuarterAvailableAndScheduled int
+	// TwoQuartersAvailableAndScheduled is the number of daemonsets which the fraction of available and correctly
+	// scheduled pods divided by desired pods is less than two quarters and greater than or equal to one quarter.
+	TwoQuartersAvailableAndScheduled int
+	// ThreeQuartersAvailableAndScheduled is the number of daemonsets which the fraction of available and correctly
+	// scheduled pods divided by desired pods is less than three quarters and greater than or equal to two quarters.
+	ThreeQuartersAvailableAndScheduled int
+	// FourQuartersAvailableAndScheduled is the number of daemonsets which the fraction of available and correctly
+	// scheduled pods divided by desired pods is less than four quarters and greater than or equal to three quarters.
+	FourQuartersAvailableAndScheduled int
 }
 
 // NodeHealth represents the health of nodes in kubernetes cluster.

@@ -140,6 +140,46 @@ func TestCalculateStatefulSetHealthScore(t *testing.T) {
 	}
 }
 
+func TestCalculateDaemonSetHealthScore(t *testing.T) {
+	tests := []struct {
+		statistics types.DaemonSetStatistics
+		expected   int
+		desc       string
+	}{
+		{
+			statistics: types.DaemonSetStatistics{},
+			expected:   100,
+			desc:       "empty daemonset statistics",
+		},
+		{
+			statistics: types.DaemonSetStatistics{
+				Total: 50,
+			},
+			expected: 0,
+			desc:     "empty healthy daemonset statistics",
+		},
+		{
+			statistics: types.DaemonSetStatistics{
+				Total:   100,
+				Healthy: 50,
+				Unhealthy: types.UnhealthyDaemonSetStatistics{
+					OneQuarterAvailableAndScheduled:    5,
+					TwoQuartersAvailableAndScheduled:   10,
+					ThreeQuartersAvailableAndScheduled: 15,
+					FourQuartersAvailableAndScheduled:  20,
+				},
+			},
+			expected: 50*1 + int(5.0*0+10.0*0.25+15.0*0.5+20.0*0.75),
+			desc:     "score calculated",
+		},
+	}
+
+	for _, test := range tests {
+		score := calculateDaemonSetHealthScore(test.statistics)
+		assert.Equal(t, test.expected, score, test.desc)
+	}
+}
+
 func TestCalculateNodeHealthScore(t *testing.T) {
 	tests := []struct {
 		statistics types.NodeStatistics
