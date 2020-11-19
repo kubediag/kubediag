@@ -167,10 +167,11 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 							Namespace: abnormal.Namespace,
 						})
 						continue
+					} else {
+						abnormalGarbageCollectionSuccessCount.Inc()
 					}
 				}
 
-				abnormalGarbageCollectionSuccessCount.Inc()
 				ar.Info("abnormals has been garbage collected", "time", time.Now(), "count", len(reapedAbnormals))
 			}
 		}

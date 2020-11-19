@@ -286,9 +286,10 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 					Namespace: abnormal.Namespace,
 				})
 				executor.Error = err.Error()
+			} else {
+				diagnoserChainCommandExecutorSuccessCount.Inc()
 			}
 
-			diagnoserChainCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -304,9 +305,10 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 					Namespace: abnormal.Namespace,
 				})
 				profiler.Error = err.Error()
+			} else {
+				diagnoserChainProfilerSuccessCount.Inc()
 			}
 
-			diagnoserChainProfilerFailCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}

@@ -294,9 +294,10 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 					Namespace: abnormal.Namespace,
 				})
 				executor.Error = err.Error()
+			} else {
+				informationManagerCommandExecutorSuccessCount.Inc()
 			}
 
-			informationManagerCommandExecutorSuccessCount.Inc()
 			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
 		}
 	}
@@ -312,9 +313,10 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 					Namespace: abnormal.Namespace,
 				})
 				profiler.Error = err.Error()
+			} else {
+				informationManagerProfilerSuccessCount.Inc()
 			}
 
-			informationManagerProfilerSuccessCount.Inc()
 			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
 		}
 	}
