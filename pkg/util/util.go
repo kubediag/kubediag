@@ -198,18 +198,6 @@ func UpdatePodUnhealthyReasonStatistics(containerStateReasons map[string]int, re
 	return true
 }
 
-// CalculatePodHealthScore calculates pod health score according to pod statistics.
-func CalculatePodHealthScore(statistics types.PodStatistics) int {
-	if statistics.Total == 0 {
-		return types.MaxHealthScore
-	}
-
-	healthy := statistics.Healthy.Ready + statistics.Healthy.Succeeded
-	total := statistics.Total
-
-	return types.MaxHealthScore * healthy / total
-}
-
 // IsNodeReady returns true if its Ready condition is set to true and it does not have NetworkUnavailable
 // condition set to true.
 func IsNodeReady(node corev1.Node) bool {
@@ -244,18 +232,6 @@ func GetNodeUnhealthyConditionType(node corev1.Node) corev1.NodeConditionType {
 
 	// The node condition will be Unknown if no unhealthy condition is reported.
 	return "Unknown"
-}
-
-// CalculateNodeHealthScore calculates node health score according to node statistics.
-func CalculateNodeHealthScore(statistics types.NodeStatistics) int {
-	if statistics.Total == 0 {
-		return types.MaxHealthScore
-	}
-
-	healthy := statistics.Healthy
-	total := statistics.Total
-
-	return types.MaxHealthScore * healthy / total
 }
 
 // FormatURL formats a URL from args.

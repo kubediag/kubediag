@@ -23,6 +23,14 @@ import (
 const (
 	// MaxHealthScore is the max number of health score.
 	MaxHealthScore = 100
+	// OneQuarter is the fraction of one quarter.
+	OneQuarter = 0.25
+	// TwoQuarters is the fraction of two quarters.
+	TwoQuarters = 0.5
+	// ThreeQuarters is the fraction of three quarters.
+	ThreeQuarters = 0.75
+	// FourQuarters is the fraction of four quarters.
+	FourQuarters = 1.0
 )
 
 // ClusterHealth represents the health of kubernetes cluster.
@@ -45,6 +53,8 @@ type WorkloadHealth struct {
 	Score int
 	// PodHealth represents the health of pods in kubernetes cluster.
 	PodHealth PodHealth
+	// DeploymentHealth represents the health of deployments in kubernetes cluster.
+	DeploymentHealth DeploymentHealth
 }
 
 // PodHealth represents the health of pods in kubernetes cluster.
@@ -112,6 +122,51 @@ type UnhealthyPodStatistics struct {
 	// Error
 	// ContainerCannotRun
 	ContainerStateReasons map[string]int
+}
+
+// DeploymentHealth represents the health of deployments in kubernetes cluster.
+type DeploymentHealth struct {
+	// Score is a weighted score of deployment health.
+	Score int
+	// Statistics contains information about healthy and unhealthy deployments.
+	Statistics DeploymentStatistics
+}
+
+// DeploymentStatistics contains information about healthy and unhealthy deployments.
+type DeploymentStatistics struct {
+	// Total is the total number of deployments in kubernetes cluster.
+	Total int
+	// Healthy contains information about healthy deployments. The is one condition type of a healthy deployment:
+	//
+	// Available: All pods of the deployment are available.
+	Healthy int
+	// Unhealthy contains information about unhealthy deployments.
+	Unhealthy UnhealthyDeploymentStatistics
+}
+
+// UnhealthyDeploymentStatistics contains information about unhealthy deployments. The are four types of
+// unhealthy deployments:
+//
+// OneQuarterAvailable: The fraction of available pods divided by desired pods is less than one quarter.
+// TwoQuartersAvailable: The fraction of available pods divided by desired pods is less than two quarters
+// and greater than or equal to one quarter.
+// ThreeQuartersAvailable: The fraction of available pods divided by desired pods is less than three quarters
+// and greater than or equal to two quarters.
+// FourQuartersAvailable: The fraction of available pods divided by desired pods is less than four quarters
+// and greater than or equal to three quarters.
+type UnhealthyDeploymentStatistics struct {
+	// OneQuarterAvailable is the number of deployments which the fraction of available pods divided by
+	// desired pods is less than one quarter.
+	OneQuarterAvailable int
+	// TwoQuartersAvailable is the number of deployments which the fraction of available pods divided by
+	// desired pods is less than two quarters and greater than or equal to one quarter.
+	TwoQuartersAvailable int
+	// ThreeQuartersAvailable is the number of deployments which the fraction of available pods divided by
+	// desired pods is less than three quarters and greater than or equal to two quarters.
+	ThreeQuartersAvailable int
+	// FourQuartersAvailable is the number of deployments which the fraction of available pods divided by
+	// desired pods is less than four quarters and greater than or equal to three quarters.
+	FourQuartersAvailable int
 }
 
 // NodeHealth represents the health of nodes in kubernetes cluster.
