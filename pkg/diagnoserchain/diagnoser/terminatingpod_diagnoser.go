@@ -162,7 +162,7 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 }
 
 // getAbnormalPods gets abnormal pods which are not terminated by deadline.
-// The deadline is caculated by the following way:
+// The deadline is calculated by the following way:
 //
 // Deadline = DeletionTimestamp + DeletionGracePeriodSeconds + PodKillGracePeriodSeconds
 func (td *terminatingPodDiagnoser) getAbnormalPods(pods []corev1.Pod) []corev1.Pod {
