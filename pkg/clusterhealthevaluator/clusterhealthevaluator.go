@@ -331,18 +331,18 @@ func (ce *clusterHealthEvaluator) evaluateDeploymentHealth(deployments []appsv1.
 		deploymentHealth.Statistics.Total++
 
 		// Update the deployment health state according to the pod availability.
-		if deployment.Status.AvailableReplicas == deployment.Status.Replicas {
+		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
 			deploymentHealth.Statistics.Healthy++
-		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.OneQuarter {
+		} else if float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) < types.OneQuarter {
 			deploymentHealth.Statistics.Unhealthy.OneQuarterAvailable++
-		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.OneQuarter &&
-			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.TwoQuarters {
+		} else if float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) >= types.OneQuarter &&
+			float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) < types.TwoQuarters {
 			deploymentHealth.Statistics.Unhealthy.TwoQuartersAvailable++
-		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.TwoQuarters &&
-			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.ThreeQuarters {
+		} else if float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) >= types.TwoQuarters &&
+			float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) < types.ThreeQuarters {
 			deploymentHealth.Statistics.Unhealthy.ThreeQuartersAvailable++
-		} else if float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) >= types.ThreeQuarters &&
-			float32(deployment.Status.AvailableReplicas)/float32(deployment.Status.Replicas) < types.FourQuarters {
+		} else if float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) >= types.ThreeQuarters &&
+			float32(deployment.Status.AvailableReplicas)/float32(*deployment.Spec.Replicas) < types.FourQuarters {
 			deploymentHealth.Statistics.Unhealthy.FourQuartersAvailable++
 		}
 	}
@@ -381,18 +381,18 @@ func (ce *clusterHealthEvaluator) evaluateStatefulSetHealth(statefulsets []appsv
 		statefulsetHealth.Statistics.Total++
 
 		// Update the statefulset health state according to the pod readiness.
-		if statefulset.Status.ReadyReplicas == statefulset.Status.Replicas {
+		if statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas {
 			statefulsetHealth.Statistics.Healthy++
-		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.OneQuarter {
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) < types.OneQuarter {
 			statefulsetHealth.Statistics.Unhealthy.OneQuarterReady++
-		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.OneQuarter &&
-			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.TwoQuarters {
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) >= types.OneQuarter &&
+			float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) < types.TwoQuarters {
 			statefulsetHealth.Statistics.Unhealthy.TwoQuartersReady++
-		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.TwoQuarters &&
-			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.ThreeQuarters {
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) >= types.TwoQuarters &&
+			float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) < types.ThreeQuarters {
 			statefulsetHealth.Statistics.Unhealthy.ThreeQuartersReady++
-		} else if float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) >= types.ThreeQuarters &&
-			float32(statefulset.Status.ReadyReplicas)/float32(statefulset.Status.Replicas) < types.FourQuarters {
+		} else if float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) >= types.ThreeQuarters &&
+			float32(statefulset.Status.ReadyReplicas)/float32(*statefulset.Spec.Replicas) < types.FourQuarters {
 			statefulsetHealth.Statistics.Unhealthy.FourQuartersReady++
 		}
 	}
