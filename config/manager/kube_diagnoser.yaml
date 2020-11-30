@@ -30,7 +30,7 @@ spec:
         - --address=0.0.0.0:8089
         - --metrics-address=0.0.0.0:10357
         - --enable-leader-election=true
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.4
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
         name: kube-diagnoser
         ports:
         - containerPort: 10357
@@ -106,7 +106,7 @@ spec:
         - --address=0.0.0.0:8090
         - --metrics-address=0.0.0.0:10355
         - --node-name=$(NODE_NAME)
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.4
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
         env:
         - name: NODE_NAME
           valueFrom:

@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.1.5](#v015)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.4](#v014)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -45,6 +54,49 @@
     - [Added](#added)
     - [Changed](#changed)
     - [Removed](#removed)
+
+## v0.1.5
+
+### Changes by Kind
+
+#### API Change
+
+- Implement alertmanager for processing prometheus alerts. ([#56](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/56))
+- Add API definition for `AbnormalSource` which specifies how to generate an abnormal from external sources. ([#57](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/57))
+- The master creates abnormal from a prometheus alert and `AbnormalSource` in source manager. ([#58](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/58))
+- The master creates abnormal from a kubernetes event and `AbnormalSource` in source manager. ([#60](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/60))
+
+#### Bug or Regression
+
+- Resolves abnormal resource version conflict issue `Operation cannot be fulfilled on abnormals.diagnosis.netease.com "${POD_NAME}": the object has been modified; please apply your changes to the latest version and try again` by fetching the latest abnormal and checking the abnormal phase before synchronization. ([#67](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/67))
+- Use `.Spec.Replicas` instead of `.Status.Replicas` as desired replicas reference on the health evaluation of deployment and statefulset. ([#72](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/72))
+
+#### Other
+
+- Add command line options to specify webhook server port and host. ([#61](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/61))
+- Implement `ClusterHealthEvaluator` with pod and node health evaluations. ([#62](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/62))
+- An abnormal will be generated if a pod has not been killed 30 seconds after its grace period. ([#63](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/63))
+- Implement prometheus metrics. ([#65](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/65), [#70](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/70))
+- Extract apiserver access token from `/var/run/secrets/kubernetes.io/serviceaccount/token`. ([#66](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/66))
+- Implement `--feature-gates` command line argument for configurable kube diagnoser features. ([#68](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/68))
+- Implement health evaluations for deployment, statefulset and daemonset. ([#69](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/69))
+
+## Dependencies
+
+### Added
+
+- github.com/prometheus/alertmanager: [v0.21.0](https://github.com/prometheus/alertmanager/tree/v0.21.0)
+- github.com/prometheus/client_golang: [v1.7.1](https://github.com/prometheus/client_golang/tree/v1.7.1)
+- github.com/prometheus/common: [v0.12.0](https://github.com/prometheus/common/tree/v0.12.0)
+- k8s.io/component-base: [v0.17.2](https://github.com/kubernetes/component-base/tree/v0.17.2)
+
+### Changed
+
+_Nothing has changed._
+
+### Removed
+
+_Nothing has changed._
 
 ## v0.1.4
 
@@ -195,7 +247,7 @@ _Nothing has changed._
 #### Other
 
 - Information manager, diagnoser chain and recoverer chain would send http request with payload of abnormal to information collectors, diagnosers and recoverers. ([#3](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/3))
-- Golang pprof handler on advertised port and http path `/debug/pprof`. ([19](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/19))
+- Golang pprof handler on advertised port and http path `/debug/pprof`. ([#19](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/19))
 - Add event recorder for source manager, information manager, diagnoser chain and recoverer chain. ([#20](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/20))
 - Implement pod collector handler, container collector handler and pod disk usage diagnoser handler on advertised port and http path `/informationcollector/podcollector`, `/informationcollector/containercollector` and `/diagnoser/poddiskusagediagnoser`. ([#22](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/22))
 
