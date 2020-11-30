@@ -1764,7 +1764,7 @@ spec:
         - --enable-leader-election=true
         command:
         - /kube-diagnoser
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.4
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
         name: kube-diagnoser
         ports:
         - containerPort: 9443
@@ -1835,7 +1835,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.4
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
         name: kube-diagnoser
         ports:
         - containerPort: 10355
