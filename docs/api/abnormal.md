@@ -29,7 +29,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | assignedDiagnosers | 指定进行诊断的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedRecoverers | 指定进行恢复的故障恢复器列表。 | [][NamespacedName](#namespacedname) | false |
 | commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
-| profilers | 性能剖析器列表。 | [][Profiler](#profiler) | false |
+| profilers | 性能剖析器目标行为列表。 | [][ProfilerSpec](#profilerspec) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
 ## AbnormalStatus
@@ -46,7 +46,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | diagnoser | 成功执行的故障诊断器。 | [NamespacedName](#namespacedname) | false |
 | recoverer | 成功执行的故障恢复器。 | [NamespacedName](#namespacedname) | false |
 | commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
-| profilers | 性能剖析器列表。 | [][Profiler](#profiler) | false |
+| profilers | 性能剖析器状态列表。 | [][ProfilerStatus](#profilerstatus) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
 ## AbnormalCondition
@@ -77,19 +77,26 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | error | 命令执行的错误。 | string | false |
 | timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |
 
-## Profiler
+## ProfilerSpec
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | name | 性能剖析器名称。 | string | true |
 | type | 性能剖析器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
 | go | Go 语言性能剖析器。 | [GoProfiler](#goprofiler) | false |
-| error | 性能剖析执行的错误。 | string | false |
 | timeoutSeconds | 性能剖析器执行超时时间。 | int32 | false |
-| endpoint | 如何查看性能剖析。 | string | false |
 
 ## GoProfiler
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | source | Go 语言性能剖析器源。通常是一个 HTTP 访问路径。 | string | true |
+
+## ProfilerStatus
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| name | 性能剖析器名称。 | string | true |
+| type | 性能剖析器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
+| error | 性能剖析执行的错误。 | string | false |
+| endpoint | 如何查看性能剖析。 | string | false |

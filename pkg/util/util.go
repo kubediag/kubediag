@@ -816,10 +816,15 @@ func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Lo
 }
 
 // RunProfiler runs profiling and updates the result into profiler.
-func RunProfiler(ctx context.Context, name string, namespace string, profiler diagnosisv1.Profiler, cli client.Client, log logr.Logger) (diagnosisv1.Profiler, error) {
+func RunProfiler(ctx context.Context, name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (diagnosisv1.ProfilerStatus, error) {
+	profilerStatus := diagnosisv1.ProfilerStatus{
+		Name: profilerSpec.Name,
+		Type: profilerSpec.Type,
+	}
+
 	switch {
-	case profiler.Go != nil:
-		endpoint, errCh := RunGoProfiler(*profiler.Go, profiler.TimeoutSeconds, log)
+	case profilerSpec.Go != nil:
+		endpoint, errCh := RunGoProfiler(*profilerSpec.Go, profilerSpec.TimeoutSeconds, log)
 		// Update error of go profiler asynchronously if any error happens on running go profiling command.
 		go func() {
 			profilerErr := <-errCh
@@ -838,7 +843,7 @@ func RunProfiler(ctx context.Context, name string, namespace string, profiler di
 
 				// Set error of go profiler.
 				for i := 0; i < len(abnormal.Status.Profilers); i++ {
-					if abnormal.Status.Profilers[i].Name == profiler.Name {
+					if abnormal.Status.Profilers[i].Name == profilerSpec.Name {
 						abnormal.Status.Profilers[i].Error = profilerErr.Error()
 						break
 					}
@@ -853,12 +858,14 @@ func RunProfiler(ctx context.Context, name string, namespace string, profiler di
 		}()
 
 		// Set http endpoint of go profiling interactive web interface.
-		profiler.Endpoint = endpoint
+		profilerStatus.Endpoint = endpoint
 	default:
-		return profiler, fmt.Errorf("profiler not specified")
+		err := fmt.Errorf("profiler not specified")
+		profilerStatus.Error = err.Error()
+		return profilerStatus, err
 	}
 
-	return profiler, nil
+	return profilerStatus, nil
 }
 
 // RunGoProfiler runs go profiling with timeout and updates the result into go profiler. A goroutine is
@@ -994,14 +1001,14 @@ func GetAvailablePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// ValidateProfilers tests that the specified profilers has valid data.
-func ValidateProfilers(profilers []diagnosisv1.Profiler) error {
+// ValidateProfilerSpecs tests that all specified ProfilerSpecs has valid data.
+func ValidateProfilerSpecs(profilerSpecs []diagnosisv1.ProfilerSpec) error {
 	allNames := sets.String{}
-	for _, profiler := range profilers {
-		if allNames.Has(profiler.Name) {
-			return fmt.Errorf("duplicated profiler name: %s", profiler.Name)
+	for _, profilerSpec := range profilerSpecs {
+		if allNames.Has(profilerSpec.Name) {
+			return fmt.Errorf("duplicated profiler name: %s", profilerSpec.Name)
 		}
-		allNames.Insert(profiler.Name)
+		allNames.Insert(profilerSpec.Name)
 	}
 
 	return nil
