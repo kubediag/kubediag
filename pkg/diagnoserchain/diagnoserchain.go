@@ -276,21 +276,20 @@ func (dc *diagnoserChain) listDiagnosers() ([]diagnosisv1.Diagnoser, error) {
 // runDiagnosis diagnoses an abnormal with diagnosers.
 func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	// Run command executor of Diagnoser type.
-	for _, executor := range abnormal.Spec.CommandExecutors {
-		if executor.Type == diagnosisv1.DiagnoserType {
-			executor, err := util.RunCommandExecutor(executor, dc)
+	for _, executorSpec := range abnormal.Spec.CommandExecutors {
+		if executorSpec.Type == diagnosisv1.DiagnoserType {
+			executorStatus, err := util.RunCommandExecutor(executorSpec, dc)
 			if err != nil {
 				diagnoserChainCommandExecutorFailCount.Inc()
-				dc.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
+				dc.Error(err, "failed to run command executor", "command", executorSpec.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				executor.Error = err.Error()
 			} else {
 				diagnoserChainCommandExecutorSuccessCount.Inc()
 			}
 
-			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
+			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executorStatus)
 		}
 	}
 

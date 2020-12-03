@@ -28,7 +28,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | assignedInformationCollectors | 指定进行信息采集的信息采集器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedDiagnosers | 指定进行诊断的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedRecoverers | 指定进行恢复的故障恢复器列表。 | [][NamespacedName](#namespacedname) | false |
-| commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
+| commandExecutors | 命令执行器列表。 | [][CommandExecutorSpec](#commandexecutorspec) | false |
 | profilers | 性能剖析器目标行为列表。 | [][ProfilerSpec](#profilerspec) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
@@ -45,7 +45,7 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | startTime | 表示当前故障开始被诊断的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
 | diagnoser | 成功执行的故障诊断器。 | [NamespacedName](#namespacedname) | false |
 | recoverer | 成功执行的故障恢复器。 | [NamespacedName](#namespacedname) | false |
-| commandExecutors | 命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
+| commandExecutors | 命令执行器状态列表。 | [][CommandExecutorStatus](#commandexecutorstatus) | false |
 | profilers | 性能剖析器状态列表。 | [][ProfilerStatus](#profilerstatus) | false |
 | context | 用于扩展的上下文信息，支持 Custom 类型故障。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
@@ -66,7 +66,15 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | namespace | API 资源的命名空间。 | string | false |
 | name | API 资源的名称。 | string | true |
 
-## CommandExecutor
+## CommandExecutorSpec
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| command | 需要执行的命令。 | []string | true |
+| type | 命令执行器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
+| timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |
+
+## CommandExecutorStatus
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -75,7 +83,6 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | stdout | 命令执行的标准输出。 | string | false |
 | stderr | 命令执行的标准错误。 | string | false |
 | error | 命令执行的错误。 | string | false |
-| timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |
 
 ## ProfilerSpec
 

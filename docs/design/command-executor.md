@@ -4,14 +4,19 @@
 
 ## API 设计
 
-Abnormal 中的 `.spec.commandExecutors` 字段用于自定义需要执行的命令，命令执行的结果会被同步到 `.status.commandExecutors` 字段。`commandExecutors` 是一个包含多个 `commandExecutor` 的列表，`commandExecutor` 的字段包括：
+Abnormal 中的 `.spec.commandExecutors` 字段用于自定义需要执行的命令，命令执行的结果会被同步到 `.status.commandExecutors` 字段。`commandExecutors` 是一个包含多个 `CommandExecutorSpec` 的列表，`CommandExecutorSpec` 的字段包括：
 
 * `command`：需要执行的命令，该字段是一个数组。
 * `type`：命令执行器的类型，该字段支持 InformationCollector、Diagnoser、Recoverer。InformationCollector、Diagnoser 和 Recoverer 类型分别在故障的 `InformationCollecting`、`Diagnosing` 和 `Recovering` 阶段被执行。信息管理器、故障分析链和故障恢复链在执行完相应类型的命令执行器后才会执行 `InformationCollector`、`Diagnoser` 和 `Recoverer`。命令执行器的执行结果不会影响故障的状态迁移，例如 Recoverer 类型的命令执行器失败后故障的状态仍然可以被标记为 `Succeeded`。
+* `timeoutSeconds`：命令执行器执行超时时间。如果命令未在超时时间内执行完成，则 `error` 字段会被更新并且执行该命令的进程会被终止。
+
+Abnormal 中的 `.status.commandExecutors` 是一个包含多个 `CommandExecutorStatus` 的列表，`CommandExecutorStatus` 的字段包括：
+
+* `command`：需要执行的命令，与 `CommandExecutorSpec` 保持一致。
+* `type`：命令执行器的类型，与 `CommandExecutorSpec` 保持一致。
 * `stdout`：命令执行的标准输出，如果命令无标准输出该字段则为空。
 * `stderr`：命令执行的标准错误，如果命令无标准错误该字段则为空。
 * `error`：命令执行的错误，如果命令执行成功该字段则为空。
-* `timeoutSeconds`：命令执行器执行超时时间。如果命令未在超时时间内执行完成，则 `error` 字段会被更新并且执行该命令的进程会被终止。
 
 ## 如何使用
 
@@ -64,14 +69,12 @@ status:
       root         1  0.6  0.0 226140  9840 ?        Ss   09:47   1:24 /sbin/init splash
       root         2  0.0  0.0      0     0 ?        S    09:47   0:00 [kthreadd]
       root         4  0.0  0.0      0     0 ?        I<   09:47   0:00 [kworker/0:0H]
-    timeoutSeconds: 5
     type: InformationCollector
   - command:
     - "du"
     - "-sh"
     - "/"
     error: command [du -sh /] timed out
-    timeoutSeconds: 10
     type: Diagnoser
   - command:
     - "kill"
@@ -80,7 +83,6 @@ status:
     stderr: exit status 1
     stdout: |
       kill: (1000): No such process
-    timeoutSeconds: 5
     type: Recoverer
   conditions:
   - lastTransitionTime: "2020-08-31T05:35:14Z"

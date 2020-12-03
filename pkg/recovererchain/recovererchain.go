@@ -276,21 +276,20 @@ func (rc *recovererChain) listRecoverers() ([]diagnosisv1.Recoverer, error) {
 // runRecovery recovers an abnormal with recoverers.
 func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	// Run command executor of Recoverer type.
-	for _, executor := range abnormal.Spec.CommandExecutors {
-		if executor.Type == diagnosisv1.RecovererType {
-			executor, err := util.RunCommandExecutor(executor, rc)
+	for _, executorSpec := range abnormal.Spec.CommandExecutors {
+		if executorSpec.Type == diagnosisv1.RecovererType {
+			executorStatus, err := util.RunCommandExecutor(executorSpec, rc)
 			if err != nil {
 				recovererChainCommandExecutorFailCount.Inc()
-				rc.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
+				rc.Error(err, "failed to run command executor", "command", executorSpec.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				executor.Error = err.Error()
 			} else {
 				recovererChainCommandExecutorSuccessCount.Inc()
 			}
 
-			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
+			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executorStatus)
 		}
 	}
 

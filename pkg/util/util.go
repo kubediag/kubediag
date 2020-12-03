@@ -766,20 +766,28 @@ func GetUsedBytes(path string) uint64 {
 }
 
 // RunCommandExecutor runs the command with timeout and updates the result into command executor.
-func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Logger) (diagnosisv1.CommandExecutor, error) {
-	if len(commandExecutor.Command) < 1 {
-		return commandExecutor, fmt.Errorf("invalid command")
+func RunCommandExecutor(commandExecutorSpec diagnosisv1.CommandExecutorSpec, log logr.Logger) (diagnosisv1.CommandExecutorStatus, error) {
+	commandExecutorStatus := diagnosisv1.CommandExecutorStatus{
+		Command: commandExecutorSpec.Command,
+		Type:    commandExecutorSpec.Type,
+	}
+
+	if len(commandExecutorSpec.Command) < 1 {
+		err := fmt.Errorf("invalid command")
+		commandExecutorStatus.Error = err.Error()
+		return commandExecutorStatus, err
 	}
 
 	var buf bytes.Buffer
-	command := exec.Command(commandExecutor.Command[0], commandExecutor.Command[1:]...)
+	command := exec.Command(commandExecutorSpec.Command[0], commandExecutorSpec.Command[1:]...)
 	// Setting a new process group id to avoid suicide.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
 	command.Stderr = &buf
 	err := command.Start()
 	if err != nil {
-		return commandExecutor, err
+		commandExecutorStatus.Error = err.Error()
+		return commandExecutorStatus, err
 	}
 
 	// Wait and signal completion of command.
@@ -788,31 +796,35 @@ func RunCommandExecutor(commandExecutor diagnosisv1.CommandExecutor, log logr.Lo
 		done <- command.Wait()
 	}()
 
-	timeout := time.After(time.Duration(commandExecutor.TimeoutSeconds) * time.Second)
+	timeout := time.After(time.Duration(commandExecutorSpec.TimeoutSeconds) * time.Second)
 	select {
 	// Kill the process if timeout happened.
 	case <-timeout:
 		// Kill the process and all of its children with its process group id.
 		pgid, err := syscall.Getpgid(command.Process.Pid)
 		if err != nil {
-			log.Error(err, "failed to get process group id on command timed out", "command", commandExecutor.Command)
+			log.Error(err, "failed to get process group id on command timed out", "command", commandExecutorSpec.Command)
 		} else {
 			err = syscall.Kill(-pgid, syscall.SIGKILL)
 			if err != nil {
-				log.Error(err, "failed to kill process on command timed out", "command", commandExecutor.Command)
+				log.Error(err, "failed to kill process on command timed out", "command", commandExecutorSpec.Command)
 			}
 		}
 
-		return commandExecutor, fmt.Errorf("command %v timed out", commandExecutor.Command)
+		err = fmt.Errorf("command %v timed out", commandExecutorSpec.Command)
+		commandExecutorStatus.Error = err.Error()
+		return commandExecutorStatus, fmt.Errorf("command %v timed out", commandExecutorSpec.Command)
 	// Set output and error if command completed before timeout.
 	case err := <-done:
-		commandExecutor.Stdout = buf.String()
 		if err != nil {
-			commandExecutor.Stderr = err.Error()
+			commandExecutorStatus.Stderr = buf.String()
+			commandExecutorStatus.Error = err.Error()
+		} else {
+			commandExecutorStatus.Stdout = buf.String()
 		}
 	}
 
-	return commandExecutor, nil
+	return commandExecutorStatus, nil
 }
 
 // RunProfiler runs profiling and updates the result into profiler.

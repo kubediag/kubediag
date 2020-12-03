@@ -284,21 +284,20 @@ func (im *informationManager) listInformationCollectors() ([]diagnosisv1.Informa
 // runInformationCollection collects information from information collectors.
 func (im *informationManager) runInformationCollection(informationCollectors []diagnosisv1.InformationCollector, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
 	// Run command executor of InformationCollector type.
-	for _, executor := range abnormal.Spec.CommandExecutors {
-		if executor.Type == diagnosisv1.InformationCollectorType {
-			executor, err := util.RunCommandExecutor(executor, im)
+	for _, executorSpec := range abnormal.Spec.CommandExecutors {
+		if executorSpec.Type == diagnosisv1.InformationCollectorType {
+			executorStatus, err := util.RunCommandExecutor(executorSpec, im)
 			if err != nil {
 				informationManagerCommandExecutorFailCount.Inc()
-				im.Error(err, "failed to run command executor", "command", executor.Command, "abnormal", client.ObjectKey{
+				im.Error(err, "failed to run command executor", "command", executorSpec.Command, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				executor.Error = err.Error()
 			} else {
 				informationManagerCommandExecutorSuccessCount.Inc()
 			}
 
-			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executor)
+			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executorStatus)
 		}
 	}
 
