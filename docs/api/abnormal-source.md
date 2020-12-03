@@ -25,7 +25,7 @@ AbnormalSource 用于表示故障事件源实例。
 | assignedInformationCollectors | 用于指定生成 Abnormal 的信息采集器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedDiagnosers | 用于指定生成 Abnormal 的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedRecoverers | 用于指定生成 Abnormal 的故障恢复器列表。 | [][NamespacedName](#namespacedname) | false |
-| commandExecutors | 用于指定生成 Abnormal 的命令执行器列表。 | [][CommandExecutor](#commandexecutor) | false |
+| commandExecutors | 用于指定生成 Abnormal 的命令执行器列表。 | [][CommandExecutorSpec](#commandexecutorspec) | false |
 | profilers | 用于指定生成 Abnormal 的性能剖析器目标行为列表。 | [][ProfilerSpec](#profilerspec) | false |
 | context | 用于指定生成 Abnormal 的上下文信息。 | [runtime.RawExtension](https://github.com/kubernetes/apimachinery/blob/release-1.17/pkg/runtime/types.go#L94) | false |
 
@@ -92,15 +92,12 @@ AbnormalSource 用于表示故障事件源实例。
 | reportingController | 用于匹配 ReportingController 的正则表达式。 | string | false |
 | reportingInstance | 用于匹配 ReportingInstance 的正则表达式。 | string | false |
 
-## CommandExecutor
+## CommandExecutorSpec
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | command | 需要执行的命令。 | []string | true |
 | type | 命令执行器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
-| stdout | 命令执行的标准输出。 | string | false |
-| stderr | 命令执行的标准错误。 | string | false |
-| error | 命令执行的错误。 | string | false |
 | timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |
 
 ## ProfilerSpec

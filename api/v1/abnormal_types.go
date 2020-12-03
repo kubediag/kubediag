@@ -96,7 +96,7 @@ type AbnormalSpec struct {
 	// CommandExecutors is the list of commands to execute during information collecting, diagnosing
 	// and recovering.
 	// +optional
-	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
+	CommandExecutors []CommandExecutorSpec `json:"commandExecutors,omitempty"`
 	// Profilers is the list of profiler desired behaviors to be performed during information collecting,
 	// diagnosing and recovering.
 	// +optional
@@ -137,9 +137,9 @@ type NamespacedName struct {
 	Name string `json:"name"`
 }
 
-// CommandExecutor executes a command with the given arguments. A CommandExecutor could be an
-// information collector, a diagnoser or a recoverer.
-type CommandExecutor struct {
+// CommandExecutorSpec describes how to execute a command with the given arguments. A CommandExecutor
+// could be an information collector, a diagnoser or a recoverer.
+type CommandExecutorSpec struct {
 	// Command represents a command being prepared and run.
 	Command []string `json:"command"`
 	// Type is the type of the command executor. There are three possible type values:
@@ -148,15 +148,6 @@ type CommandExecutor struct {
 	// Diagnoser: The command executor will be run by diagnoser chain.
 	// Recoverer: The command executor will be run by recoverer chain.
 	Type AbnormalProcessorType `json:"type"`
-	// Stdout is standard output of the command.
-	// +optional
-	Stdout string `json:"stdout,omitempty"`
-	// Stderr is standard error of the command.
-	// +optional
-	Stderr string `json:"stderr,omitempty"`
-	// Error is the command execution error.
-	// +optional
-	Error string `json:"error,omitempty"`
 	// Number of seconds after which the command times out.
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
@@ -233,10 +224,9 @@ type AbnormalStatus struct {
 	// Recoverer indicates the recoverer which has recovered the abnormal successfully.
 	// +optional
 	Recoverer *NamespacedName `json:"recoverer,omitempty"`
-	// CommandExecutors is the list of commands to execute during information collecting, diagnosing
-	// and recovering.
+	// CommandExecutors is the list of command execution results.
 	// +optional
-	CommandExecutors []CommandExecutor `json:"commandExecutors,omitempty"`
+	CommandExecutors []CommandExecutorStatus `json:"commandExecutors,omitempty"`
 	// Profilers is the list of profiler status.
 	// +optional
 	Profilers []ProfilerStatus `json:"profilers,omitempty"`
@@ -262,6 +252,27 @@ type ProfilerStatus struct {
 	Error string `json:"error,omitempty"`
 	// Endpoint specifies how to navigate through a performance profile.
 	Endpoint string `json:"endpoint,omitempty"`
+}
+
+// CommandExecutorStatus is the command execution result.
+type CommandExecutorStatus struct {
+	// Command represents a command being prepared and run.
+	Command []string `json:"command"`
+	// Type is the type of the command executor. There are three possible type values:
+	//
+	// InformationCollector: The command executor will be run by information manager.
+	// Diagnoser: The command executor will be run by diagnoser chain.
+	// Recoverer: The command executor will be run by recoverer chain.
+	Type AbnormalProcessorType `json:"type"`
+	// Stdout is standard output of the command.
+	// +optional
+	Stdout string `json:"stdout,omitempty"`
+	// Stderr is standard error of the command.
+	// +optional
+	Stderr string `json:"stderr,omitempty"`
+	// Error is the command execution error.
+	// +optional
+	Error string `json:"error,omitempty"`
 }
 
 // AbnormalCondition contains details for the current condition of this abnormal.

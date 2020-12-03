@@ -138,10 +138,6 @@ func (r *Abnormal) validateAbnormal() error {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("commandExecutors").Index(i).Child("type"),
 					r.Status.CommandExecutors[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
 			}
-			if commandExecutor.TimeoutSeconds <= 0 {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("commandExecutors").Index(i).Child("timeoutSeconds"),
-					r.Status.CommandExecutors[i].TimeoutSeconds, "must be more than 0"))
-			}
 		}
 	}
 	if r.Status.Profilers != nil {

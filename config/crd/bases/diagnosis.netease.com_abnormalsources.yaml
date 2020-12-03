@@ -98,24 +98,15 @@ spec:
                 information collecting, diagnosing and recovering. Abnormals generated
                 by the source contains predefined command executors.
               items:
-                description: CommandExecutor executes a command with the given arguments.
-                  A CommandExecutor could be an information collector, a diagnoser
-                  or a recoverer.
+                description: CommandExecutorSpec describes how to execute a command
+                  with the given arguments. A CommandExecutor could be an information
+                  collector, a diagnoser or a recoverer.
                 properties:
                   command:
                     description: Command represents a command being prepared and run.
                     items:
                       type: string
                     type: array
-                  error:
-                    description: Error is the command execution error.
-                    type: string
-                  stderr:
-                    description: Stderr is standard error of the command.
-                    type: string
-                  stdout:
-                    description: Stdout is standard output of the command.
-                    type: string
                   timeoutSeconds:
                     description: Number of seconds after which the command times out.
                       Defaults to 30 seconds. Minimum value is 1.
