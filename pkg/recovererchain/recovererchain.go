@@ -295,21 +295,20 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 	}
 
 	// Run profiler of Recoverer type.
-	for _, profiler := range abnormal.Spec.Profilers {
-		if profiler.Type == diagnosisv1.RecovererType {
-			profiler, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, profiler, rc.client, rc)
+	for _, profilerSpec := range abnormal.Spec.Profilers {
+		if profilerSpec.Type == diagnosisv1.RecovererType {
+			profilerStatus, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, profilerSpec, rc.client, rc)
 			if err != nil {
 				recovererChainProfilerFailCount.Inc()
-				rc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+				rc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				profiler.Error = err.Error()
 			} else {
 				recovererChainProfilerSuccessCount.Inc()
 			}
 
-			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profilerStatus)
 		}
 	}
 

@@ -303,21 +303,20 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 	}
 
 	// Run profiler of InformationCollector type.
-	for _, profiler := range abnormal.Spec.Profilers {
-		if profiler.Type == diagnosisv1.InformationCollectorType {
-			profiler, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, profiler, im.client, im)
+	for _, profilerSpec := range abnormal.Spec.Profilers {
+		if profilerSpec.Type == diagnosisv1.InformationCollectorType {
+			profilerStatus, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, profilerSpec, im.client, im)
 			if err != nil {
 				informationManagerProfilerFailCount.Inc()
-				im.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+				im.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				profiler.Error = err.Error()
 			} else {
 				informationManagerProfilerSuccessCount.Inc()
 			}
 
-			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profilerStatus)
 		}
 	}
 

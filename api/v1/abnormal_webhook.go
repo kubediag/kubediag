@@ -117,14 +117,14 @@ func (r *Abnormal) validateAbnormal() error {
 		}
 	}
 	if r.Spec.Profilers != nil {
-		for i, profiler := range r.Spec.Profilers {
-			if profiler.Type != InformationCollectorType &&
-				profiler.Type != DiagnoserType &&
-				profiler.Type != RecovererType {
+		for i, profilerSpec := range r.Spec.Profilers {
+			if profilerSpec.Type != InformationCollectorType &&
+				profilerSpec.Type != DiagnoserType &&
+				profilerSpec.Type != RecovererType {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("type"),
 					r.Spec.Profilers[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
 			}
-			if profiler.TimeoutSeconds <= 0 {
+			if profilerSpec.TimeoutSeconds <= 0 {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("timeoutSeconds"),
 					r.Spec.Profilers[i].TimeoutSeconds, "must be more than 0"))
 			}
@@ -145,16 +145,12 @@ func (r *Abnormal) validateAbnormal() error {
 		}
 	}
 	if r.Status.Profilers != nil {
-		for i, profiler := range r.Status.Profilers {
-			if profiler.Type != InformationCollectorType &&
-				profiler.Type != DiagnoserType &&
-				profiler.Type != RecovererType {
+		for i, profilerStatus := range r.Status.Profilers {
+			if profilerStatus.Type != InformationCollectorType &&
+				profilerStatus.Type != DiagnoserType &&
+				profilerStatus.Type != RecovererType {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("profilers").Index(i).Child("type"),
 					r.Status.Profilers[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
-			}
-			if profiler.TimeoutSeconds <= 0 {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("profilers").Index(i).Child("timeoutSeconds"),
-					r.Status.Profilers[i].TimeoutSeconds, "must be more than 0"))
 			}
 		}
 	}

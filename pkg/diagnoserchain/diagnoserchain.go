@@ -295,21 +295,20 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 	}
 
 	// Run profiler of Diagnoser type.
-	for _, profiler := range abnormal.Spec.Profilers {
-		if profiler.Type == diagnosisv1.DiagnoserType {
-			profiler, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, profiler, dc.client, dc)
+	for _, profilerSpec := range abnormal.Spec.Profilers {
+		if profilerSpec.Type == diagnosisv1.DiagnoserType {
+			profilerStatus, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, profilerSpec, dc.client, dc)
 			if err != nil {
 				diagnoserChainProfilerFailCount.Inc()
-				dc.Error(err, "failed to run profiler", "profiler", profiler, "abnormal", client.ObjectKey{
+				dc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
 					Name:      abnormal.Name,
 					Namespace: abnormal.Namespace,
 				})
-				profiler.Error = err.Error()
 			} else {
 				diagnoserChainProfilerSuccessCount.Inc()
 			}
 
-			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profiler)
+			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profilerStatus)
 		}
 	}
 

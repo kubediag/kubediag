@@ -139,20 +139,12 @@ spec:
                 by the source contains predefined context.
               type: object
             profilers:
-              description: Profilers is the list of profilers to be performed during
-                information collecting, diagnosing and recovering. Abnormals generated
-                by the source contains predefined profilers.
+              description: Profilers is the list of profiler desired behaviors to
+                be performed during information collecting, diagnosing and recovering.
               items:
-                description: Profiler describes a profiler to be performed against
-                  a program to determine its performance status.
+                description: ProfilerSpec describes desired behavior of a profiler
+                  to be performed against a program to determine its performance status.
                 properties:
-                  endpoint:
-                    description: Endpoint specifies how to navigate through a performance
-                      profile.
-                    type: string
-                  error:
-                    description: Error is the profiler error.
-                    type: string
                   go:
                     description: One and only one of the following programming languages
                       should be specified. Go specifies the action to perform for
