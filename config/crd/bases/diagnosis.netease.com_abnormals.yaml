@@ -297,8 +297,25 @@ spec:
               - metadata
               type: object
             nodeName:
-              description: NodeName is a specific node which the abnormal is on.
+              description: One of NodeName and PodReference must be specified. NodeName
+                is a specific node which the abnormal is on.
               type: string
+            podReference:
+              description: PodReference contains details of the target pod.
+              properties:
+                containerName:
+                  description: ContainerName specifies name of the target container.
+                  type: string
+                name:
+                  description: Name specifies the name of a pod.
+                  type: string
+                namespace:
+                  description: Namespace specifies the namespace of a pod.
+                  type: string
+              required:
+              - name
+              - namespace
+              type: object
             profilers:
               description: Profilers is the list of profiler desired behaviors to
                 be performed during information collecting, diagnosing and recovering.
@@ -379,7 +396,6 @@ spec:
                 KubernetesEvent and Custom.
               type: string
           required:
-          - nodeName
           - source
           type: object
         status:

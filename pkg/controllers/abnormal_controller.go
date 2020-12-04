@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -91,6 +93,29 @@ func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if r.mode == "master" {
 		switch abnormal.Status.Phase {
 		case "":
+			// Set abnormal NodeName if NodeName is empty and PodReference is not nil.
+			if abnormal.Spec.NodeName == "" {
+				if abnormal.Spec.PodReference == nil {
+					log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Abnormal")
+					return ctrl.Result{}, nil
+				}
+
+				var pod corev1.Pod
+				if err := r.Get(ctx, client.ObjectKey{
+					Name:      abnormal.Spec.PodReference.Name,
+					Namespace: abnormal.Spec.PodReference.Namespace,
+				}, &pod); err != nil {
+					log.Error(err, "unable to fetch Pod")
+					return ctrl.Result{}, client.IgnoreNotFound(err)
+				}
+
+				abnormal.Spec.NodeName = pod.Spec.NodeName
+				if err := r.Update(ctx, &abnormal); err != nil {
+					log.Error(err, "unable to update Abnormal")
+					return ctrl.Result{}, client.IgnoreNotFound(err)
+				}
+			}
+
 			err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
 			if err != nil {
 				log.Error(err, "failed to send abnormal to source manager queue")
