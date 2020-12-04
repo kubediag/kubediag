@@ -98,9 +98,9 @@ func (r *Abnormal) ValidateDelete() error {
 func (r *Abnormal) validateAbnormal() error {
 	var allErrs field.ErrorList
 
-	if r.Spec.NodeName == "" {
+	if r.Spec.NodeName == "" && r.Spec.PodReference == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("nodeName"),
-			r.Spec.NodeName, "must not be empty"))
+			r.Spec.NodeName, "must not be empty if podReference is empty"))
 	}
 	if r.Spec.CommandExecutors != nil {
 		for i, commandExecutor := range r.Spec.CommandExecutors {

@@ -76,8 +76,13 @@ type AbnormalSpec struct {
 	// event source. This must be specified if abnormal source is KubernetesEvent.
 	// +optional
 	KubernetesEvent *corev1.Event `json:"kubernetesEvent,omitempty"`
+	// One of NodeName and PodReference must be specified.
 	// NodeName is a specific node which the abnormal is on.
-	NodeName string `json:"nodeName"`
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
+	// PodReference contains details of the target pod.
+	// +optional
+	PodReference *PodReference `json:"podReference,omitempty"`
 	// AssignedInformationCollectors is the list of information collectors to execute
 	// information collecting logics. Information collectors would be executed in the
 	// specified sequence. Only assigned information collectors will be executed.
@@ -127,6 +132,17 @@ type PrometheusAlert struct {
 	EndsAt metav1.Time `json:"endsAt,omitempty"`
 	// GeneratorURL specifies the url of alert generator.
 	GeneratorURL string `json:"generatorURL"`
+}
+
+// PodReference contains details of the target pod.
+type PodReference struct {
+	// Namespace specifies the namespace of a pod.
+	Namespace string `json:"namespace"`
+	// Name specifies the name of a pod.
+	Name string `json:"name"`
+	// ContainerName specifies name of the target container.
+	// +optional
+	ContainerName string `json:"containerName,omitempty"`
 }
 
 // NamespacedName represents a kubernetes api resource.
