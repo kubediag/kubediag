@@ -22,9 +22,11 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| source | 故障的来源。该字段支持 KubernetesEvent 和 Custom。 | string | true |
+| source | 故障的来源。该字段支持 PrometheusAlert、KubernetesEvent 和 Custom。 | string | true |
+| prometheusAlert | 表示故障的 Prometheus Alert 详细信息，对应 source 字段的 PrometheusAlert。 | [PrometheusAlert](#prometheusalert) | false |
 | kubernetesEvent | 表示故障的 Kubernetes Event 详细信息，对应 source 字段的 KubernetesEvent。 | [corev1.Event](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#event-v1-core) | false |
-| nodeName | Abnormal 所在节点名。 | string | true |
+| nodeName | Abnormal 所在节点名。 | string | false |
+| podReference | Abnormal 相关 Pod 信息。 | [PodReference](#podreference) | false |
 | assignedInformationCollectors | 指定进行信息采集的信息采集器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedDiagnosers | 指定进行诊断的故障诊断器列表。 | [][NamespacedName](#namespacedname) | false |
 | assignedRecoverers | 指定进行恢复的故障恢复器列表。 | [][NamespacedName](#namespacedname) | false |
@@ -59,6 +61,24 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | message | 表示当前状况的状态变化原因的可读信息。 | string | false |
 | reason | 表示当前状况的状态变化原因的简短信息。 | string | false |
 
+## PrometheusAlert
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| labels | Prometheus Alert 的标签。 | map[string]string | true |
+| annotations | Prometheus Alert 的注解。 | map[string]string | true |
+| startsAt | Prometheus Alert 的开始时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
+| endsAt | Prometheus Alert 的结束时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
+| generatorURL | 用于识别 Prometheus Alert 产生者的 URL。 | string | false |
+
+## PodReference
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| namespace | Pod 的命名空间。 | string | true |
+| name | Pod 的名称。 | string | true |
+| containerName | Pod 中容器的名称。 | string | false |
+
 ## NamespacedName
 
 | Field | Description | Scheme | Required |
@@ -90,20 +110,57 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | name | 性能剖析器名称。 | string | true |
 | type | 性能剖析器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
-| go | Go 语言性能剖析器。 | [GoProfiler](#goprofiler) | false |
+| go | Go 语言性能剖析器目标状态。 | [GoProfilerSpec](#goprofilerspec) | false |
+| java | Java 语言性能剖析器目标状态。 | [JavaProfilerSpec](#javaprofilerspec) | false |
 | timeoutSeconds | 性能剖析器执行超时时间。 | int32 | false |
+| expirationSeconds | 性能剖析器服务过期时间。 | int32 | false |
 
-## GoProfiler
+## GoProfilerSpec
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | source | Go 语言性能剖析器源。通常是一个 HTTP 访问路径。 | string | true |
 
+## JavaProfilerSpec
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| type | Java 语言性能剖析器的类型。该字段支持 Arthas 和 MemoryAnalyzer。 | string | true |
+| hprofFilePath | HPROF 文件的绝对路径。MemoryAnalyzer 类型必须指定。 | string | false |
+
 ## ProfilerStatus
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | 性能剖析器名称。 | string | true |
-| type | 性能剖析器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
+| name | 性能剖析器名称。与 ProfilerSpec 保持一致。 | string | true |
+| type | 性能剖析器的类型。与 ProfilerSpec 保持一致。 | string | true |
+| go | Go 语言性能剖析器执行结果。 | [GoProfilerStatus](#goprofilerstatus) | false |
+| java | Java 语言性能剖析器执行结果。 | [JavaProfilerStatus](#javaprofilerstatus) | false |
+| expired | 性能剖析器服务是否过期。 | bool | false |
 | error | 性能剖析执行的错误。 | string | false |
-| endpoint | 如何查看性能剖析。 | string | false |
+
+## GoProfilerStatus
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| endpoint | 查看 Go 语言性能剖析结果的地址。 | string | true |
+
+## JavaProfilerStatus
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| type | Java 语言性能剖析器的类型。与 JavaProfilerSpec 保持一致。 | string | true |
+| arthas | Arthas 类型 Java 语言性能剖析器执行结果。 | [ArthasProfilerStatus](#arthasprofilerstatus) | false |
+| memoryAnalyzer | MemoryAnalyzer 类型 Java 语言性能剖析器执行结果。 | [MemoryAnalyzerProfilerStatus](#memoryanalyzerprofilerstatus) | false |
+
+## ArthasProfilerStatus
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| endpoint | 查看 Arthas 类型 Java 语言性能剖析结果的地址。 | string | true |
+
+## MemoryAnalyzerProfilerStatus
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| endpoint | 查看 MemoryAnalyzer 类型 Java 语言性能剖析结果的地址。 | string | true |

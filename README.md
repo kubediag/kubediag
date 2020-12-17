@@ -25,12 +25,6 @@ kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/relea
 kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager-legacy.yaml
 ```
 
-如果安装了 [`kustomize`](https://github.com/kubernetes-sigs/kustomize) 工具，运行以下命令进行部署：
-
-```bash
-make deploy
-```
-
 使用 `kubectl` 命令行工具进行部署：
 
 ```bash
@@ -42,6 +36,13 @@ kubectl apply -f config/deploy
 
 ```bash
 kubectl get -n kube-diagnoser pod -o wide
+```
+
+在开发环境进行调试时，如果安装了 [`kustomize`](https://github.com/kubernetes-sigs/kustomize) 工具，运行以下命令可以将当前分支上的代码打包成镜像并进行部署：
+
+```bash
+make docker-build
+make deploy
 ```
 
 ## 通过 Abnormal 触发故障诊断流程
@@ -114,7 +115,7 @@ status:
 * 由于 `.spec.skipRecovery` 字段被设置为 `true`，自动恢复流程被跳过。
 * 诊断成功结束后 `.status.phase` 字段被设置为 `Succeeded`。
 
-详细信息参考 [Abnormal API 设计](./docs/architecture/abnormal.md)。
+详细信息参考 [Abnormal API 设计](./docs/design/architecture.md)。
 
 ## 可观测性
 
@@ -137,11 +138,3 @@ Kube Diagnoser 集成了以下常用故障诊断功能：
 * [Pod Disk Usage Diagnoser](./docs/diagnoser/pod-disk-usage-diagnoser.md)：分析 Pod 磁盘使用量并将结果记录到 Abnormal 中。
 * [Terminating Pod Diagnoser](./docs/diagnoser/terminating-pod-diagnoser.md)：分析节点上无法正常删除的 Pod 并将结果记录到 Abnormal 中。
 * [Signal Recoverer](./docs/recoverer/signal-recoverer.md)：向节点上的进程发送信号并将结果记录到 Abnormal 中。
-
-## 路线图
-
-Kube Diagnoser 的后续工作包括：
-
-* 支持 Golang、Java、Python 等语言的性能剖析。
-* 支持更丰富的故障事件源，如 Elasticsearch、Prometheus 报警等。
-* 易于集成的客户端开发库。

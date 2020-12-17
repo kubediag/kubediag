@@ -91,26 +91,3 @@ AbnormalSource 用于表示故障事件源实例。
 | action | 用于匹配 Action 的正则表达式。 | string | false |
 | reportingController | 用于匹配 ReportingController 的正则表达式。 | string | false |
 | reportingInstance | 用于匹配 ReportingInstance 的正则表达式。 | string | false |
-
-## CommandExecutorSpec
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| command | 需要执行的命令。 | []string | true |
-| type | 命令执行器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
-| timeoutSeconds | 命令执行器执行超时时间。 | int32 | false |
-
-## ProfilerSpec
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| name | 性能剖析器名称。 | string | true |
-| type | 性能剖析器的类型。该字段支持 InformationCollector、Diagnoser、Recoverer。 | string | true |
-| go | Go 语言性能剖析器。 | [GoProfiler](#goprofiler) | false |
-| timeoutSeconds | 性能剖析器执行超时时间。 | int32 | false |
-
-## GoProfiler
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| source | Go 语言性能剖析器源。通常是一个 HTTP 访问路径。 | string | true |
