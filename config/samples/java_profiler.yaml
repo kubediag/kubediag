@@ -1,14 +1,15 @@
 apiVersion: diagnosis.netease.com/v1
 kind: Abnormal
 metadata:
-  name: go-profiler
+  name: java-profiler
 spec:
   source: Custom
   profilers:
-  - name: go-profiler
+  - name: java-profiler
     type: InformationCollector
-    go:
-      source: http://127.0.0.1:8090/debug/pprof/heap
+    java:
+      type: MemoryAnalyzer
+      hprofFilePath: /dump/heap.hprof
     timeoutSeconds: 60
     expirationSeconds: 300
   nodeName: my-node

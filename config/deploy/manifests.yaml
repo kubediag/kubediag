@@ -321,6 +321,11 @@ spec:
                 description: ProfilerSpec describes desired behavior of a profiler
                   to be performed against a program to determine its performance status.
                 properties:
+                  expirationSeconds:
+                    description: Number of seconds after which the profiler endpoint
+                      expires. Defaults to 7200 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
                   go:
                     description: One and only one of the following programming languages
                       should be specified. Go specifies the action to perform for
@@ -332,6 +337,23 @@ spec:
                         type: string
                     required:
                     - source
+                    type: object
+                  java:
+                    description: Java specifies the action to perform for profiling
+                      a java program.
+                    properties:
+                      hprofFilePath:
+                        description: HPROFFilePath is the path of hprof file. It must
+                          be an absolute path on node.
+                        type: string
+                      type:
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
+                        type: string
+                    required:
+                    - type
                     type: object
                   name:
                     description: Name specifies the name of a profiler.
@@ -511,13 +533,58 @@ spec:
               items:
                 description: ProfilerStatus is the profiler status.
                 properties:
-                  endpoint:
-                    description: Endpoint specifies how to navigate through a performance
-                      profile.
-                    type: string
                   error:
                     description: Error is the profiler error.
                     type: string
+                  expired:
+                    description: Expired indicates if the profiler endpoint has expired.
+                    type: boolean
+                  go:
+                    description: One and only one of the following programming languages
+                      should be specified. Go is the result of go profiler.
+                    properties:
+                      endpoint:
+                        description: Endpoint specifies how to navigate through a
+                          performance profile.
+                        type: string
+                    required:
+                    - endpoint
+                    type: object
+                  java:
+                    description: Java is the status of java profiler.
+                    properties:
+                      arthas:
+                        description: One and only one of the following java profiler
+                          should be specified. Arthas is the result of arthas java
+                          profiler.
+                        properties:
+                          endpoint:
+                            description: Endpoint specifies how to navigate through
+                              web console of arthas.
+                            type: string
+                        required:
+                        - endpoint
+                        type: object
+                      memoryAnalyzer:
+                        description: MemoryAnalyzer is the result of eclipse memory
+                          analyzer java profiler.
+                        properties:
+                          endpoint:
+                            description: Endpoint specifies how to navigate through
+                              web of eclipse memory analyzer results.
+                            type: string
+                        required:
+                        - endpoint
+                        type: object
+                      type:
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
+                        type: string
+                    required:
+                    - type
+                    type: object
                   name:
                     description: Name specifies the name of a profiler.
                     type: string
@@ -714,6 +781,11 @@ spec:
                 description: ProfilerSpec describes desired behavior of a profiler
                   to be performed against a program to determine its performance status.
                 properties:
+                  expirationSeconds:
+                    description: Number of seconds after which the profiler endpoint
+                      expires. Defaults to 7200 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
                   go:
                     description: One and only one of the following programming languages
                       should be specified. Go specifies the action to perform for
@@ -725,6 +797,23 @@ spec:
                         type: string
                     required:
                     - source
+                    type: object
+                  java:
+                    description: Java specifies the action to perform for profiling
+                      a java program.
+                    properties:
+                      hprofFilePath:
+                        description: HPROFFilePath is the path of hprof file. It must
+                          be an absolute path on node.
+                        type: string
+                      type:
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
+                        type: string
+                    required:
+                    - type
                     type: object
                   name:
                     description: Name specifies the name of a profiler.
@@ -1783,6 +1872,7 @@ spec:
         - --mode=agent
         - --address=0.0.0.0:8090
         - --metrics-address=0.0.0.0:10355
+        - --data-root=/var/lib/kube-diagnoser
         - --node-name=$(NODE_NAME)
         command:
         - /kube-diagnoser
@@ -1800,8 +1890,8 @@ spec:
           name: http
         resources:
           limits:
-            cpu: 400m
-            memory: 400Mi
+            cpu: 4
+            memory: 4Gi
           requests:
             cpu: 100m
             memory: 100Mi
@@ -1815,6 +1905,8 @@ spec:
           name: docker-data
         - mountPath: /var/lib/kubelet
           name: kubelet-data
+        - mountPath: /var/lib/kube-diagnoser
+          name: kube-diagnoser-data
       hostNetwork: true
       hostPID: true
       securityContext:
@@ -1837,6 +1929,10 @@ spec:
           path: /var/lib/kubelet
           type: Directory
         name: kubelet-data
+      - hostPath:
+          path: /var/lib/kube-diagnoser
+          type: DirectoryOrCreate
+        name: kube-diagnoser-data
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 5

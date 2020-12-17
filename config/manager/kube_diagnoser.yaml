@@ -105,6 +105,7 @@ spec:
         - --mode=agent
         - --address=0.0.0.0:8090
         - --metrics-address=0.0.0.0:10355
+        - --data-root=/var/lib/kube-diagnoser
         - --node-name=$(NODE_NAME)
         image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
         env:
@@ -120,8 +121,8 @@ spec:
           name: http
         resources:
           limits:
-            cpu: 400m
-            memory: 400Mi
+            cpu: 4
+            memory: 4Gi
           requests:
             cpu: 100m
             memory: 100Mi
@@ -134,6 +135,8 @@ spec:
           name: docker-data
         - mountPath: /var/lib/kubelet
           name: kubelet-data
+        - mountPath: /var/lib/kube-diagnoser
+          name: kube-diagnoser-data
         terminationMessagePolicy: FallbackToLogsOnError
       volumes:
       - name: docker-sock
@@ -148,6 +151,10 @@ spec:
         hostPath:
           path: /var/lib/kubelet
           type: Directory
+      - name: kube-diagnoser-data
+        hostPath:
+          path: /var/lib/kube-diagnoser
+          type: DirectoryOrCreate
       hostNetwork: true
       hostPID: true
       securityContext:
