@@ -58,6 +58,16 @@ func (r *Abnormal) Default() {
 			}
 		}
 	}
+	if r.Spec.Profilers != nil {
+		for i, profiler := range r.Spec.Profilers {
+			if profiler.TimeoutSeconds == 0 {
+				r.Spec.Profilers[i].TimeoutSeconds = 30
+			}
+			if profiler.ExpirationSeconds == 0 {
+				r.Spec.Profilers[i].ExpirationSeconds = 7200
+			}
+		}
+	}
 }
 
 // +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-abnormal,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=abnormals,versions=v1,name=vabnormal.kb.io
@@ -118,6 +128,11 @@ func (r *Abnormal) validateAbnormal() error {
 	}
 	if r.Spec.Profilers != nil {
 		for i, profilerSpec := range r.Spec.Profilers {
+			if profilerSpec.Go == nil && profilerSpec.Java == nil ||
+				profilerSpec.Go != nil && profilerSpec.Java != nil {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i),
+					r.Spec.Profilers[i], "must specify one and only one of the programming languages"))
+			}
 			if profilerSpec.Type != InformationCollectorType &&
 				profilerSpec.Type != DiagnoserType &&
 				profilerSpec.Type != RecovererType {

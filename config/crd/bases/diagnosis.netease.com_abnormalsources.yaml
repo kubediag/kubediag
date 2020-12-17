@@ -136,6 +136,11 @@ spec:
                 description: ProfilerSpec describes desired behavior of a profiler
                   to be performed against a program to determine its performance status.
                 properties:
+                  expirationSeconds:
+                    description: Number of seconds after which the profiler endpoint
+                      expires. Defaults to 7200 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
                   go:
                     description: One and only one of the following programming languages
                       should be specified. Go specifies the action to perform for
@@ -147,6 +152,23 @@ spec:
                         type: string
                     required:
                     - source
+                    type: object
+                  java:
+                    description: Java specifies the action to perform for profiling
+                      a java program.
+                    properties:
+                      hprofFilePath:
+                        description: HPROFFilePath is the path of hprof file. It must
+                          be an absolute path on node.
+                        type: string
+                      type:
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
+                        type: string
+                    required:
+                    - type
                     type: object
                   name:
                     description: Name specifies the name of a profiler.

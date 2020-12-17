@@ -32,13 +32,17 @@ RUN echo "deb http://mirrors.aliyun.com/ubuntu/ focal main restricted" > /etc/ap
 
 # Install utility tools
 RUN apt-get update -y && \
-    apt-get install -y coreutils dnsutils iputils-ping iproute2 telnet curl vim less wget graphviz && \
+    apt-get install -y coreutils dnsutils iputils-ping iproute2 telnet curl vim less wget graphviz unzip tcpdump && \
     apt-get clean
 
 # Install Go
 RUN wget https://golang.org/dl/go1.14.9.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.14.9.linux-amd64.tar.gz && \
     rm go1.14.9.linux-amd64.tar.gz
+
+# Install Java
+RUN apt-get install -y openjdk-11-jdk && \
+    apt-get clean
 
 WORKDIR /usr/bin/
 # Copy diagnosing tools
@@ -48,6 +52,8 @@ COPY tools/docker .
 WORKDIR /
 # Copy kube-diagnoser binary
 COPY --from=builder /workspace/kube-diagnoser .
+# Add eclipse memory analyzer tool
+ADD tools/MemoryAnalyzer-1.10.0.20200225-linux.gtk.x86_64.tar .
 
 ENV PATH=$PATH:/usr/local/go/bin
 

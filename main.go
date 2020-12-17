@@ -61,6 +61,7 @@ var (
 	setupLog         = ctrl.Log.WithName("setup")
 	defaultTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	defaultCertDir   = "/etc/kube-diagnoser/serving-certs"
+	defaultDataRoot  = "/var/lib/kube-diagnoser"
 )
 
 // KubeDiagnoserOptions is the main context object for the kube diagnoser.
@@ -99,6 +100,8 @@ type KubeDiagnoserOptions struct {
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
 	// piecemeal the default values from "netease.com/k8s/kube-diagnoser/pkg/features/features.go".
 	FeatureGates map[string]bool
+	// DataRoot is root directory of persistent kube diagnoser data.
+	DataRoot string
 }
 
 func init() {
@@ -164,6 +167,7 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 		MinimumAbnormalTTLDuration: 30 * time.Minute,
 		MaximumAbnormalsPerNode:    20,
 		APIServerAccessToken:       string(token),
+		DataRoot:                   defaultDataRoot,
 	}, nil
 }
 
@@ -354,6 +358,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.DataRoot,
 			informationManagerCh,
 		)
 		go func(stopCh chan struct{}) {
@@ -367,6 +372,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.DataRoot,
 			diagnoserChainCh,
 		)
 		go func(stopCh chan struct{}) {
@@ -380,6 +386,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.DataRoot,
 			recovererChainCh,
 		)
 		go func(stopCh chan struct{}) {
@@ -545,6 +552,7 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
 	fs.StringVar(&opts.APIServerAccessToken, "apiserver-access-token", opts.APIServerAccessToken, "The kubernetes apiserver access token.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
+	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kube diagnoser data.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

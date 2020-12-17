@@ -9,5 +9,6 @@ spec:
     type: InformationCollector
     go:
       source: http://127.0.0.1:8090/debug/pprof/heap
-    timeoutSeconds: 300
+    timeoutSeconds: 60
+    expirationSeconds: 300
   nodeName: my-node

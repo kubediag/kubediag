@@ -62,6 +62,11 @@ const (
 	AbnormalIdentified AbnormalConditionType = "Identified"
 	// AbnormalRecovered means that the abnormal has been recovered by the recoverer chain.
 	AbnormalRecovered AbnormalConditionType = "Recovered"
+
+	// ArthasJavaProfilerType means that the java profiler is run by arthas.
+	ArthasJavaProfilerType JavaProfilerType = "Arthas"
+	// MemoryAnalyzerJavaProfilerType means that the java profiler is run by eclipse memory analyzer.
+	MemoryAnalyzerJavaProfilerType JavaProfilerType = "MemoryAnalyzer"
 )
 
 // AbnormalSpec defines the desired state of Abnormal.
@@ -184,17 +189,36 @@ type ProfilerSpec struct {
 	// One and only one of the following programming languages should be specified.
 	// Go specifies the action to perform for profiling a go program.
 	// +optional
-	Go *GoProfiler `json:"go,omitempty"`
+	Go *GoProfilerSpec `json:"go,omitempty"`
+	// Java specifies the action to perform for profiling a java program.
+	// +optional
+	Java *JavaProfilerSpec `json:"java,omitempty"`
 	// Number of seconds after which the profiler times out.
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+	// Number of seconds after which the profiler endpoint expires.
+	// Defaults to 7200 seconds. Minimum value is 1.
+	// +optional
+	ExpirationSeconds int32 `json:"expirationSeconds,omitempty"`
 }
 
-// GoProfiler specifies the action to perform for profiling a go program.
-type GoProfiler struct {
+// GoProfilerSpec specifies the action to perform for profiling a go program.
+type GoProfilerSpec struct {
 	// Source specifies the profile source. It must be a local file path or a URL.
 	Source string `json:"source"`
+}
+
+// JavaProfilerSpec specifies the action to perform for profiling a java program.
+type JavaProfilerSpec struct {
+	// Type is the type of the java profiler. There are two possible type values:
+	//
+	// Arthas: The profiler will be run by arthas.
+	// MemoryAnalyzer: The profiler will be run by eclipse memory analyzer.
+	Type JavaProfilerType `json:"type"`
+	// HPROFFilePath is the path of hprof file. It must be an absolute path on node.
+	// +optional
+	HPROFFilePath string `json:"hprofFilePath,omitempty"`
 }
 
 // AbnormalStatus defines the observed state of Abnormal.
@@ -253,23 +277,6 @@ type AbnormalStatus struct {
 	Context *runtime.RawExtension `json:"context,omitempty"`
 }
 
-// ProfilerStatus is the profiler status.
-type ProfilerStatus struct {
-	// Name specifies the name of a profiler.
-	Name string `json:"name"`
-	// Type is the type of the profiler. There are three possible type values:
-	//
-	// InformationCollector: The profiler will be run by information manager.
-	// Diagnoser: The profiler will be run by diagnoser chain.
-	// Recoverer: The profiler will be run by recoverer chain.
-	Type AbnormalProcessorType `json:"type"`
-	// Error is the profiler error.
-	// +optional
-	Error string `json:"error,omitempty"`
-	// Endpoint specifies how to navigate through a performance profile.
-	Endpoint string `json:"endpoint,omitempty"`
-}
-
 // CommandExecutorStatus is the command execution result.
 type CommandExecutorStatus struct {
 	// Command represents a command being prepared and run.
@@ -289,6 +296,65 @@ type CommandExecutorStatus struct {
 	// Error is the command execution error.
 	// +optional
 	Error string `json:"error,omitempty"`
+}
+
+// ProfilerStatus is the profiler status.
+type ProfilerStatus struct {
+	// Name specifies the name of a profiler.
+	Name string `json:"name"`
+	// Type is the type of the profiler. There are three possible type values:
+	//
+	// InformationCollector: The profiler will be run by information manager.
+	// Diagnoser: The profiler will be run by diagnoser chain.
+	// Recoverer: The profiler will be run by recoverer chain.
+	Type AbnormalProcessorType `json:"type"`
+	// One and only one of the following programming languages should be specified.
+	// Go is the result of go profiler.
+	// +optional
+	Go *GoProfilerStatus `json:"go,omitempty"`
+	// Java is the status of java profiler.
+	// +optional
+	Java *JavaProfilerStatus `json:"java,omitempty"`
+	// Expired indicates if the profiler endpoint has expired.
+	// +optional
+	Expired bool `json:"expired,omitempty"`
+	// Error is the profiler error.
+	// +optional
+	Error string `json:"error,omitempty"`
+}
+
+// GoProfilerStatus is the result of go profiler.
+type GoProfilerStatus struct {
+	// Endpoint specifies how to navigate through a performance profile.
+	Endpoint string `json:"endpoint"`
+}
+
+// JavaProfilerStatus is the status of java profiler.
+type JavaProfilerStatus struct {
+	// Type is the type of the java profiler. There are two possible type values:
+	//
+	// Arthas: The profiler will be run by arthas.
+	// MemoryAnalyzer: The profiler will be run by eclipse memory analyzer.
+	Type JavaProfilerType `json:"type"`
+	// One and only one of the following java profiler should be specified.
+	// Arthas is the result of arthas java profiler.
+	// +optional
+	Arthas *ArthasProfilerStatus `json:"arthas,omitempty"`
+	// MemoryAnalyzer is the result of eclipse memory analyzer java profiler.
+	// +optional
+	MemoryAnalyzer *MemoryAnalyzerProfilerStatus `json:"memoryAnalyzer,omitempty"`
+}
+
+// ArthasProfilerStatus is the result of arthas java profiler.
+type ArthasProfilerStatus struct {
+	// Endpoint specifies how to navigate through web console of arthas.
+	Endpoint string `json:"endpoint"`
+}
+
+// MemoryAnalyzerProfilerStatus is the result of eclipse memory analyzer java profiler.
+type MemoryAnalyzerProfilerStatus struct {
+	// Endpoint specifies how to navigate through web of eclipse memory analyzer results.
+	Endpoint string `json:"endpoint"`
 }
 
 // AbnormalCondition contains details for the current condition of this abnormal.
@@ -318,6 +384,9 @@ type AbnormalProcessorType string
 
 // AbnormalConditionType is a valid value for AbnormalCondition.Type.
 type AbnormalConditionType string
+
+// JavaProfilerType is a valid value for JavaProfiler.Type.
+type JavaProfilerType string
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
