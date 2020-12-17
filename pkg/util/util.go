@@ -25,7 +25,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -92,6 +94,20 @@ const (
 	PodKillGracePeriodSeconds = 30
 	// TerminatingPodAbnormalNamePrefix is the name prefix for creating terminating pod abnormal.
 	TerminatingPodAbnormalNamePrefix = "terminating-pod"
+	// MemoryAnalyzerLeakSuspectsReportAPI is the eclipse memory analyzer api for leak suspects report.
+	MemoryAnalyzerLeakSuspectsReportAPI = "org.eclipse.mat.api:suspects"
+	// MemoryAnalyzerSystemOverviewReportAPI is the eclipse memory analyzer api for system overview report.
+	MemoryAnalyzerSystemOverviewReportAPI = "org.eclipse.mat.api:overview"
+	// MemoryAnalyzerTopComponentsReportAPI is the eclipse memory analyzer api for top components report.
+	MemoryAnalyzerTopComponentsReportAPI = "org.eclipse.mat.api:top_components"
+	// MemoryAnalyzerLeakSuspectsSuffix is the suffix for leak suspects report directory.
+	MemoryAnalyzerLeakSuspectsSuffix = "_Leak_Suspects"
+	// MemoryAnalyzerSystemOverviewSuffix is the suffix for system overview report directory.
+	MemoryAnalyzerSystemOverviewSuffix = "_System_Overview"
+	// MemoryAnalyzerTopComponentsSuffix is the suffix for top components report directory.
+	MemoryAnalyzerTopComponentsSuffix = "_Top_Components"
+	// MemoryAnalyzerHomepage is the html text for memory analyzer homepage.
+	MemoryAnalyzerHomepage = `<h2>Eclipse Memory Analyzer</h2><ul><li><a href="/leaksuspects/">Leak Suspects</a></li><li><a href="/systemoverview/">System Overview</a></li><li><a href="/topcomponents/">Top Components</a></li></ul>`
 )
 
 // UpdateAbnormalCondition updates existing abnormal condition or creates a new one. Sets
@@ -828,7 +844,7 @@ func RunCommandExecutor(commandExecutorSpec diagnosisv1.CommandExecutorSpec, log
 }
 
 // RunProfiler runs profiling and updates the result into profiler.
-func RunProfiler(ctx context.Context, name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (diagnosisv1.ProfilerStatus, error) {
+func RunProfiler(ctx context.Context, name string, namespace string, dataRoot string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, cli client.Client, log logr.Logger) (diagnosisv1.ProfilerStatus, error) {
 	profilerStatus := diagnosisv1.ProfilerStatus{
 		Name: profilerSpec.Name,
 		Type: profilerSpec.Type,
@@ -836,41 +852,23 @@ func RunProfiler(ctx context.Context, name string, namespace string, profilerSpe
 
 	switch {
 	case profilerSpec.Go != nil:
-		endpoint, errCh := RunGoProfiler(*profilerSpec.Go, profilerSpec.TimeoutSeconds, log)
-		// Update error of go profiler asynchronously if any error happens on running go profiling command.
-		go func() {
-			profilerErr := <-errCh
-			if profilerErr != nil {
-				var abnormal diagnosisv1.Abnormal
-				if err := cli.Get(ctx, client.ObjectKey{
-					Name:      name,
-					Namespace: namespace,
-				}, &abnormal); err != nil {
-					log.Error(err, "unable to fetch Abnormal", "abnormal", client.ObjectKey{
-						Name:      name,
-						Namespace: namespace,
-					})
-					return
-				}
+		goProfilerStatus, err := RunGoProfiler(name, namespace, profilerSpec, cli, log)
+		if err != nil {
+			profilerStatus.Go = &goProfilerStatus
+			profilerStatus.Error = err.Error()
+			return profilerStatus, err
+		}
 
-				// Set error of go profiler.
-				for i := 0; i < len(abnormal.Status.Profilers); i++ {
-					if abnormal.Status.Profilers[i].Name == profilerSpec.Name {
-						abnormal.Status.Profilers[i].Error = profilerErr.Error()
-						break
-					}
-				}
+		profilerStatus.Go = &goProfilerStatus
+	case profilerSpec.Java != nil:
+		javaProfilerStatus, err := RunJavaProfiler(name, namespace, profilerSpec, podReference, dataRoot, cli, log)
+		if err != nil {
+			profilerStatus.Java = &javaProfilerStatus
+			profilerStatus.Error = err.Error()
+			return profilerStatus, err
+		}
 
-				log.Error(profilerErr, "error on running go profiler")
-
-				if err := cli.Status().Update(ctx, &abnormal); err != nil {
-					log.Error(err, "unable to update Abnormal")
-				}
-			}
-		}()
-
-		// Set http endpoint of go profiling interactive web interface.
-		profilerStatus.Endpoint = endpoint
+		profilerStatus.Java = &javaProfilerStatus
 	default:
 		err := fmt.Errorf("profiler not specified")
 		profilerStatus.Error = err.Error()
@@ -880,63 +878,149 @@ func RunProfiler(ctx context.Context, name string, namespace string, profilerSpe
 	return profilerStatus, nil
 }
 
-// RunGoProfiler runs go profiling with timeout and updates the result into go profiler. A goroutine is
-// spawned for updating error status of go profiling command asynchronously. An error will be sent to the
-// error channel if any error happens on running go profiling command. The error channel must be nonblocking.
-// It returns an http endpoint string an the error channel as results.
-func RunGoProfiler(goProfiler diagnosisv1.GoProfiler, timeoutSeconds int32, log logr.Logger) (string, chan error) {
-	errCh := make(chan error, 1)
+// RunGoProfiler runs go profiling with timeout and updates the result into go profiler.
+func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (diagnosisv1.GoProfilerStatus, error) {
+	var goProfilerSpec diagnosisv1.GoProfilerSpec
+	if profilerSpec.Go != nil {
+		goProfilerSpec = *profilerSpec.Go
+	}
+	goProfilerStatus := diagnosisv1.GoProfilerStatus{}
+
 	port, err := GetAvailablePort()
 	if err != nil {
-		errCh <- fmt.Errorf("unable to get available port for go profiler")
-		return "", errCh
+		return goProfilerStatus, err
 	}
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	var buf bytes.Buffer
-	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfiler.Source)
+	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
+	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfilerSpec.Source)
 	// Setting a new process group id to avoid suicide.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
 	command.Stderr = &buf
 	err = command.Start()
 	if err != nil {
-		errCh <- err
-		return endpoint, errCh
+		return goProfilerStatus, err
 	}
 
-	log.Info("running go profiler", "source", goProfiler.Source, "endpoint", endpoint)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// Wait and signal completion of go profiler.
-	done := make(chan error)
+	// Start go profiler.
+	exit := make(chan error)
 	go func() {
-		done <- command.Wait()
+		defer cancel()
+		exit <- command.Wait()
 	}()
+
+	// Shutdown go profiler with expiration duration.
 	go func() {
-		timeout := time.After(time.Duration(timeoutSeconds) * time.Second)
 		select {
-		// Kill the process if timeout happened.
-		case <-timeout:
+		// Wait for go profiler error.
+		case <-ctx.Done():
+			return
+		// Wait for expiration and shutdown go profiler http server by killing the profiler process.
+		case <-time.After(time.Duration(profilerSpec.ExpirationSeconds) * time.Second):
 			// Kill the process and all of its children with its process group id.
 			pgid, err := syscall.Getpgid(command.Process.Pid)
 			if err != nil {
-				log.Error(err, "failed to get process group id on go profiler timed out", "source", goProfiler.Source)
+				log.Error(err, "failed to get process group id on go profiler expired", "source", goProfilerSpec.Source)
 			} else {
 				err = syscall.Kill(-pgid, syscall.SIGKILL)
 				if err != nil {
-					log.Error(err, "failed to kill process on go profiler timed out", "source", goProfiler.Source)
+					log.Error(err, "failed to kill process on go profiler expired", "source", goProfilerSpec.Source)
 				}
 			}
-			errCh <- fmt.Errorf("go profiler on source %v timed out", goProfiler.Source)
-		// Send error if go profiler completed before timeout.
-		case err := <-done:
-			if err != nil {
-				errCh <- err
-			}
+		}
+
+		// Set profiler status as expired.
+		err = SetProfilerExipred(name, namespace, profilerSpec, cli, log)
+		if err != nil {
+			log.Error(err, "unable to update Abnormal")
 		}
 	}()
 
-	return endpoint, errCh
+	// Set http endpoint of go profiling interactive web interface.
+	goProfilerStatus.Endpoint = endpoint
+
+	return goProfilerStatus, err
+}
+
+// RunJavaProfiler runs java profiling with timeout and updates the result into java profiler.
+func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (diagnosisv1.JavaProfilerStatus, error) {
+	var javaProfilerSpec diagnosisv1.JavaProfilerSpec
+	if profilerSpec.Java != nil {
+		javaProfilerSpec = *profilerSpec.Java
+	}
+	javaProfilerStatus := diagnosisv1.JavaProfilerStatus{
+		Type: javaProfilerSpec.Type,
+	}
+
+	port, err := GetAvailablePort()
+	if err != nil {
+		return javaProfilerStatus, err
+	}
+
+	switch {
+	case javaProfilerSpec.Type == diagnosisv1.ArthasJavaProfilerType:
+		return javaProfilerStatus, fmt.Errorf("arthas java profiler not implemented")
+	case javaProfilerSpec.Type == diagnosisv1.MemoryAnalyzerJavaProfilerType:
+		// Validate the hprof file path.
+		if !filepath.IsAbs(javaProfilerSpec.HPROFFilePath) {
+			return javaProfilerStatus, fmt.Errorf("hprof file path is not absolute")
+		}
+		fileInfo, err := os.Stat(javaProfilerSpec.HPROFFilePath)
+		if os.IsNotExist(err) {
+			return javaProfilerStatus, fmt.Errorf("hprof file does not exist")
+		}
+
+		// Create directory to store profiler result.
+		now := time.Now().Format("20060102150405")
+		dirname := filepath.Join(dataRoot, "profilers/java/memory")
+		if podReference == nil {
+			dirname = filepath.Join(dirname, now)
+		} else {
+			dirname = filepath.Join(dirname, podReference.Namespace+"."+podReference.Name+"."+podReference.ContainerName, now)
+		}
+		if _, err := os.Stat(dirname); os.IsNotExist(err) {
+			err := os.MkdirAll(dirname, os.ModePerm)
+			if err != nil {
+				return javaProfilerStatus, err
+			}
+		}
+
+		// Collect hprof file.
+		_, err = BlockingRunCommandWithTimeout([]string{"mv", javaProfilerSpec.HPROFFilePath, dirname}, profilerSpec.TimeoutSeconds)
+		if err != nil {
+			return javaProfilerStatus, fmt.Errorf("collect hprof file %s with error %v", javaProfilerSpec.HPROFFilePath, err)
+		}
+
+		// Parse hprof file with eclipse memory analyzer.
+		hprofFilePath := filepath.Join(dirname, fileInfo.Name())
+		err = ParseHPROFFile(dirname, hprofFilePath, profilerSpec.TimeoutSeconds)
+		if err != nil {
+			return javaProfilerStatus, err
+		}
+
+		// Decompress result archives from hprof files by executing "unzip" command.
+		leakSuspectsDirectoryPath, systemOverviewDirectoryPath, topComponentsDirectoryPath, err := DecompressHPROFFileArchives(dirname, fileInfo, profilerSpec.TimeoutSeconds)
+		if err != nil {
+			return javaProfilerStatus, err
+		}
+
+		// Start memory analyzer http server with leak suspects, system overview and top components files.
+		endpoint := fmt.Sprintf("0.0.0.0:%d", port)
+		err = StartMemoryAnalyzerHTTPServer(name, namespace, profilerSpec, endpoint, leakSuspectsDirectoryPath, systemOverviewDirectoryPath, topComponentsDirectoryPath, cli, log)
+		if err != nil {
+			return javaProfilerStatus, err
+		}
+
+		// Set http endpoint of java profiling interactive web interface.
+		javaProfilerStatus.MemoryAnalyzer = &diagnosisv1.MemoryAnalyzerProfilerStatus{
+			Endpoint: endpoint,
+		}
+	}
+
+	return javaProfilerStatus, nil
 }
 
 // SystemdUnitProperties returns a slice which contains all properties of specified systemd unit.
@@ -983,6 +1067,144 @@ func DiskUsage(path string) (int, error) {
 	}
 
 	return size, nil
+}
+
+// ParseHPROFFile parses hprof file with eclipse memory analyzer. The results are stored in zip files under
+// the same directory of hprof file.
+// It takes command working directory, hprof file path and timeout seconds as parameters.
+func ParseHPROFFile(workdir string, path string, timeoutSeconds int32) error {
+	_, err := BlockingRunCommandWithTimeout([]string{"/mat/ParseHeapDump.sh", path, MemoryAnalyzerLeakSuspectsReportAPI, MemoryAnalyzerSystemOverviewReportAPI, MemoryAnalyzerTopComponentsReportAPI}, timeoutSeconds)
+	if err != nil {
+		return fmt.Errorf("unable to parse hprof file %s with error %v", path, err)
+	}
+
+	return nil
+}
+
+// DecompressHPROFFileArchives decompresses result archives from hprof files by executing "unzip" command.
+func DecompressHPROFFileArchives(dirname string, fileInfo os.FileInfo, timeoutSeconds int32) (string, string, string, error) {
+	leakSuspectsFilePath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerLeakSuspectsSuffix+".zip")
+	leakSuspectsDirectoryPath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerLeakSuspectsSuffix)
+	err := Unzip(leakSuspectsFilePath, leakSuspectsDirectoryPath, timeoutSeconds)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	systemOverviewFilePath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerSystemOverviewSuffix+".zip")
+	systemOverviewDirectoryPath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerSystemOverviewSuffix)
+	err = Unzip(systemOverviewFilePath, systemOverviewDirectoryPath, timeoutSeconds)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	topComponentsFilePath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerTopComponentsSuffix+".zip")
+	topComponentsDirectoryPath := filepath.Join(dirname, strings.TrimSuffix(fileInfo.Name(), filepath.Ext(fileInfo.Name()))+MemoryAnalyzerTopComponentsSuffix)
+	err = Unzip(topComponentsFilePath, topComponentsDirectoryPath, timeoutSeconds)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return leakSuspectsDirectoryPath, systemOverviewDirectoryPath, topComponentsDirectoryPath, nil
+}
+
+// Unzip decompresses a zip archive, moving all files and folders within the zip file to an output directory
+// by executing "unzip" command.
+// It takes source zip file, destination output directory and timeout seconds as parameters.
+func Unzip(src string, dst string, timeoutSeconds int32) error {
+	_, err := BlockingRunCommandWithTimeout([]string{"unzip", src, "-d", dst}, timeoutSeconds)
+	if err != nil {
+		return fmt.Errorf("unzip file %s to %s with error %v", src, dst, err)
+	}
+
+	return nil
+}
+
+// StartMemoryAnalyzerHTTPServer starts memory analyzer http server with leak suspects, system overview
+// and top components files and shutdown memory analyzer http server with expiration duration.
+func StartMemoryAnalyzerHTTPServer(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, endpoint string, leakSuspectsDirectoryPath string, systemOverviewDirectoryPath string, topComponentsDirectoryPath string, cli client.Client, log logr.Logger) error {
+	// Handle leak suspects, system overview and top components files.
+	leakSuspectsFileServer := http.FileServer(http.Dir(leakSuspectsDirectoryPath))
+	systemOverviewFileServer := http.FileServer(http.Dir(systemOverviewDirectoryPath))
+	topComponentsFileServer := http.FileServer(http.Dir(topComponentsDirectoryPath))
+	http.HandleFunc("/", MemoryAnalyzerHomepageHandler)
+	http.Handle("/leaksuspects/", http.StripPrefix("/leaksuspects/", leakSuspectsFileServer))
+	http.Handle("/systemoverview/", http.StripPrefix("/systemoverview/", systemOverviewFileServer))
+	http.Handle("/topcomponents/", http.StripPrefix("/topcomponents/", topComponentsFileServer))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	server := &http.Server{
+		Addr:    endpoint,
+		Handler: nil,
+	}
+
+	// Start memory analyzer http server.
+	go func() {
+		defer cancel()
+		err := server.ListenAndServe()
+		if err != nil {
+			log.Error(err, "failed to start memory analyzer http server")
+		}
+	}()
+
+	// Shutdown memory analyzer http server with expiration duration.
+	go func() {
+		select {
+		// Wait for memory analyzer http server error.
+		case <-ctx.Done():
+			return
+		// Wait for expiration.
+		case <-time.After(time.Duration(profilerSpec.ExpirationSeconds) * time.Second):
+			err := server.Shutdown(ctx)
+			if err != nil {
+				log.Error(err, "failed to shutdown memory analyzer http server")
+			}
+
+			// Set profiler status as expired.
+			err = SetProfilerExipred(name, namespace, profilerSpec, cli, log)
+			if err != nil {
+				log.Error(err, "unable to update Abnormal")
+			}
+		}
+	}()
+
+	return nil
+}
+
+// SetProfilerExipred sets abnormal profiler status as expired.
+func SetProfilerExipred(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) error {
+	ctx := context.Background()
+
+	log.Info("profiler expired", "abnormal", client.ObjectKey{
+		Name:      name,
+		Namespace: namespace,
+	}, "profiler", profilerSpec)
+
+	var abnormal diagnosisv1.Abnormal
+	if err := cli.Get(ctx, client.ObjectKey{
+		Name:      name,
+		Namespace: namespace,
+	}, &abnormal); err != nil {
+		return err
+	}
+
+	for i := 0; i < len(abnormal.Status.Profilers); i++ {
+		if abnormal.Status.Profilers[i].Name == profilerSpec.Name && abnormal.Status.Profilers[i].Type == profilerSpec.Type {
+			abnormal.Status.Profilers[i].Expired = true
+			break
+		}
+	}
+
+	if err := cli.Status().Update(ctx, &abnormal); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MemoryAnalyzerHomepageHandler handles memory analyzer homepage requests.
+func MemoryAnalyzerHomepageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(MemoryAnalyzerHomepage))
 }
 
 // BlockingRunCommandWithTimeout executes command in blocking mode with timeout seconds.

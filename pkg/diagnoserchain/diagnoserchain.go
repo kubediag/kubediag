@@ -112,6 +112,8 @@ type diagnoserChain struct {
 	nodeName string
 	// transport is the transport for sending http requests to diagnosers.
 	transport *http.Transport
+	// dataRoot is root directory of persistent kube diagnoser data.
+	dataRoot string
 	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
 	diagnoserChainCh chan diagnosisv1.Abnormal
 }
@@ -125,6 +127,7 @@ func NewDiagnoserChain(
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
+	dataRoot string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
 	metrics.Registry.MustRegister(
@@ -154,6 +157,7 @@ func NewDiagnoserChain(
 		cache:            cache,
 		nodeName:         nodeName,
 		transport:        transport,
+		dataRoot:         dataRoot,
 		diagnoserChainCh: diagnoserChainCh,
 	}
 }
@@ -296,7 +300,7 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 	// Run profiler of Diagnoser type.
 	for _, profilerSpec := range abnormal.Spec.Profilers {
 		if profilerSpec.Type == diagnosisv1.DiagnoserType {
-			profilerStatus, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, profilerSpec, dc.client, dc)
+			profilerStatus, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, dc.dataRoot, profilerSpec, abnormal.Spec.PodReference, dc.client, dc)
 			if err != nil {
 				diagnoserChainProfilerFailCount.Inc()
 				dc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
