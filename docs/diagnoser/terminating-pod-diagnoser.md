@@ -15,6 +15,7 @@ kubectl apply -f config/deploy/terminating_pod_diagnoser.yaml
 Terminating Pod Diagnoser 的监听地址与 Kube Diagnoser 一致，默认监听地址为 `0.0.0.0:8090`。HTTP 访问路径为 `/diagnoser/terminatingpoddiagnoser`。Terminating Pod Diagnoser 可以对 POST 请求进行处理：
 
 * 当接收到 POST 请求并且请求体为 Abnormal 结构体时，Terminating Pod Diagnoser 从 Abnormal 的 `.status.context.podInformation` 和 `.status.context.processInformation` 字段获取节点 Pod 列表和节点进程列表并将节点上无法正常删除的 Pod 和无法正常删除 Pod 的 Containerd Shim 进程记录到 Abnormal 的 `.status.context.terminatingPodDiagnosis` 和 `.status.context.signalRecovery` 字段。处理成功返回更新后的 Abnormal 结构体，返回码为 `200`；处理失败则返回请求体中的 Abnormal 结构体，返回码为 `500`。
+* 如果 Terminating Pod Diagnoser 分析时无法正常删除的 Pod 已经被成功删除则返回请求体中的 Abnormal 结构体，返回码为 `200`。
 * 当接收到其他请求时返回码为 `405`。
 
 ## 如何使用
