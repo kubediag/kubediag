@@ -68,6 +68,8 @@ const (
 	TerminatingPodDiagnosisContextKey = "terminatingPodDiagnosis"
 	// SignalRecoveryContextKey is the key of process signal recovery details in abnormal context.
 	SignalRecoveryContextKey = "signalRecovery"
+	// ProfilerEndpointExpiredValue is the value of endpoint in profiler status after expiration duration.
+	ProfilerEndpointExpiredValue = "expired"
 	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
 	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
 	MaxDataSize = 1024 * 1024 * 2
@@ -852,23 +854,19 @@ func RunProfiler(ctx context.Context, name string, namespace string, dataRoot st
 
 	switch {
 	case profilerSpec.Go != nil:
-		goProfilerStatus, err := RunGoProfiler(name, namespace, profilerSpec, cli, log)
+		endpoint, err := RunGoProfiler(name, namespace, profilerSpec, cli, log)
 		if err != nil {
-			profilerStatus.Go = &goProfilerStatus
 			profilerStatus.Error = err.Error()
 			return profilerStatus, err
 		}
-
-		profilerStatus.Go = &goProfilerStatus
+		profilerStatus.Endpoint = endpoint
 	case profilerSpec.Java != nil:
-		javaProfilerStatus, err := RunJavaProfiler(name, namespace, profilerSpec, podReference, dataRoot, cli, log)
+		endpoint, err := RunJavaProfiler(name, namespace, profilerSpec, podReference, dataRoot, cli, log)
 		if err != nil {
-			profilerStatus.Java = &javaProfilerStatus
 			profilerStatus.Error = err.Error()
 			return profilerStatus, err
 		}
-
-		profilerStatus.Java = &javaProfilerStatus
+		profilerStatus.Endpoint = endpoint
 	default:
 		err := fmt.Errorf("profiler not specified")
 		profilerStatus.Error = err.Error()
@@ -879,28 +877,26 @@ func RunProfiler(ctx context.Context, name string, namespace string, dataRoot st
 }
 
 // RunGoProfiler runs go profiling with timeout and updates the result into go profiler.
-func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (diagnosisv1.GoProfilerStatus, error) {
-	var goProfilerSpec diagnosisv1.GoProfilerSpec
-	if profilerSpec.Go != nil {
-		goProfilerSpec = *profilerSpec.Go
+func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (string, error) {
+	if profilerSpec.Go == nil {
+		return "", fmt.Errorf("go profiler not specified")
 	}
-	goProfilerStatus := diagnosisv1.GoProfilerStatus{}
 
 	port, err := GetAvailablePort()
 	if err != nil {
-		return goProfilerStatus, err
+		return "", err
 	}
+	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	var buf bytes.Buffer
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
-	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), goProfilerSpec.Source)
+	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), profilerSpec.Go.Source)
 	// Setting a new process group id to avoid suicide.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
 	command.Stderr = &buf
 	err = command.Start()
 	if err != nil {
-		return goProfilerStatus, err
+		return "", err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -923,11 +919,11 @@ func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.Profi
 			// Kill the process and all of its children with its process group id.
 			pgid, err := syscall.Getpgid(command.Process.Pid)
 			if err != nil {
-				log.Error(err, "failed to get process group id on go profiler expired", "source", goProfilerSpec.Source)
+				log.Error(err, "failed to get process group id on go profiler expired", "source", profilerSpec.Go.Source)
 			} else {
 				err = syscall.Kill(-pgid, syscall.SIGKILL)
 				if err != nil {
-					log.Error(err, "failed to kill process on go profiler expired", "source", goProfilerSpec.Source)
+					log.Error(err, "failed to kill process on go profiler expired", "source", profilerSpec.Go.Source)
 				}
 			}
 		}
@@ -939,38 +935,32 @@ func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.Profi
 		}
 	}()
 
-	// Set http endpoint of go profiling interactive web interface.
-	goProfilerStatus.Endpoint = endpoint
-
-	return goProfilerStatus, err
+	return endpoint, err
 }
 
 // RunJavaProfiler runs java profiling with timeout and updates the result into java profiler.
-func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (diagnosisv1.JavaProfilerStatus, error) {
-	var javaProfilerSpec diagnosisv1.JavaProfilerSpec
-	if profilerSpec.Java != nil {
-		javaProfilerSpec = *profilerSpec.Java
-	}
-	javaProfilerStatus := diagnosisv1.JavaProfilerStatus{
-		Type: javaProfilerSpec.Type,
+func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (string, error) {
+	if profilerSpec.Java == nil {
+		return "", fmt.Errorf("java profiler not specified")
 	}
 
 	port, err := GetAvailablePort()
 	if err != nil {
-		return javaProfilerStatus, err
+		return "", err
 	}
+	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	switch {
-	case javaProfilerSpec.Type == diagnosisv1.ArthasJavaProfilerType:
-		return javaProfilerStatus, fmt.Errorf("arthas java profiler not implemented")
-	case javaProfilerSpec.Type == diagnosisv1.MemoryAnalyzerJavaProfilerType:
+	case profilerSpec.Java.Type == diagnosisv1.ArthasJavaProfilerType:
+		return "", fmt.Errorf("arthas java profiler not implemented")
+	case profilerSpec.Java.Type == diagnosisv1.MemoryAnalyzerJavaProfilerType:
 		// Validate the hprof file path.
-		if !filepath.IsAbs(javaProfilerSpec.HPROFFilePath) {
-			return javaProfilerStatus, fmt.Errorf("hprof file path is not absolute")
+		if !filepath.IsAbs(profilerSpec.Java.HPROFFilePath) {
+			return "", fmt.Errorf("hprof file path is not absolute")
 		}
-		fileInfo, err := os.Stat(javaProfilerSpec.HPROFFilePath)
+		fileInfo, err := os.Stat(profilerSpec.Java.HPROFFilePath)
 		if os.IsNotExist(err) {
-			return javaProfilerStatus, fmt.Errorf("hprof file does not exist")
+			return "", fmt.Errorf("hprof file does not exist")
 		}
 
 		// Create directory to store profiler result.
@@ -984,43 +974,37 @@ func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.Pro
 		if _, err := os.Stat(dirname); os.IsNotExist(err) {
 			err := os.MkdirAll(dirname, os.ModePerm)
 			if err != nil {
-				return javaProfilerStatus, err
+				return "", err
 			}
 		}
 
 		// Collect hprof file.
-		_, err = BlockingRunCommandWithTimeout([]string{"mv", javaProfilerSpec.HPROFFilePath, dirname}, profilerSpec.TimeoutSeconds)
+		_, err = BlockingRunCommandWithTimeout([]string{"mv", profilerSpec.Java.HPROFFilePath, dirname}, profilerSpec.TimeoutSeconds)
 		if err != nil {
-			return javaProfilerStatus, fmt.Errorf("collect hprof file %s with error %v", javaProfilerSpec.HPROFFilePath, err)
+			return "", fmt.Errorf("collect hprof file %s with error %v", profilerSpec.Java.HPROFFilePath, err)
 		}
 
 		// Parse hprof file with eclipse memory analyzer.
 		hprofFilePath := filepath.Join(dirname, fileInfo.Name())
 		err = ParseHPROFFile(dirname, hprofFilePath, profilerSpec.TimeoutSeconds)
 		if err != nil {
-			return javaProfilerStatus, err
+			return "", err
 		}
 
 		// Decompress result archives from hprof files by executing "unzip" command.
 		leakSuspectsDirectoryPath, systemOverviewDirectoryPath, topComponentsDirectoryPath, err := DecompressHPROFFileArchives(dirname, fileInfo, profilerSpec.TimeoutSeconds)
 		if err != nil {
-			return javaProfilerStatus, err
+			return "", err
 		}
 
 		// Start memory analyzer http server with leak suspects, system overview and top components files.
-		endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 		err = StartMemoryAnalyzerHTTPServer(name, namespace, profilerSpec, endpoint, leakSuspectsDirectoryPath, systemOverviewDirectoryPath, topComponentsDirectoryPath, cli, log)
 		if err != nil {
-			return javaProfilerStatus, err
-		}
-
-		// Set http endpoint of java profiling interactive web interface.
-		javaProfilerStatus.MemoryAnalyzer = &diagnosisv1.MemoryAnalyzerProfilerStatus{
-			Endpoint: endpoint,
+			return "", err
 		}
 	}
 
-	return javaProfilerStatus, nil
+	return endpoint, nil
 }
 
 // SystemdUnitProperties returns a slice which contains all properties of specified systemd unit.
@@ -1189,8 +1173,7 @@ func SetProfilerExipred(name string, namespace string, profilerSpec diagnosisv1.
 
 	for i := 0; i < len(abnormal.Status.Profilers); i++ {
 		if abnormal.Status.Profilers[i].Name == profilerSpec.Name && abnormal.Status.Profilers[i].Type == profilerSpec.Type {
-			abnormal.Status.Profilers[i].Expired = true
-			break
+			abnormal.Status.Profilers[i].Endpoint = ProfilerEndpointExpiredValue
 		}
 	}
 

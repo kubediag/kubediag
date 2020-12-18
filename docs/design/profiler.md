@@ -17,9 +17,7 @@ Abnormal 中的 `.status.profilers` 是一个包含多个 `ProfilerStatus` 的�
 
 * `name`：性能剖析器名称，与 `ProfilerSpec` 保持一致。
 * `type`：性能剖析器的类型，与 `ProfilerSpec` 保持一致。
-* `go`：Go 语言性能剖析器的执行结果。
-* `java`：Java 语言性能剖析器的执行结果。
-* `expired`：性能剖析器服务是否过期。
+* `endpoint`：用于暴露性能剖析结果的服务地址。如果性能剖析器服务过期，则该字段被更新为 `expired`。
 * `error`：性能剖析的错误，如果性能剖析执行成功该字段则为空。
 
 ### Go 语言性能剖析器
@@ -27,10 +25,6 @@ Abnormal 中的 `.status.profilers` 是一个包含多个 `ProfilerStatus` 的�
 Go 语言性能剖析的目标状态被定义在 `GoProfilerSpec` 中，`GoProfilerSpec` 的字段包括：
 
 * `source`：Go 语言性能剖析数据的获取地址，必须是一个暴露 `pprof` 数据接口。
-
-Go 语言性能剖析的执行结果被定义在 `GoProfilerStatus` 中，`GoProfilerStatus` 的字段包括：
-
-* `endpoint`：用于暴露 Go 语言性能剖析结果的服务地址。
 
 ### Java 语言性能剖析器
 
@@ -44,13 +38,7 @@ Java 语言性能剖析的目标状态被定义在 `JavaProfilerSpec` 中，`Jav
 * `type`：Java 语言性能剖析器的类型，该字段支持 Arthas 和 MemoryAnalyzer。
 * `hprofFilePath`：HPROF 文件的绝对路径，MemoryAnalyzer 类型必须指定。
 
-Java 语言性能剖析的执行结果被定义在 `JavaProfilerStatus` 中，`JavaProfilerStatus` 的字段包括：
-
-* `type`：Java 语言性能剖析器的类型，与 `JavaProfilerSpec` 保持一致。
-* `arthas`：Arthas 进行性能剖析的结果，执行过程中的错误会被写入 `ProfilerStatus`。
-* `memoryAnalyzer`：Eclipse Memory Analyzer 进行性能剖析的结果，执行过程中的错误会被写入 `ProfilerStatus`。
-
-### 如何使用 Go 语言性能剖析器
+## 如何使用 Go 语言性能剖析器
 
 用户可以创建 Abnormal 并在 `.spec.profilers` 字段中包含需要执行的 Go 语言性能剖析器，一个典型的 Abnormal 如下所示：
 
@@ -71,22 +59,31 @@ spec:
   nodeName: 10.177.16.22
 ```
 
-该 Abnormal 定义了一个需要执行的 Go 语言内存性能剖析。Go 语言程序的性能剖析数据访问地址为 `http://127.0.0.1:8090/debug/pprof/heap`，性能剖析执行的超时时间为300秒。性能剖析的执行结果结果会被同步到 `.status.profilers` 字段：
+该 Abnormal 定义了一个需要执行的 Go 语言内存性能剖析。Go 语言程序的性能剖析数据访问地址为 `http://127.0.0.1:8090/debug/pprof/heap`，性能剖析执行的超时时间为300秒。性能剖析的执行结果会被同步到 `.status.profilers` 字段：
 
 ```yaml
 status:
   profilers:
-  - go:
-      endpoint: 10.177.16.22:41609
+  - endpoint: 10.177.16.22:41609
     name: go-profiler
     type: InformationCollector
   recoverable: true
   startTime: "2020-09-10T09:30:59Z"
 ```
 
-性能剖析执行后可以通过 `10.177.16.22:41609` 地址访问性能剖析结果，该性能剖析的服务进程会在7200秒后终止。
+性能剖析执行后可以通过 `10.177.16.22:41609` 地址访问性能剖析结果，该性能剖析的服务进程会在7200秒后终止。终止后 `.status.profilers` 字段会被更新：
 
-### 如何使用 Java 语言性能剖析器
+```yaml
+status:
+  profilers:
+  - endpoint: expired
+    name: go-profiler
+    type: InformationCollector
+  recoverable: true
+  startTime: "2020-09-10T09:30:59Z"
+```
+
+## 如何使用 Java 语言性能剖析器
 
 用户可以创建 Abnormal 并在 `.spec.profilers` 字段中包含需要执行的 Java 语言性能剖析器，一个典型的 Abnormal 如下所示：
 
@@ -111,19 +108,26 @@ spec:
   nodeName: 10.177.16.22
 ```
 
-该 Abnormal 定义了一个需要执行的 Java 语言内存性能剖析。该性能剖析的目标 Pod 为 `java-app`，目标 Pod 所在节点为 `10.177.16.22`，性能剖析类型为 `MemoryAnalyzer`，性能剖析执行的超时时间为300秒。需要分析的 HPROF 文件在节点上的绝对路径为 `/dump/heap.hprof`。性能剖析的执行结果结果会被同步到 `.status.profilers` 字段：
+该 Abnormal 定义了一个需要执行的 Java 语言内存性能剖析。该性能剖析的目标 Pod 为 `java-app`，目标 Pod 所在节点为 `10.177.16.22`，性能剖析类型为 `MemoryAnalyzer`，性能剖析执行的超时时间为300秒。需要分析的 HPROF 文件在节点上的绝对路径为 `/dump/heap.hprof`。性能剖析的执行结果会被同步到 `.status.profilers` 字段：
 
 ```yaml
 status:
   phase: Succeeded
   profilers:
-  - java:
-      memoryAnalyzer:
-        endpoint: 10.177.16.22:44935
-      type: MemoryAnalyzer
+  - endpoint: 10.177.16.22:44935
     name: java-profiler
     type: InformationCollector
   startTime: "2020-12-14T06:08:20Z"
 ```
 
-性能剖析执行后可以通过 `10.177.16.22:44935` 地址访问性能剖析结果，该性能剖析的服务进程会在7200秒后终止。
+性能剖析执行后可以通过 `10.177.16.22:44935` 地址访问性能剖析结果，该性能剖析的服务进程会在7200秒后终止。终止后 `.status.profilers` 字段会被更新：
+
+```yaml
+status:
+  phase: Succeeded
+  profilers:
+  - endpoint: expired
+    name: java-profiler
+    type: InformationCollector
+  startTime: "2020-12-14T06:08:20Z"
+```

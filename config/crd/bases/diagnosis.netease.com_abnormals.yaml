@@ -535,58 +535,13 @@ spec:
               items:
                 description: ProfilerStatus is the profiler status.
                 properties:
+                  endpoint:
+                    description: Endpoint specifies how to navigate through a profile.
+                      It will be set as expired after expiration seconds.
+                    type: string
                   error:
                     description: Error is the profiler error.
                     type: string
-                  expired:
-                    description: Expired indicates if the profiler endpoint has expired.
-                    type: boolean
-                  go:
-                    description: One and only one of the following programming languages
-                      should be specified. Go is the result of go profiler.
-                    properties:
-                      endpoint:
-                        description: Endpoint specifies how to navigate through a
-                          performance profile.
-                        type: string
-                    required:
-                    - endpoint
-                    type: object
-                  java:
-                    description: Java is the status of java profiler.
-                    properties:
-                      arthas:
-                        description: One and only one of the following java profiler
-                          should be specified. Arthas is the result of arthas java
-                          profiler.
-                        properties:
-                          endpoint:
-                            description: Endpoint specifies how to navigate through
-                              web console of arthas.
-                            type: string
-                        required:
-                        - endpoint
-                        type: object
-                      memoryAnalyzer:
-                        description: MemoryAnalyzer is the result of eclipse memory
-                          analyzer java profiler.
-                        properties:
-                          endpoint:
-                            description: Endpoint specifies how to navigate through
-                              web of eclipse memory analyzer results.
-                            type: string
-                        required:
-                        - endpoint
-                        type: object
-                      type:
-                        description: "Type is the type of the java profiler. There
-                          are two possible type values: \n Arthas: The profiler will
-                          be run by arthas. MemoryAnalyzer: The profiler will be run
-                          by eclipse memory analyzer."
-                        type: string
-                    required:
-                    - type
-                    type: object
                   name:
                     description: Name specifies the name of a profiler.
                     type: string
@@ -598,6 +553,7 @@ spec:
                       be run by recoverer chain."
                     type: string
                 required:
+                - endpoint
                 - name
                 - type
                 type: object

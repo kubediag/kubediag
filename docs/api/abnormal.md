@@ -134,33 +134,5 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | ----- | ----------- | ------ | -------- |
 | name | 性能剖析器名称。与 ProfilerSpec 保持一致。 | string | true |
 | type | 性能剖析器的类型。与 ProfilerSpec 保持一致。 | string | true |
-| go | Go 语言性能剖析器执行结果。 | [GoProfilerStatus](#goprofilerstatus) | false |
-| java | Java 语言性能剖析器执行结果。 | [JavaProfilerStatus](#javaprofilerstatus) | false |
-| expired | 性能剖析器服务是否过期。 | bool | false |
+| endpoint | 查看性能剖析结果的地址。性能剖析器服务过期后该字段被更新为 expired。 | string | true |
 | error | 性能剖析执行的错误。 | string | false |
-
-## GoProfilerStatus
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| endpoint | 查看 Go 语言性能剖析结果的地址。 | string | true |
-
-## JavaProfilerStatus
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| type | Java 语言性能剖析器的类型。与 JavaProfilerSpec 保持一致。 | string | true |
-| arthas | Arthas 类型 Java 语言性能剖析器执行结果。 | [ArthasProfilerStatus](#arthasprofilerstatus) | false |
-| memoryAnalyzer | MemoryAnalyzer 类型 Java 语言性能剖析器执行结果。 | [MemoryAnalyzerProfilerStatus](#memoryanalyzerprofilerstatus) | false |
-
-## ArthasProfilerStatus
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| endpoint | 查看 Arthas 类型 Java 语言性能剖析结果的地址。 | string | true |
-
-## MemoryAnalyzerProfilerStatus
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| endpoint | 查看 MemoryAnalyzer 类型 Java 语言性能剖析结果的地址。 | string | true |
