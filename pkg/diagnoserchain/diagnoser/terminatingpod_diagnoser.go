@@ -97,8 +97,15 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		// Get all containerd shim processes from pods which are not terminated by deadline.
+		// Get all containerd shim processes from pods which are not terminated by deadline. Response with
+		// request payload of abnormal if abnormal pods not found.
 		abnormalPods := td.getAbnormalPods(pods)
+		if len(abnormalPods) == 0 {
+			td.Info("abnormal pods not found")
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(body)
+			return
+		}
 		abnormalShimProcesses, found := td.getContainerdShimProcessesFromPods(abnormalPods, processes)
 		if !found {
 			http.Error(w, fmt.Sprintf("containerd shim processes of abnormal pods not found"), http.StatusInternalServerError)
