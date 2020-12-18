@@ -308,53 +308,12 @@ type ProfilerStatus struct {
 	// Diagnoser: The profiler will be run by diagnoser chain.
 	// Recoverer: The profiler will be run by recoverer chain.
 	Type AbnormalProcessorType `json:"type"`
-	// One and only one of the following programming languages should be specified.
-	// Go is the result of go profiler.
-	// +optional
-	Go *GoProfilerStatus `json:"go,omitempty"`
-	// Java is the status of java profiler.
-	// +optional
-	Java *JavaProfilerStatus `json:"java,omitempty"`
-	// Expired indicates if the profiler endpoint has expired.
-	// +optional
-	Expired bool `json:"expired,omitempty"`
+	// Endpoint specifies how to navigate through a profile.
+	// It will be set as expired after expiration seconds.
+	Endpoint string `json:"endpoint"`
 	// Error is the profiler error.
 	// +optional
 	Error string `json:"error,omitempty"`
-}
-
-// GoProfilerStatus is the result of go profiler.
-type GoProfilerStatus struct {
-	// Endpoint specifies how to navigate through a performance profile.
-	Endpoint string `json:"endpoint"`
-}
-
-// JavaProfilerStatus is the status of java profiler.
-type JavaProfilerStatus struct {
-	// Type is the type of the java profiler. There are two possible type values:
-	//
-	// Arthas: The profiler will be run by arthas.
-	// MemoryAnalyzer: The profiler will be run by eclipse memory analyzer.
-	Type JavaProfilerType `json:"type"`
-	// One and only one of the following java profiler should be specified.
-	// Arthas is the result of arthas java profiler.
-	// +optional
-	Arthas *ArthasProfilerStatus `json:"arthas,omitempty"`
-	// MemoryAnalyzer is the result of eclipse memory analyzer java profiler.
-	// +optional
-	MemoryAnalyzer *MemoryAnalyzerProfilerStatus `json:"memoryAnalyzer,omitempty"`
-}
-
-// ArthasProfilerStatus is the result of arthas java profiler.
-type ArthasProfilerStatus struct {
-	// Endpoint specifies how to navigate through web console of arthas.
-	Endpoint string `json:"endpoint"`
-}
-
-// MemoryAnalyzerProfilerStatus is the result of eclipse memory analyzer java profiler.
-type MemoryAnalyzerProfilerStatus struct {
-	// Endpoint specifies how to navigate through web of eclipse memory analyzer results.
-	Endpoint string `json:"endpoint"`
 }
 
 // AbnormalCondition contains details for the current condition of this abnormal.

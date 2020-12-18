@@ -56,7 +56,7 @@ spec:
 * `du -sh /`：该命令会在 `Diagnosing` 阶段被执行，执行超时时间为10秒。
 * `kill -10 1000`：该命令会在 `Recovering` 阶段被执行，执行超时时间为5秒。
 
-命令的执行结果结果会被同步到 `.status.commandExecutors` 字段：
+命令的执行结果会被同步到 `.status.commandExecutors` 字段：
 
 ```yaml
 status:
