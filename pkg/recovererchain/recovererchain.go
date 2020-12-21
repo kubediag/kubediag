@@ -112,6 +112,8 @@ type recovererChain struct {
 	nodeName string
 	// transport is the transport for sending http requests to recoverers.
 	transport *http.Transport
+	// bindAddress is the address on which to advertise.
+	bindAddress string
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
 	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
@@ -127,6 +129,7 @@ func NewRecovererChain(
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
+	bindAddress string,
 	dataRoot string,
 	recovererChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
@@ -157,6 +160,7 @@ func NewRecovererChain(
 		cache:            cache,
 		nodeName:         nodeName,
 		transport:        transport,
+		bindAddress:      bindAddress,
 		dataRoot:         dataRoot,
 		recovererChainCh: recovererChainCh,
 	}
@@ -300,7 +304,7 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 	// Run profiler of Recoverer type.
 	for _, profilerSpec := range abnormal.Spec.Profilers {
 		if profilerSpec.Type == diagnosisv1.RecovererType {
-			profilerStatus, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, rc.dataRoot, profilerSpec, abnormal.Spec.PodReference, rc.client, rc)
+			profilerStatus, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, rc.bindAddress, rc.dataRoot, profilerSpec, abnormal.Spec.PodReference, rc.client, rc)
 			if err != nil {
 				recovererChainProfilerFailCount.Inc()
 				rc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{

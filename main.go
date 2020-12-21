@@ -68,16 +68,18 @@ var (
 type KubeDiagnoserOptions struct {
 	// Mode specifies whether the kube diagnoser is running as a master or an agnet.
 	Mode string
-	// Address is the address on which to advertise.
-	Address string
+	// BindAddress is the address on which to advertise.
+	BindAddress string
+	// Port is the port for the kube diagnoser to serve on.
+	Port int
 	// NodeName specifies the node name.
 	NodeName string
-	// MetricsAddress is the address the metric endpoint binds to.
-	MetricsAddress string
+	// MetricsPort is the port the metric endpoint to serve on.
+	MetricsPort int
 	// EnableLeaderElection enables leader election for kube diagnoser master.
 	EnableLeaderElection bool
-	// Port is the port that the webhook server serves at.
-	Port int
+	// WebhookPort is the port that the webhook server serves at.
+	WebhookPort int
 	// Host is the hostname that the webhook server binds to.
 	Host string
 	// CertDir is the directory that contains the server key and certificate.
@@ -156,10 +158,11 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 
 	return &KubeDiagnoserOptions{
 		Mode:                       "agent",
-		Address:                    "0.0.0.0:8090",
-		MetricsAddress:             "0.0.0.0:10357",
+		BindAddress:                "0.0.0.0",
+		Port:                       8090,
+		MetricsPort:                10357,
 		EnableLeaderElection:       false,
-		Port:                       9443,
+		WebhookPort:                9443,
 		CertDir:                    defaultCertDir,
 		AlertmanagerRepeatInterval: 6 * time.Hour,
 		ClusterHealthEvaluatorHousekeepingInterval: 30 * time.Second,
@@ -187,8 +190,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
-			MetricsBindAddress: opts.MetricsAddress,
-			Port:               opts.Port,
+			MetricsBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.MetricsPort),
+			Port:               opts.WebhookPort,
 			Host:               opts.Host,
 			CertDir:            opts.CertDir,
 			LeaderElection:     opts.EnableLeaderElection,
@@ -264,7 +267,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
-			if err := http.ListenAndServe(opts.Address, r); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", opts.BindAddress, opts.Port), r); err != nil {
 				setupLog.Error(err, "unable to start http server")
 				close(stopCh)
 			}
@@ -333,7 +336,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
-			MetricsBindAddress: opts.MetricsAddress,
+			MetricsBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.MetricsPort),
 			LeaderElection:     false,
 			LeaderElectionID:   "8a2b2861.netease.com",
 		})
@@ -358,6 +361,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.BindAddress,
 			opts.DataRoot,
 			informationManagerCh,
 		)
@@ -372,6 +376,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.BindAddress,
 			opts.DataRoot,
 			diagnoserChainCh,
 		)
@@ -386,6 +391,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
+			opts.BindAddress,
 			opts.DataRoot,
 			recovererChainCh,
 		)
@@ -476,7 +482,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
-			if err := http.ListenAndServe(opts.Address, r); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", opts.BindAddress, opts.Port), r); err != nil {
 				setupLog.Error(err, "unable to start http server")
 				close(stopCh)
 			}
@@ -537,12 +543,13 @@ func (opts *KubeDiagnoserOptions) Run() error {
 // AddFlags adds flags to fs and binds them to options.
 func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kube diagnoser is running as a master or an agnet.")
-	fs.StringVar(&opts.Address, "address", opts.Address, "The address on which to advertise.")
+	fs.StringVar(&opts.BindAddress, "bind-address", opts.BindAddress, "The address on which to advertise.")
+	fs.IntVar(&opts.Port, "port", opts.Port, "The port for the kube diagnoser to serve on.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
-	fs.StringVar(&opts.MetricsAddress, "metrics-address", opts.MetricsAddress, "The address the metric endpoint binds to.")
+	fs.IntVar(&opts.MetricsPort, "metrics-port", opts.MetricsPort, "The port the metric endpoint to serve on.")
 	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
-	fs.IntVar(&opts.Port, "port", opts.Port, "The port that the webhook server serves at.")
+	fs.IntVar(&opts.WebhookPort, "webhook-port", opts.WebhookPort, "The port that the webhook server serves at.")
 	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")

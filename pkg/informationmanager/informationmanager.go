@@ -112,6 +112,8 @@ type informationManager struct {
 	nodeName string
 	// transport is the transport for sending http requests to information collectors.
 	transport *http.Transport
+	// bindAddress is the address on which to advertise.
+	bindAddress string
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
 	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
@@ -127,6 +129,7 @@ func NewInformationManager(
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
+	bindAddress string,
 	dataRoot string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
@@ -157,6 +160,7 @@ func NewInformationManager(
 		cache:                cache,
 		nodeName:             nodeName,
 		transport:            transport,
+		bindAddress:          bindAddress,
 		dataRoot:             dataRoot,
 		informationManagerCh: informationManagerCh,
 	}
@@ -308,7 +312,7 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 	// Run profiler of InformationCollector type.
 	for _, profilerSpec := range abnormal.Spec.Profilers {
 		if profilerSpec.Type == diagnosisv1.InformationCollectorType {
-			profilerStatus, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, im.dataRoot, profilerSpec, abnormal.Spec.PodReference, im.client, im)
+			profilerStatus, err := util.RunProfiler(im, abnormal.Name, abnormal.Namespace, im.bindAddress, im.dataRoot, profilerSpec, abnormal.Spec.PodReference, im.client, im)
 			if err != nil {
 				informationManagerProfilerFailCount.Inc()
 				im.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
