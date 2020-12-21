@@ -27,10 +27,16 @@ spec:
         - /kube-diagnoser
         args:
         - --mode=master
-        - --address=0.0.0.0:8089
-        - --metrics-address=0.0.0.0:10357
+        - --bind-address=$(POD_IP)
+        - --port=8089
+        - --metrics-port=10357
         - --enable-leader-election=true
         image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         name: kube-diagnoser
         ports:
         - containerPort: 10357
@@ -103,8 +109,9 @@ spec:
         - /kube-diagnoser
         args:
         - --mode=agent
-        - --address=0.0.0.0:8090
-        - --metrics-address=0.0.0.0:10355
+        - --bind-address=$(POD_IP)
+        - --port=8090
+        - --metrics-port=10355
         - --data-root=/var/lib/kube-diagnoser
         - --node-name=$(NODE_NAME)
         image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
@@ -113,6 +120,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         name: kube-diagnoser
         ports:
         - containerPort: 10355

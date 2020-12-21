@@ -846,7 +846,7 @@ func RunCommandExecutor(commandExecutorSpec diagnosisv1.CommandExecutorSpec, log
 }
 
 // RunProfiler runs profiling and updates the result into profiler.
-func RunProfiler(ctx context.Context, name string, namespace string, dataRoot string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, cli client.Client, log logr.Logger) (diagnosisv1.ProfilerStatus, error) {
+func RunProfiler(ctx context.Context, name string, namespace string, bindAddress string, dataRoot string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, cli client.Client, log logr.Logger) (diagnosisv1.ProfilerStatus, error) {
 	profilerStatus := diagnosisv1.ProfilerStatus{
 		Name: profilerSpec.Name,
 		Type: profilerSpec.Type,
@@ -854,14 +854,14 @@ func RunProfiler(ctx context.Context, name string, namespace string, dataRoot st
 
 	switch {
 	case profilerSpec.Go != nil:
-		endpoint, err := RunGoProfiler(name, namespace, profilerSpec, cli, log)
+		endpoint, err := RunGoProfiler(name, namespace, bindAddress, profilerSpec, cli, log)
 		if err != nil {
 			profilerStatus.Error = err.Error()
 			return profilerStatus, err
 		}
 		profilerStatus.Endpoint = endpoint
 	case profilerSpec.Java != nil:
-		endpoint, err := RunJavaProfiler(name, namespace, profilerSpec, podReference, dataRoot, cli, log)
+		endpoint, err := RunJavaProfiler(name, namespace, bindAddress, profilerSpec, podReference, dataRoot, cli, log)
 		if err != nil {
 			profilerStatus.Error = err.Error()
 			return profilerStatus, err
@@ -877,7 +877,7 @@ func RunProfiler(ctx context.Context, name string, namespace string, dataRoot st
 }
 
 // RunGoProfiler runs go profiling with timeout and updates the result into go profiler.
-func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (string, error) {
+func RunGoProfiler(name string, namespace string, bindAddress string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (string, error) {
 	if profilerSpec.Go == nil {
 		return "", fmt.Errorf("go profiler not specified")
 	}
@@ -886,7 +886,7 @@ func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.Profi
 	if err != nil {
 		return "", err
 	}
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
+	endpoint := fmt.Sprintf("%s:%d", bindAddress, port)
 
 	var buf bytes.Buffer
 	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), profilerSpec.Go.Source)
@@ -939,7 +939,7 @@ func RunGoProfiler(name string, namespace string, profilerSpec diagnosisv1.Profi
 }
 
 // RunJavaProfiler runs java profiling with timeout and updates the result into java profiler.
-func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (string, error) {
+func RunJavaProfiler(name string, namespace string, bindAddress string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (string, error) {
 	if profilerSpec.Java == nil {
 		return "", fmt.Errorf("java profiler not specified")
 	}
@@ -948,7 +948,7 @@ func RunJavaProfiler(name string, namespace string, profilerSpec diagnosisv1.Pro
 	if err != nil {
 		return "", err
 	}
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
+	endpoint := fmt.Sprintf("%s:%d", bindAddress, port)
 
 	switch {
 	case profilerSpec.Java.Type == diagnosisv1.ArthasJavaProfilerType:
