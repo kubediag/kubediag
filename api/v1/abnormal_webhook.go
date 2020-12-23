@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"path/filepath"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -138,6 +140,19 @@ func (r *Abnormal) validateAbnormal() error {
 				profilerSpec.Type != RecovererType {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("type"),
 					r.Spec.Profilers[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
+			}
+			if profilerSpec.Java != nil {
+				if profilerSpec.Java.Type != ArthasJavaProfilerType &&
+					profilerSpec.Java.Type != MemoryAnalyzerJavaProfilerType {
+					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("java").Child("type"),
+						r.Spec.Profilers[i].Java.Type, "must be Arthas or MemoryAnalyzer"))
+				}
+				if profilerSpec.Java.Type == MemoryAnalyzerJavaProfilerType {
+					if !filepath.IsAbs(profilerSpec.Java.HPROFFilePath) {
+						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("java").Child("hprofFilePath"),
+							r.Spec.Profilers[i].Java.HPROFFilePath, "must be an absolute path"))
+					}
+				}
 			}
 			if profilerSpec.TimeoutSeconds <= 0 {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("timeoutSeconds"),
