@@ -4,8 +4,6 @@ metadata:
   name: pod-collector
   namespace: kube-diagnoser
 spec:
-  ip: 0.0.0.0
-  port: 8090
   path: /informationcollector/podcollector
   scheme: http
   timeoutSeconds: 60

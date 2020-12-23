@@ -4,8 +4,6 @@ metadata:
   name: process-collector
   namespace: kube-diagnoser
 spec:
-  ip: 0.0.0.0
-  port: 8090
   path: /informationcollector/processcollector
   scheme: http
   timeoutSeconds: 120

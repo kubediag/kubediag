@@ -36,16 +36,16 @@ spec:
         spec:
           description: RecovererSpec defines the desired state of Recoverer.
           properties:
-            ip:
-              description: IP is the serving ip of the recoverer.
+            externalIP:
+              description: ExternalIP is the external serving ip of the recoverer.
               type: string
+            externalPort:
+              description: ExternalPort is the external serving port of the recoverer.
+              format: int32
+              type: integer
             path:
               description: Path is the serving http path of recoverer.
               type: string
-            port:
-              description: Port is the serving port of the recoverer.
-              format: int32
-              type: integer
             scheme:
               description: Scheme is the serving scheme of recoverer.
               type: string
@@ -54,36 +54,6 @@ spec:
                 Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
-          required:
-          - ip
-          - port
-          type: object
-        status:
-          description: RecovererStatus defines the observed state of Recoverer.
-          properties:
-            lastRecovery:
-              description: LastRecovery contains details about last recovery executed
-                by this recoverer.
-              properties:
-                abnormal:
-                  description: Abnormal specifies details about last abnormal which
-                    has been successfully recovered.
-                  type: object
-                endTime:
-                  description: EndTime specifies the known end time for this recovery.
-                  format: date-time
-                  type: string
-                startTime:
-                  description: StartTime specifies the known start time for this recovery.
-                  format: date-time
-                  type: string
-              type: object
-            ready:
-              description: Ready specifies whether the recoverer has passed its readiness
-                probe.
-              type: boolean
-          required:
-          - ready
           type: object
       type: object
   version: v1

@@ -37,20 +37,18 @@ spec:
         spec:
           description: InformationCollectorSpec defines the desired state of InformationCollector.
           properties:
-            ip:
-              description: IP is the serving ip of the information collector.
-              type: string
-            metricPath:
-              description: MetricPath is the prometheus metric path of information
+            externalIP:
+              description: ExternalIP is the external serving ip of the information
                 collector.
               type: string
+            externalPort:
+              description: ExternalPort is the external serving port of the information
+                collector.
+              format: int32
+              type: integer
             path:
               description: Path is the serving http path of information collector.
               type: string
-            port:
-              description: Port is the serving port of the information collector.
-              format: int32
-              type: integer
             scheme:
               description: Scheme is the serving scheme of information collector.
               type: string
@@ -59,19 +57,6 @@ spec:
                 times out. Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
-          required:
-          - ip
-          - port
-          type: object
-        status:
-          description: InformationCollectorStatus defines the observed state of InformationCollector.
-          properties:
-            ready:
-              description: Ready specifies whether the information collector has passed
-                its readiness probe.
-              type: boolean
-          required:
-          - ready
           type: object
       type: object
   version: v1

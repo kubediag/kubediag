@@ -4,8 +4,6 @@ metadata:
   name: terminating-pod-diagnoser
   namespace: kube-diagnoser
 spec:
-  ip: 0.0.0.0
-  port: 8090
   path: /diagnoser/terminatingpoddiagnoser
   scheme: http
   timeoutSeconds: 60
