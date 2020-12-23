@@ -15,29 +15,13 @@ Diagnoser 用于表示故障分析器实例。
 | ----- | ----------- | ------ | -------- |
 | metadata | API 资源元数据。 | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta) | false |
 | spec | 故障分析器的说明。 | [DiagnoserSpec](#diagnoserspec) | true |
-| status | 故障分析器当前的状态。 | [DiagnoserStatus](#diagnoserstatus) | true |
 
 ## DiagnoserSpec
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| ip | 故障分析器的监听 IP。 | string | true |
-| port | 故障分析器的监听端口。 | string | true |
+| externalIP | 外部故障分析器的监听 IP。 | string | false |
+| externalPort | 外部故障分析器的监听端口。 | string | false |
 | path | 故障分析器的 HTTP 路径。 | string | false |
 | scheme | 故障分析器的 HTTP 协议。 | string | false |
 | timeoutSeconds | 故障分析器执行超时时间。 | int32 | false |
-
-## DiagnoserStatus
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| ready | 故障分析器是否就绪。 | bool | true |
-| lastDiagnosis | 故障分析器上次进行分析详情。 | [Diagnosis](#diagnosis) | false |
-
-## Diagnosis
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| startTime | 分析开始的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| endTime | 分析结束的时间。 | [metav1.Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta) | false |
-| abnormal | 分析的故障。 | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta) | false |
