@@ -362,6 +362,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.NodeName,
 			opts.BindAddress,
+			opts.Port,
 			opts.DataRoot,
 			informationManagerCh,
 		)
@@ -377,6 +378,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.NodeName,
 			opts.BindAddress,
+			opts.Port,
 			opts.DataRoot,
 			diagnoserChainCh,
 		)
@@ -392,6 +394,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			mgr.GetCache(),
 			opts.NodeName,
 			opts.BindAddress,
+			opts.Port,
 			opts.DataRoot,
 			recovererChainCh,
 		)

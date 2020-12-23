@@ -22,16 +22,15 @@ import (
 
 // InformationCollectorSpec defines the desired state of InformationCollector.
 type InformationCollectorSpec struct {
-	// IP is the serving ip of the information collector.
-	IP string `json:"ip"`
-	// Port is the serving port of the information collector.
-	Port int32 `json:"port"`
+	// ExternalIP is the external serving ip of the information collector.
+	// +optional
+	ExternalIP *string `json:"externalIP,omitempty"`
+	// ExternalPort is the external serving port of the information collector.
+	// +optional
+	ExternalPort *int32 `json:"externalPort,omitempty"`
 	// Path is the serving http path of information collector.
 	// +optional
 	Path string `json:"path,omitempty"`
-	// MetricPath is the prometheus metric path of information collector.
-	// +optional
-	MetricPath string `json:"metricPath,omitempty"`
 	// Scheme is the serving scheme of information collector.
 	// +optional
 	Scheme string `json:"scheme,omitempty"`
@@ -39,12 +38,6 @@ type InformationCollectorSpec struct {
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
-}
-
-// InformationCollectorStatus defines the observed state of InformationCollector.
-type InformationCollectorStatus struct {
-	// Ready specifies whether the information collector has passed its readiness probe.
-	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true
@@ -55,8 +48,7 @@ type InformationCollector struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InformationCollectorSpec   `json:"spec,omitempty"`
-	Status InformationCollectorStatus `json:"status,omitempty"`
+	Spec InformationCollectorSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
