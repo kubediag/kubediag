@@ -114,6 +114,8 @@ type diagnoserChain struct {
 	transport *http.Transport
 	// bindAddress is the address on which to advertise.
 	bindAddress string
+	// port is the port for the kube diagnoser to serve on.
+	port int
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
 	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
@@ -130,6 +132,7 @@ func NewDiagnoserChain(
 	cache cache.Cache,
 	nodeName string,
 	bindAddress string,
+	port int,
 	dataRoot string,
 	diagnoserChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
@@ -161,6 +164,7 @@ func NewDiagnoserChain(
 		nodeName:         nodeName,
 		transport:        transport,
 		bindAddress:      bindAddress,
+		port:             port,
 		dataRoot:         dataRoot,
 		diagnoserChainCh: diagnoserChainCh,
 	}
@@ -365,10 +369,20 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 			Namespace: abnormal.Namespace,
 		})
 
-		scheme := strings.ToLower(string(diagnoser.Spec.Scheme))
-		host := diagnoser.Spec.IP
-		port := diagnoser.Spec.Port
+		var host string
+		var port int32
+		if diagnoser.Spec.ExternalIP != nil {
+			host = *diagnoser.Spec.ExternalIP
+		} else {
+			host = dc.bindAddress
+		}
+		if diagnoser.Spec.ExternalPort != nil {
+			port = *diagnoser.Spec.ExternalPort
+		} else {
+			port = int32(dc.port)
+		}
 		path := diagnoser.Spec.Path
+		scheme := strings.ToLower(string(diagnoser.Spec.Scheme))
 		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(diagnoser.Spec.TimeoutSeconds) * time.Second
 

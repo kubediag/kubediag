@@ -22,10 +22,12 @@ import (
 
 // DiagnoserSpec defines the desired state of Diagnoser.
 type DiagnoserSpec struct {
-	// IP is the serving ip of the diagnoser.
-	IP string `json:"ip"`
-	// Port is the serving port of the diagnoser.
-	Port int32 `json:"port"`
+	// ExternalIP is the external serving ip of the diagnoser.
+	// +optional
+	ExternalIP *string `json:"externalIP,omitempty"`
+	// ExternalPort is the external serving port of the diagnoser.
+	// +optional
+	ExternalPort *int32 `json:"externalPort,omitempty"`
 	// Path is the serving http path of diagnoser.
 	// +optional
 	Path string `json:"path,omitempty"`
@@ -38,28 +40,6 @@ type DiagnoserSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// DiagnoserStatus defines the observed state of Diagnoser.
-type DiagnoserStatus struct {
-	// Ready specifies whether the diagnoser has passed its readiness probe.
-	Ready bool `json:"ready"`
-	// LastDiagnosis contains details about last diagnosis executed by this diagnoser.
-	// +optional
-	LastDiagnosis *Diagnosis `json:"lastDiagnosis,omitempty"`
-}
-
-// Diagnosis contains details about a diagnosis.
-type Diagnosis struct {
-	// StartTime specifies the known start time for this diagnosis.
-	// +optional
-	StartTime metav1.Time `json:"startTime,omitempty"`
-	// EndTime specifies the known end time for this diagnosis.
-	// +optional
-	EndTime metav1.Time `json:"endTime,omitempty"`
-	// Abnormal specifies details about last abnormal which has been successfully diagnosed.
-	// +optional
-	Abnormal metav1.ObjectMeta `json:"abnormal,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
@@ -68,8 +48,7 @@ type Diagnoser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DiagnoserSpec   `json:"spec,omitempty"`
-	Status DiagnoserStatus `json:"status,omitempty"`
+	Spec DiagnoserSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

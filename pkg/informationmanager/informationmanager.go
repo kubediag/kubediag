@@ -114,6 +114,8 @@ type informationManager struct {
 	transport *http.Transport
 	// bindAddress is the address on which to advertise.
 	bindAddress string
+	// port is the port for the kube diagnoser to serve on.
+	port int
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
 	// informationManagerCh is a channel for queuing Abnormals to be processed by information manager.
@@ -130,6 +132,7 @@ func NewInformationManager(
 	cache cache.Cache,
 	nodeName string,
 	bindAddress string,
+	port int,
 	dataRoot string,
 	informationManagerCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
@@ -161,6 +164,7 @@ func NewInformationManager(
 		nodeName:             nodeName,
 		transport:            transport,
 		bindAddress:          bindAddress,
+		port:                 port,
 		dataRoot:             dataRoot,
 		informationManagerCh: informationManagerCh,
 	}
@@ -374,10 +378,20 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 			Namespace: abnormal.Namespace,
 		})
 
-		scheme := strings.ToLower(string(collector.Spec.Scheme))
-		host := collector.Spec.IP
-		port := collector.Spec.Port
+		var host string
+		var port int32
+		if collector.Spec.ExternalIP != nil {
+			host = *collector.Spec.ExternalIP
+		} else {
+			host = im.bindAddress
+		}
+		if collector.Spec.ExternalPort != nil {
+			port = *collector.Spec.ExternalPort
+		} else {
+			port = int32(im.port)
+		}
 		path := collector.Spec.Path
+		scheme := strings.ToLower(string(collector.Spec.Scheme))
 		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(collector.Spec.TimeoutSeconds) * time.Second
 

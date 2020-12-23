@@ -49,11 +49,11 @@ const (
 	// AbnormalUnknown means that for some reason the state of the abnormal could not be obtained.
 	AbnormalUnknown AbnormalPhase = "Unknown"
 
-	// InformationCollectorType means that the command executor is an information collector.
+	// InformationCollectorType means that the command executor or profiler is an information collector.
 	InformationCollectorType AbnormalProcessorType = "InformationCollector"
-	// DiagnoserType means that the command executor is an diagnoser.
+	// DiagnoserType means that the command executor or profiler is an diagnoser.
 	DiagnoserType AbnormalProcessorType = "Diagnoser"
-	// RecovererType means that the command executor is an recoverer.
+	// RecovererType means that the command executor or profiler is an recoverer.
 	RecovererType AbnormalProcessorType = "Recoverer"
 
 	// InformationCollected means that the abnormal has been passed to information manager.
@@ -338,7 +338,7 @@ type AbnormalCondition struct {
 // AbnormalPhase is a label for the condition of a abnormal at the current time.
 type AbnormalPhase string
 
-// AbnormalProcessorType is a valid for CommandExecutor.Type.
+// AbnormalProcessorType is a valid value for CommandExecutorSpec.Type or ProfilerSpec.Type.
 type AbnormalProcessorType string
 
 // AbnormalConditionType is a valid value for AbnormalCondition.Type.

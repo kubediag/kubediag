@@ -114,6 +114,8 @@ type recovererChain struct {
 	transport *http.Transport
 	// bindAddress is the address on which to advertise.
 	bindAddress string
+	// port is the port for the kube diagnoser to serve on.
+	port int
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
 	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
@@ -130,6 +132,7 @@ func NewRecovererChain(
 	cache cache.Cache,
 	nodeName string,
 	bindAddress string,
+	port int,
 	dataRoot string,
 	recovererChainCh chan diagnosisv1.Abnormal,
 ) types.AbnormalManager {
@@ -161,6 +164,7 @@ func NewRecovererChain(
 		nodeName:         nodeName,
 		transport:        transport,
 		bindAddress:      bindAddress,
+		port:             port,
 		dataRoot:         dataRoot,
 		recovererChainCh: recovererChainCh,
 	}
@@ -365,10 +369,20 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 			Namespace: abnormal.Namespace,
 		})
 
-		scheme := strings.ToLower(string(recoverer.Spec.Scheme))
-		host := recoverer.Spec.IP
-		port := recoverer.Spec.Port
+		var host string
+		var port int32
+		if recoverer.Spec.ExternalIP != nil {
+			host = *recoverer.Spec.ExternalIP
+		} else {
+			host = rc.bindAddress
+		}
+		if recoverer.Spec.ExternalPort != nil {
+			port = *recoverer.Spec.ExternalPort
+		} else {
+			port = int32(rc.port)
+		}
 		path := recoverer.Spec.Path
+		scheme := strings.ToLower(string(recoverer.Spec.Scheme))
 		url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 		timeout := time.Duration(recoverer.Spec.TimeoutSeconds) * time.Second
 

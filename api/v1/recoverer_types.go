@@ -22,10 +22,12 @@ import (
 
 // RecovererSpec defines the desired state of Recoverer.
 type RecovererSpec struct {
-	// IP is the serving ip of the recoverer.
-	IP string `json:"ip"`
-	// Port is the serving port of the recoverer.
-	Port int32 `json:"port"`
+	// ExternalIP is the external serving ip of the recoverer.
+	// +optional
+	ExternalIP *string `json:"externalIP,omitempty"`
+	// ExternalPort is the external serving port of the recoverer.
+	// +optional
+	ExternalPort *int32 `json:"externalPort,omitempty"`
 	// Path is the serving http path of recoverer.
 	// +optional
 	Path string `json:"path,omitempty"`
@@ -38,28 +40,6 @@ type RecovererSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// RecovererStatus defines the observed state of Recoverer.
-type RecovererStatus struct {
-	// Ready specifies whether the recoverer has passed its readiness probe.
-	Ready bool `json:"ready"`
-	// LastRecovery contains details about last recovery executed by this recoverer.
-	// +optional
-	LastRecovery *Recovery `json:"lastRecovery,omitempty"`
-}
-
-// Recovery contains details about a recovery.
-type Recovery struct {
-	// StartTime specifies the known start time for this recovery.
-	// +optional
-	StartTime metav1.Time `json:"startTime,omitempty"`
-	// EndTime specifies the known end time for this recovery.
-	// +optional
-	EndTime metav1.Time `json:"endTime,omitempty"`
-	// Abnormal specifies details about last abnormal which has been successfully recovered.
-	// +optional
-	Abnormal metav1.ObjectMeta `json:"abnormal,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
@@ -68,8 +48,7 @@ type Recoverer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RecovererSpec   `json:"spec,omitempty"`
-	Status RecovererStatus `json:"status,omitempty"`
+	Spec RecovererSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

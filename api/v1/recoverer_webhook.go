@@ -96,17 +96,26 @@ func (r *Recoverer) ValidateDelete() error {
 func (r *Recoverer) validateRecoverer() error {
 	var allErrs field.ErrorList
 
-	if net.ParseIP(r.Spec.IP) == nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip"),
-			r.Spec.IP, "must be valid ip"))
-	}
-	if r.Spec.Port < 1 || 65535 < r.Spec.Port {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("port"),
-			r.Spec.Port, "must be valid port"))
+	if r.Spec.ExternalIP != nil && r.Spec.ExternalPort != nil {
+		if net.ParseIP(*r.Spec.ExternalIP) == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("externalIP"),
+				r.Spec.ExternalIP, "must be valid ip"))
+		}
+		if *r.Spec.ExternalPort < 1 || 65535 < *r.Spec.ExternalPort {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("externalPort"),
+				r.Spec.ExternalPort, "must be valid port"))
+		}
+	} else if !(r.Spec.ExternalIP == nil && r.Spec.ExternalPort == nil) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec"),
+			r.Spec, "must specify both ip and port"))
 	}
 	if r.Spec.Scheme != "http" && r.Spec.Scheme != "https" {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("scheme"),
 			r.Spec.Scheme, "must be either http or https"))
+	}
+	if r.Spec.TimeoutSeconds <= 0 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("timeoutSeconds"),
+			r.Spec.TimeoutSeconds, "must be more than 0"))
 	}
 	if len(allErrs) == 0 {
 		return nil

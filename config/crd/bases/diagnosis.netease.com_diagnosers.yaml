@@ -36,16 +36,16 @@ spec:
         spec:
           description: DiagnoserSpec defines the desired state of Diagnoser.
           properties:
-            ip:
-              description: IP is the serving ip of the diagnoser.
+            externalIP:
+              description: ExternalIP is the external serving ip of the diagnoser.
               type: string
+            externalPort:
+              description: ExternalPort is the external serving port of the diagnoser.
+              format: int32
+              type: integer
             path:
               description: Path is the serving http path of diagnoser.
               type: string
-            port:
-              description: Port is the serving port of the diagnoser.
-              format: int32
-              type: integer
             scheme:
               description: Scheme is the serving scheme of diagnoser.
               type: string
@@ -54,36 +54,6 @@ spec:
                 Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
-          required:
-          - ip
-          - port
-          type: object
-        status:
-          description: DiagnoserStatus defines the observed state of Diagnoser.
-          properties:
-            lastDiagnosis:
-              description: LastDiagnosis contains details about last diagnosis executed
-                by this diagnoser.
-              properties:
-                abnormal:
-                  description: Abnormal specifies details about last abnormal which
-                    has been successfully diagnosed.
-                  type: object
-                endTime:
-                  description: EndTime specifies the known end time for this diagnosis.
-                  format: date-time
-                  type: string
-                startTime:
-                  description: StartTime specifies the known start time for this diagnosis.
-                  format: date-time
-                  type: string
-              type: object
-            ready:
-              description: Ready specifies whether the diagnoser has passed its readiness
-                probe.
-              type: boolean
-          required:
-          - ready
           type: object
       type: object
   version: v1
