@@ -1053,6 +1053,17 @@ func DiskUsage(path string) (int, error) {
 	return size, nil
 }
 
+// RemoveFile removes a file or a directory by executing "rm" command.
+func RemoveFile(path string) error {
+	command := []string{"rm", "-r", "-f", path}
+	_, err := BlockingRunCommandWithTimeout(command, 60)
+	if err != nil {
+		return fmt.Errorf("execute command rm ($ rm -r -f) on path %s with error %v", path, err)
+	}
+
+	return nil
+}
+
 // ParseHPROFFile parses hprof file with eclipse memory analyzer. The results are stored in zip files under
 // the same directory of hprof file.
 // It takes command working directory, hprof file path and timeout seconds as parameters.

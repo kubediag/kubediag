@@ -413,6 +413,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.AbnormalTTL,
 			opts.MinimumAbnormalTTLDuration,
 			opts.MaximumAbnormalsPerNode,
+			opts.DataRoot,
 		)
 		go func(stopCh chan struct{}) {
 			abnormalReaper.Run(stopCh)
