@@ -18,6 +18,8 @@ package abnormalreaper
 
 import (
 	"context"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -76,6 +78,8 @@ type AbnormalReaper struct {
 	minimumAbnormalTTLDuration time.Duration
 	// maximumAbnormalsPerNode is maximum number of finished abnormals to retain per node.
 	maximumAbnormalsPerNode int32
+	// dataRoot is root directory of persistent kube diagnoser data.
+	dataRoot string
 }
 
 // NewAbnormalReaper creates a new AbnormalReaper.
@@ -89,6 +93,7 @@ func NewAbnormalReaper(
 	abnormalTTL time.Duration,
 	minimumAbnormalTTLDuration time.Duration,
 	maximumAbnormalsPerNode int32,
+	dataRoot string,
 ) *AbnormalReaper {
 	metrics.Registry.MustRegister(
 		abnormalGarbageCollectionSuccessCount,
@@ -106,6 +111,7 @@ func NewAbnormalReaper(
 		abnormalTTL:                abnormalTTL,
 		minimumAbnormalTTLDuration: minimumAbnormalTTLDuration,
 		maximumAbnormalsPerNode:    maximumAbnormalsPerNode,
+		dataRoot:                   dataRoot,
 	}
 }
 
@@ -119,6 +125,8 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 	// The housekeeping interval of garbage collections is a quarter of abnormalTTL.
 	housekeepingInterval := ar.abnormalTTL / 4
 	go wait.Until(func() {
+		ar.Info("running garbage collection")
+
 		// Garbage collect abnormals on node.
 		abnormals, err := ar.listAbnormals()
 		if err != nil {
@@ -133,7 +141,7 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 		retainedAbnormals := make([]diagnosisv1.Abnormal, 0)
 		if len(abnormals) != 0 {
 			for _, abnormal := range abnormals {
-				// Garbage collect the abnormal if it is under any of the folowing conditions:
+				// Garbage collect the abnormal if it is under any of the following conditions:
 				//
 				// Its age is longer than abnormalTTL.
 				// Its age is longer than minimumAbnormalTTLDuration and its phase is Failed or Succeeded.
@@ -175,13 +183,18 @@ func (ar *AbnormalReaper) Run(stopCh <-chan struct{}) {
 				ar.Info("abnormals has been garbage collected", "time", time.Now(), "count", len(reapedAbnormals))
 			}
 		}
+
+		// Garbage collect java profiler data on node.
+		absolutePath := filepath.Join(ar.dataRoot, "profilers/java/memory")
+		err = DeleteExpiredProfilerData(absolutePath, ar.abnormalTTL, ar)
+		if err != nil {
+			ar.Error(err, "failed to garbage collect java profiler data")
+		}
 	}, housekeepingInterval, stopCh)
 }
 
 // listAbnormals lists Abnormals from cache.
 func (ar *AbnormalReaper) listAbnormals() ([]diagnosisv1.Abnormal, error) {
-	ar.Info("listing Abnormals on node")
-
 	var abnormalList diagnosisv1.AbnormalList
 	if err := ar.cache.List(ar, &abnormalList); err != nil {
 		return nil, err
@@ -190,4 +203,27 @@ func (ar *AbnormalReaper) listAbnormals() ([]diagnosisv1.Abnormal, error) {
 	abnormalsOnNode := util.RetrieveAbnormalsOnNode(abnormalList.Items, ar.nodeName)
 
 	return abnormalsOnNode, nil
+}
+
+// DeleteExpiredProfilerData deletes profiler data by removing files or directories if the file age is longer
+// than abnormalTTL.
+func DeleteExpiredProfilerData(path string, abnormalTTL time.Duration, log logr.Logger) error {
+	entries, err := ioutil.ReadDir(path)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		// Garbage collect the profiler data if it is under any of the following conditions:
+		//
+		// Its age is longer than abnormalTTL.
+		if time.Now().Sub(entry.ModTime()) > abnormalTTL {
+			err := util.RemoveFile(filepath.Join(path, entry.Name()))
+			if err != nil {
+				log.Error(err, "unable to remove file")
+			}
+		}
+	}
+
+	return nil
 }
