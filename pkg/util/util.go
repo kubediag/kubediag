@@ -1118,24 +1118,25 @@ func Unzip(src string, dst string, timeoutSeconds int32) error {
 // and top components files and shutdown memory analyzer http server with expiration duration.
 func StartMemoryAnalyzerHTTPServer(name string, namespace string, profilerSpec diagnosisv1.ProfilerSpec, endpoint string, leakSuspectsDirectoryPath string, systemOverviewDirectoryPath string, topComponentsDirectoryPath string, cli client.Client, log logr.Logger) error {
 	// Handle leak suspects, system overview and top components files.
+	mux := http.NewServeMux()
 	leakSuspectsFileServer := http.FileServer(http.Dir(leakSuspectsDirectoryPath))
 	systemOverviewFileServer := http.FileServer(http.Dir(systemOverviewDirectoryPath))
 	topComponentsFileServer := http.FileServer(http.Dir(topComponentsDirectoryPath))
-	http.HandleFunc("/", MemoryAnalyzerHomepageHandler)
-	http.Handle("/leaksuspects/", http.StripPrefix("/leaksuspects/", leakSuspectsFileServer))
-	http.Handle("/systemoverview/", http.StripPrefix("/systemoverview/", systemOverviewFileServer))
-	http.Handle("/topcomponents/", http.StripPrefix("/topcomponents/", topComponentsFileServer))
+	mux.HandleFunc("/", MemoryAnalyzerHomepageHandler)
+	mux.Handle("/leaksuspects/", http.StripPrefix("/leaksuspects/", leakSuspectsFileServer))
+	mux.Handle("/systemoverview/", http.StripPrefix("/systemoverview/", systemOverviewFileServer))
+	mux.Handle("/topcomponents/", http.StripPrefix("/topcomponents/", topComponentsFileServer))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    endpoint,
-		Handler: nil,
+		Handler: mux,
 	}
 
 	// Start memory analyzer http server.
 	go func() {
 		defer cancel()
-		err := server.ListenAndServe()
+		err := http.ListenAndServe(endpoint, mux)
 		if err != nil {
 			log.Error(err, "failed to start memory analyzer http server")
 		}
