@@ -1136,8 +1136,10 @@ func StartMemoryAnalyzerHTTPServer(name string, namespace string, profilerSpec d
 	// Start memory analyzer http server.
 	go func() {
 		defer cancel()
-		err := http.ListenAndServe(endpoint, mux)
-		if err != nil {
+		err := server.ListenAndServe()
+		if err == http.ErrServerClosed {
+			log.Info("memory analyzer http server closed")
+		} else if err != nil {
 			log.Error(err, "failed to start memory analyzer http server")
 		}
 	}()
