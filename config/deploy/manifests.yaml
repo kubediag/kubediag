@@ -1696,7 +1696,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
         name: kube-diagnoser
         ports:
         - containerPort: 9443
@@ -1773,7 +1773,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.5
+        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
         name: kube-diagnoser
         ports:
         - containerPort: 10355
