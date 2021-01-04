@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.1.6](#v016)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.5](#v015)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -55,6 +64,44 @@
     - [Changed](#changed)
     - [Removed](#removed)
 
+## v0.1.6
+
+### Changes by Kind
+
+#### API Change
+
+- Define profiler desired behavior in ProfilerSpec and profiler status in ProfilerStatus. ([#75](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/75))
+- Define command in CommandExecutorSpec and command result in CommandExecutorStatus. ([#76](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/76))
+- Implement java profiler. ([#78](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/78))
+- Set endpoint in profiler status as expired after expiration seconds. ([#80](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/80))
+- Add optional `ExternalIP` and `ExternalPort` api for information collector, diagnoser and recoverer registrations. ([#82](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/82))
+
+#### Bug or Regression
+
+- Response with 200 status code if abnormal pods not found on terminating pod diagnosis. ([#79](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/79))
+- Fix error on http multiple registrations. ([#85](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/85))
+
+#### Other
+
+- Set abnormal `NodeName` if `NodeName` is empty and `PodReference` is not nil. ([#77](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/77))
+- Add options to set kube diagnoser address and port. ([#81](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/81))
+- Validate java profiler in webhook. ([#83](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/83))
+- Garbage collect java profiler data. ([#84](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/84))
+
+### Dependencies
+
+#### Added
+
+_Nothing has changed._
+
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
+
+_Nothing has changed._
+
 ## v0.1.5
 
 ### Changes by Kind
@@ -81,20 +128,20 @@
 - Implement `--feature-gates` command line argument for configurable kube diagnoser features. ([#68](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/68))
 - Implement health evaluations for deployment, statefulset and daemonset. ([#69](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/69))
 
-## Dependencies
+### Dependencies
 
-### Added
+#### Added
 
 - github.com/prometheus/alertmanager: [v0.21.0](https://github.com/prometheus/alertmanager/tree/v0.21.0)
 - github.com/prometheus/client_golang: [v1.7.1](https://github.com/prometheus/client_golang/tree/v1.7.1)
 - github.com/prometheus/common: [v0.12.0](https://github.com/prometheus/common/tree/v0.12.0)
 - k8s.io/component-base: [v0.17.2](https://github.com/kubernetes/component-base/tree/v0.17.2)
 
-### Changed
+#### Changed
 
 _Nothing has changed._
 
-### Removed
+#### Removed
 
 _Nothing has changed._
 
@@ -118,17 +165,17 @@ _Nothing has changed._
 
 - Implement systemd collector for collecting properties of the specified systemd units. ([#45](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/45))
 
-## Dependencies
+### Dependencies
 
-### Added
-
-_Nothing has changed._
-
-### Changed
+#### Added
 
 _Nothing has changed._
 
-### Removed
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
 
 _Nothing has changed._
 
@@ -149,17 +196,17 @@ _Nothing has changed._
 
 _Nothing has changed._
 
-## Dependencies
+### Dependencies
 
-### Added
-
-_Nothing has changed._
-
-### Changed
+#### Added
 
 _Nothing has changed._
 
-### Removed
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
 
 _Nothing has changed._
 
@@ -181,17 +228,17 @@ _Nothing has changed._
 
 _Nothing has changed._
 
-## Dependencies
+### Dependencies
 
-### Added
-
-_Nothing has changed._
-
-### Changed
+#### Added
 
 _Nothing has changed._
 
-### Removed
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
 
 _Nothing has changed._
 
@@ -215,19 +262,19 @@ _Nothing has changed._
 - Terminating pod diagnoser handler on advertised port and http path `/diagnoser/terminatingpoddiagnoser`. ([#28](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/28))
 - Implement abnormal reaper for garbage collection. ([#32](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/32))
 
-## Dependencies
+### Dependencies
 
-### Added
+#### Added
 
 - github.com/StackExchange/wmi: [cbe66965904d](https://github.com/StackExchange/wmi/tree/cbe66965904d)
 - github.com/go-ole/go-ole: [v1.2.4](https://github.com/go-ole/go-ole/tree/v1.2.4)
 - github.com/shirou/gopsutil: [v2.20.7](https://github.com/shirou/gopsutil/tree/v2.20.7)
 
-### Changed
+#### Changed
 
 _Nothing has changed._
 
-### Removed
+#### Removed
 
 _Nothing has changed._
 
@@ -251,9 +298,9 @@ _Nothing has changed._
 - Add event recorder for source manager, information manager, diagnoser chain and recoverer chain. ([#20](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/20))
 - Implement pod collector handler, container collector handler and pod disk usage diagnoser handler on advertised port and http path `/informationcollector/podcollector`, `/informationcollector/containercollector` and `/diagnoser/poddiskusagediagnoser`. ([#22](https://g.hz.netease.com/k8s/kube-diagnoser/-/merge_requests/22))
 
-## Dependencies
+### Dependencies
 
-### Added
+#### Added
 
 - github.com/Microsoft/go-winio: [v0.4.14](https://github.com/Microsoft/go-winio/tree/v0.4.14)
 - github.com/containerd/containerd: [481103c87933](https://github.com/containerd/containerd/tree/481103c87933)
@@ -275,10 +322,10 @@ _Nothing has changed._
 - k8s.io/client-go: [v0.17.2](https://github.com/kubernetes/client-go/tree/v0.17.2)
 - sigs.k8s.io/controller-runtime: [v0.5.0](https://github.com/kubernetes-sigs/controller-runtime/tree/v0.5.0)
 
-### Changed
+#### Changed
 
 _Nothing has changed._
 
-### Removed
+#### Removed
 
 _Nothing has changed._
