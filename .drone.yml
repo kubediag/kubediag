@@ -1,0 +1,48 @@
+# Build pipeline is triggered on pull request event.
+kind: pipeline
+name: build
+
+steps:
+  # Compile and test code.
+  - name: compile_and_test
+    image: golang:1.14
+    commands:
+      - go build -mod vendor -o bin/kube-diagnoser main.go
+      - go test ./... -coverprofile cover.out
+
+trigger:
+  event:
+    - pull_request
+---
+# Release pipeline is triggered on tag event.
+kind: pipeline
+name: release
+
+steps:
+  # Compile and test code.
+  - name: compile_and_test
+    image: golang:1.14
+    commands:
+      - go build -mod vendor -o bin/kube-diagnoser main.go
+      - go test ./... -coverprofile cover.out
+  # Build and push docker image.
+  - name: build_and_push
+    image: plugins/docker
+    settings:
+      # Run docker plugin container with escalated privileges.
+      privileged: true
+      registry: hub.c.163.com
+      repo: hub.c.163.com/combk8s/ci-test
+      # Set docker image tag.
+      tags: ${DRONE_TAG}
+      # Set USTC mirror registry.
+      mirror: https://docker.mirrors.ustc.edu.cn/
+      # Set docker username and password from secret.
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+
+trigger:
+  event:
+    - tag
