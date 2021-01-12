@@ -1,0 +1,67 @@
+version: 2.1
+
+jobs:
+  # Compile and test code.
+  compile_and_test:
+    docker:
+      - image: circleci/golang:1.14
+    steps:
+      - checkout
+      - run:
+          name: Compile code
+          command: |
+            go build -mod vendor -o bin/kube-diagnoser main.go
+      - run:
+          name: Run unit tests
+          command: |
+            go test ./... -coverprofile cover.out
+  # Build and push docker image.
+  build_and_push:
+    environment:
+      DOCKER_REGISTRY: hub.c.163.com
+      REPO_NAME: hub.c.163.com/combk8s/ci-test
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t $REPO_NAME:$CIRCLE_TAG .
+      - run:
+          name: Docker login
+          command: |
+            echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u $DOCKER_USERNAME --password-stdin
+      - run:
+          name: Push Docker image
+          command: |
+            docker push $REPO_NAME:$CIRCLE_TAG
+
+workflows:
+  version: 2
+  # Build workflow is triggered on pull request event.
+  # This project is configured to only run builds that have open pull requests associated with them.
+  build:
+    jobs:
+      - compile_and_test:
+          filters:
+            branches:
+              ignore: master
+  # Release workflow is triggered on tag event.
+  release:
+    jobs:
+      - compile_and_test:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - build_and_push:
+          requires:
+            - compile_and_test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
