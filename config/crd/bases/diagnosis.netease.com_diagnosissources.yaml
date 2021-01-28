@@ -150,8 +150,34 @@ spec:
                         description: Source specifies the profile source. It must
                           be a local file path or a URL.
                         type: string
+                      tls:
+                        description: TLS specifies the secret reference for source
+                        properties:
+                          secretReference:
+                            description: secretReference specifies the secret in cluster
+                              which hold token and ca.crt to access GoProfilerSpec.Source
+                            properties:
+                              name:
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
+                                type: string
+                              namespace:
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                        type: object
+                      type:
+                        description: 'Heap: The profiler will be run by heap Profile:
+                          The profiler will be run by cpu profile Goroutine: The profiler
+                          will be run by goroutine'
+                        type: string
                     required:
                     - source
+                    - type
                     type: object
                   java:
                     description: Java specifies the action to perform for profiling

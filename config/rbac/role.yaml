@@ -87,6 +87,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - diagnosis.netease.com
   resources:
   - diagnosers
