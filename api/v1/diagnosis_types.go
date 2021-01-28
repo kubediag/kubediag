@@ -67,6 +67,13 @@ const (
 	ArthasJavaProfilerType JavaProfilerType = "Arthas"
 	// MemoryAnalyzerJavaProfilerType means that the java profiler is run by eclipse memory analyzer.
 	MemoryAnalyzerJavaProfilerType JavaProfilerType = "MemoryAnalyzer"
+
+	// GoRoutineGoProfilerType means that the go profiler is run by goroutine
+	GoRoutineGoProfilerType GoProfilerType = "Goroutine"
+	// CPUGoProfilerType means that the go profiler is run by cpu
+	CPUGoProfilerType GoProfilerType = "Profile"
+	// MemoryGoProfilerType means that the go profiler is run by heap
+	HeapGoProfilerType GoProfilerType = "Heap"
 )
 
 // DiagnosisSpec defines the desired state of Diagnosis.
@@ -205,8 +212,23 @@ type ProfilerSpec struct {
 
 // GoProfilerSpec specifies the action to perform for profiling a go program.
 type GoProfilerSpec struct {
+	// Type is the type of go profiler.There are three possible types values:
+
+	// Heap: The profiler will be run by heap
+	// Profile: The profiler will be run by cpu profile
+	// Goroutine: The profiler will be run by goroutine
+	Type GoProfilerType `json:"type"`
 	// Source specifies the profile source. It must be a local file path or a URL.
 	Source string `json:"source"`
+	// TLS specifies the secret reference for source
+	// +optional
+	TLS GoProfilerTLS `json:"tls,omitempty"`
+}
+
+type GoProfilerTLS struct {
+	// secretReference specifies the secret in cluster which hold token and ca.crt to access GoProfilerSpec.Source
+	// +optional
+	SecretReference NamespacedName `json:"secretReference,omitempty"`
 }
 
 // JavaProfilerSpec specifies the action to perform for profiling a java program.
@@ -346,6 +368,9 @@ type DiagnosisConditionType string
 
 // JavaProfilerType is a valid value for JavaProfiler.Type.
 type JavaProfilerType string
+
+// GoProfilerType is a valid value for GoProfiler.Type.
+type GoProfilerType string
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

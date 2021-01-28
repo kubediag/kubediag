@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -38,9 +39,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/common/model"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
@@ -854,7 +857,7 @@ func RunProfiler(ctx context.Context, name string, namespace string, bindAddress
 
 	switch {
 	case profilerSpec.Go != nil:
-		endpoint, err := RunGoProfiler(name, namespace, bindAddress, profilerSpec, cli, log)
+		endpoint, err := RunGoProfiler(name, namespace, bindAddress, profilerSpec, podReference, dataRoot, cli, log)
 		if err != nil {
 			profilerStatus.Error = err.Error()
 			return profilerStatus, err
@@ -877,7 +880,7 @@ func RunProfiler(ctx context.Context, name string, namespace string, bindAddress
 }
 
 // RunGoProfiler runs go profiling with timeout and updates the result into go profiler.
-func RunGoProfiler(name string, namespace string, bindAddress string, profilerSpec diagnosisv1.ProfilerSpec, cli client.Client, log logr.Logger) (string, error) {
+func RunGoProfiler(name string, namespace string, bindAddress string, profilerSpec diagnosisv1.ProfilerSpec, podReference *diagnosisv1.PodReference, dataRoot string, cli client.Client, log logr.Logger) (string, error) {
 	if profilerSpec.Go == nil {
 		return "", fmt.Errorf("go profiler not specified")
 	}
@@ -888,8 +891,64 @@ func RunGoProfiler(name string, namespace string, bindAddress string, profilerSp
 	}
 	endpoint := fmt.Sprintf("%s:%d", bindAddress, port)
 
+	// Add timeout seconds for cpu profile
+	timeout := time.Duration(5) * time.Second
+	source := fmt.Sprintf("%s%s%s", profilerSpec.Go.Source, "/debug/pprof/", strings.ToLower(string(profilerSpec.Go.Type)))
+	if profilerSpec.Go.Type == diagnosisv1.CPUGoProfilerType {
+		timeout += time.Duration(30) * time.Second
+		source = fmt.Sprintf("%s?timeout=30s", source)
+	}
+
+	// Set go profiler directory
+	now := time.Now().Format("20060102150405")
+	datadir := filepath.Join(dataRoot, "profilers/go/pprof")
+	if podReference == nil {
+		datadir = filepath.Join(datadir, now)
+	} else {
+		datadir = filepath.Join(datadir, podReference.Namespace+"."+podReference.Name+"."+podReference.ContainerName, now)
+	}
+
+	if _, err := os.Stat(datadir); os.IsNotExist(err) {
+		err := os.MkdirAll(datadir, os.ModePerm)
+		if err != nil {
+			return "", err
+		}
+	}
+	// Set go profiler file name
+	datafile := fmt.Sprintf("%s.%s.%s.%s.prof", namespace, name, profilerSpec.Name, profilerSpec.Go.Type)
+
+	// HTTPS source
+	if strings.HasPrefix(profilerSpec.Go.Source, "https") {
+		name := profilerSpec.Go.TLS.SecretReference.Name
+		namespace := profilerSpec.Go.TLS.SecretReference.Namespace
+
+		secretData, err := GetSecretData(cli, name, namespace)
+		if err != nil {
+			return "", err
+		}
+
+		tokenByte, ok := secretData[v1.ServiceAccountTokenKey]
+		if !ok {
+			return "", fmt.Errorf("secret token is not specified")
+
+		}
+		caByte, ok := secretData[v1.ServiceAccountRootCAKey]
+		if !ok {
+			return "", fmt.Errorf("secret ca.crt is not specified")
+		}
+
+		err = DownloadProfileFile(fmt.Sprintf("%s/%s", datadir, datafile), source, tokenByte, caByte, timeout)
+		if err != nil {
+			return "", fmt.Errorf("download file failed with error: %s", err)
+		}
+	} else {
+		err = DownloadProfileFile(fmt.Sprintf("%s/%s", datadir, datafile), source, nil, nil, timeout)
+		if err != nil {
+			return "", fmt.Errorf("download file failed with error: %s", err)
+		}
+	}
 	var buf bytes.Buffer
-	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), profilerSpec.Go.Source)
+	command := exec.Command("go", "tool", "pprof", "-no_browser", fmt.Sprintf("-http=%s", endpoint), fmt.Sprintf("%s/%s", datadir, datafile))
 	// Setting a new process group id to avoid suicide.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Stdout = &buf
@@ -936,6 +995,60 @@ func RunGoProfiler(name string, namespace string, bindAddress string, profilerSp
 	}()
 
 	return endpoint, err
+}
+
+// DownloadProfileFile do http request to download profile file and write into specified filepath
+func DownloadProfileFile(filepath string, source string, token []byte, ca []byte, timeout time.Duration) error {
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	if token != nil {
+		conf := &transport.Config{
+			TLS: transport.TLSConfig{
+				CAData: ca,
+			},
+			BearerToken: string(token),
+		}
+		transport, err := transport.New(conf)
+		if err != nil {
+			return err
+		}
+		client.Transport = transport
+	}
+	req, err := http.NewRequest("GET", source, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+// GetSecretData obtain secret.data from specified secret
+func GetSecretData(cli client.Client, name string, namespace string) (map[string][]byte, error) {
+	var secret corev1.Secret
+	ctx := context.Background()
+	if err := cli.Get(ctx, client.ObjectKey{
+		Name:      name,
+		Namespace: namespace,
+	}, &secret); err != nil {
+		return nil, err
+	}
+	return secret.Data, nil
 }
 
 // RunJavaProfiler runs java profiling with timeout and updates the result into java profiler.

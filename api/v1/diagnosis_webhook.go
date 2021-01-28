@@ -18,6 +18,7 @@ package v1
 
 import (
 	"path/filepath"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -151,6 +152,21 @@ func (r *Diagnosis) validateDiagnosis() error {
 					if !filepath.IsAbs(profilerSpec.Java.HPROFFilePath) {
 						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("java").Child("hprofFilePath"),
 							r.Spec.Profilers[i].Java.HPROFFilePath, "must be an absolute path"))
+					}
+				}
+			}
+			if profilerSpec.Go != nil {
+				if profilerSpec.Go.Type != CPUGoProfilerType &&
+					profilerSpec.Go.Type != HeapGoProfilerType &&
+					profilerSpec.Go.Type != GoRoutineGoProfilerType {
+					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("go").Child("type"),
+						r.Spec.Profilers[i].Go.Type, "must be Profile, Heap or Goroutine"))
+				}
+
+				if strings.HasPrefix(profilerSpec.Go.Source, "https") {
+					if profilerSpec.Go.TLS.SecretReference.Name == "" || profilerSpec.Go.TLS.SecretReference.Namespace == "" {
+						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("go").Child("tls").Child("secretReference"),
+							r.Spec.Profilers[i].Go.TLS.SecretReference, "must specify secretReference name and namespace"))
 					}
 				}
 			}
