@@ -1,5 +1,5 @@
 apiVersion: diagnosis.netease.com/v1
-kind: AbnormalSource
+kind: DiagnosisSource
 metadata:
   name: unhealthy-source
 spec:

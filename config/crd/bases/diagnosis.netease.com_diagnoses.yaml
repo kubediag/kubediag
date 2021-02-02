@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: abnormals.diagnosis.netease.com
+  name: diagnoses.diagnosis.netease.com
 spec:
   group: diagnosis.netease.com
   names:
-    kind: Abnormal
-    listKind: AbnormalList
-    plural: abnormals
-    singular: abnormal
+    kind: Diagnosis
+    listKind: DiagnosisList
+    plural: diagnoses
+    singular: diagnosis
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: Abnormal is the Schema for the abnormals API.
+      description: Diagnosis is the Schema for the diagnoses API.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: AbnormalSpec defines the desired state of Abnormal.
+          description: DiagnosisSpec defines the desired state of Diagnosis.
           properties:
             assignedDiagnosers:
               description: AssignedDiagnosers is the list of diagnosers to execute
@@ -125,14 +125,14 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the abnormal, meant
+              description: Context is a blob of information about the diagnosis, meant
                 to be user-facing content and display instructions. This field may
                 contain customized values for custom source.
               type: object
             kubernetesEvent:
               description: KubernetesEvent contains the kubernetes event about the
-                abnormal from kubernetes event source. This must be specified if abnormal
-                source is KubernetesEvent.
+                diagnosis from kubernetes event source. This must be specified if
+                diagnosis source is KubernetesEvent.
               properties:
                 action:
                   description: What action was taken/failed regarding to the Regarding
@@ -298,7 +298,7 @@ spec:
               type: object
             nodeName:
               description: One of NodeName and PodReference must be specified. NodeName
-                is a specific node which the abnormal is on.
+                is a specific node which the diagnosis is on.
               type: string
             podReference:
               description: PodReference contains details of the target pod.
@@ -379,8 +379,8 @@ spec:
               type: array
             prometheusAlert:
               description: PrometheusAlert contains the prometheus alert about the
-                abnormal from prometheus alert source. This must be specified if abnormal
-                source is PrometheusAlert.
+                diagnosis from prometheus alert source. This must be specified if
+                diagnosis source is PrometheusAlert.
               properties:
                 annotations:
                   additionalProperties:
@@ -414,14 +414,14 @@ spec:
               - labels
               type: object
             source:
-              description: Source is the abnormal source. Valid sources are PrometheusAlert,
+              description: Source is the diagnosis source. Valid sources are PrometheusAlert,
                 KubernetesEvent and Custom.
               type: string
           required:
           - source
           type: object
         status:
-          description: AbnormalStatus defines the observed state of Abnormal.
+          description: DiagnosisStatus defines the observed state of Diagnosis.
           properties:
             commandExecutors:
               description: CommandExecutors is the list of command execution results.
@@ -455,10 +455,10 @@ spec:
                 type: object
               type: array
             conditions:
-              description: Conditions contains current service state of abnormal.
+              description: Conditions contains current service state of diagnosis.
               items:
-                description: AbnormalCondition contains details for the current condition
-                  of this abnormal.
+                description: DiagnosisCondition contains details for the current condition
+                  of this diagnosis.
                 properties:
                   lastTransitionTime:
                     description: LastTransitionTime specifies last time the condition
@@ -486,13 +486,13 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the abnormal, meant
+              description: Context is a blob of information about the diagnosis, meant
                 to be user-facing content and display instructions. This field may
                 contain customized values for custom source.
               type: object
             diagnoser:
               description: Diagnoser indicates the diagnoser which has identified
-                the abnormal successfully.
+                the diagnosis successfully.
               properties:
                 name:
                   description: Name specifies the name of a kubernetes api resource.
@@ -506,29 +506,29 @@ spec:
               - namespace
               type: object
             identifiable:
-              description: Identifiable indicates if the abnormal could be identified
+              description: Identifiable indicates if the diagnosis could be identified
                 by the diagnoser chain.
               type: boolean
             message:
               description: Message is a human readable message indicating details
-                about why the abnormal is in this condition.
+                about why the diagnosis is in this condition.
               type: string
             phase:
-              description: "Phase is a simple, high-level summary of where the abnormal
+              description: "Phase is a simple, high-level summary of where the diagnosis
                 is in its lifecycle. The conditions array, the reason and message
                 fields contain more detail about the pod's status. There are six possible
-                phase values: \n InformationCollecting: The abnormal has been passed
+                phase values: \n InformationCollecting: The diagnosis has been passed
                 to information manager and some of the information collectors have
                 been started. At least one information collector is still running.
-                Diagnosing: The abnormal has been passed to diagnoser chain and some
+                Diagnosing: The diagnosis has been passed to diagnoser chain and some
                 of the diagnosers have been started. At least one diagnoser is still
-                running. Recovering: The abnormal has been passed to recoverer chain
+                running. Recovering: The diagnosis has been passed to recoverer chain
                 and some of the recoverers have been started. At least one recoverer
-                is still running. Succeeded: The abnormal has been successfully recovered
+                is still running. Succeeded: The diagnosis has been successfully recovered
                 by some of the recoverers. Failed: All diagnosers and recoverers have
                 been executed, and none of diagnosers and recoverers is able to diagnose
-                and recover the abnormal. Unknown: For some reason the state of the
-                abnormal could not be obtained."
+                and recover the diagnosis. Unknown: For some reason the state of the
+                diagnosis could not be obtained."
               type: string
             profilers:
               description: Profilers is the list of profiler status.
@@ -560,15 +560,15 @@ spec:
               type: array
             reason:
               description: Reason is a brief CamelCase message indicating details
-                about why the abnormal is in this state.
+                about why the diagnosis is in this state.
               type: string
             recoverable:
-              description: Recoverable indicates if the abnormal could be recovered
+              description: Recoverable indicates if the diagnosis could be recovered
                 by the recoverer chain.
               type: boolean
             recoverer:
               description: Recoverer indicates the recoverer which has recovered the
-                abnormal successfully.
+                diagnosis successfully.
               properties:
                 name:
                   description: Name specifies the name of a kubernetes api resource.

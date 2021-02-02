@@ -1,13 +1,13 @@
-# permissions for end users to edit abnormals.
+# permissions for end users to edit diagnoses.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: abnormal-editor-role
+  name: diagnosis-editor-role
 rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - abnormals
+  - diagnoses
   verbs:
   - create
   - delete
@@ -19,6 +19,6 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - abnormals/status
+  - diagnoses/status
   verbs:
   - get

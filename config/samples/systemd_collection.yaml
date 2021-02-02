@@ -1,5 +1,5 @@
 apiVersion: diagnosis.netease.com/v1
-kind: Abnormal
+kind: Diagnosis
 metadata:
   name: systemd-collection
 spec:
