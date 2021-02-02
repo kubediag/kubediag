@@ -198,10 +198,10 @@ func (ce *clusterHealthEvaluator) Run(stopCh <-chan struct{}) {
 		ce.setClusterHealth(workloadHealth, nodeHealth)
 		ce.Info("evaluating cluster health successfully")
 
-		// Create abnormals on terminating pods.
-		err = ce.generateTerminatingPodAbnormal(pods)
+		// Create diagnoses on terminating pods.
+		err = ce.generateTerminatingPodDiagnosis(pods)
 		if err != nil {
-			ce.Error(err, "failed to create abnormals on terminating pods")
+			ce.Error(err, "failed to create diagnoses on terminating pods")
 			return
 		}
 	}, ce.housekeepingInterval, stopCh)
@@ -301,21 +301,21 @@ func (ce *clusterHealthEvaluator) listNodes() ([]corev1.Node, error) {
 	return nodeList.Items, nil
 }
 
-// getAbnormal gets an Abnormal from cache.
-func (ce *clusterHealthEvaluator) getAbnormal(ctx context.Context, namespace string, name string) (diagnosisv1.Abnormal, error) {
-	var abnormal diagnosisv1.Abnormal
+// getDiagnosis gets an Diagnosis from cache.
+func (ce *clusterHealthEvaluator) getDiagnosis(ctx context.Context, namespace string, name string) (diagnosisv1.Diagnosis, error) {
+	var diagnosis diagnosisv1.Diagnosis
 	if err := ce.client.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
-	}, &abnormal); err != nil {
-		return diagnosisv1.Abnormal{}, err
+	}, &diagnosis); err != nil {
+		return diagnosisv1.Diagnosis{}, err
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// generateTerminatingPodAbnormal creates abnormals on terminating pods.
-func (ce *clusterHealthEvaluator) generateTerminatingPodAbnormal(pods []corev1.Pod) error {
+// generateTerminatingPodDiagnosis creates diagnoses on terminating pods.
+func (ce *clusterHealthEvaluator) generateTerminatingPodDiagnosis(pods []corev1.Pod) error {
 	for _, pod := range pods {
 		// Synchronize the pod if the pod is in terminating state and the state of the pod could be obtained.
 		if pod.DeletionTimestamp != nil && pod.Status.Phase != corev1.PodUnknown {
@@ -327,30 +327,30 @@ func (ce *clusterHealthEvaluator) generateTerminatingPodAbnormal(pods []corev1.P
 				gracePeriod = corev1.DefaultTerminationGracePeriodSeconds
 			}
 
-			// A terminating pod abnormal is created if the pod is not terminated by deadline.
+			// A terminating pod diagnosis is created if the pod is not terminated by deadline.
 			deadline := metav1.NewTime(pod.DeletionTimestamp.Add(gracePeriod).Add(util.PodKillGracePeriodSeconds))
 			now := metav1.Now()
 			if (&deadline).Before(&now) {
-				name := fmt.Sprintf("%s.%s.%s", util.TerminatingPodAbnormalNamePrefix, pod.Name, pod.UID)
+				name := fmt.Sprintf("%s.%s.%s", util.TerminatingPodDiagnosisNamePrefix, pod.Name, pod.UID)
 				namespace := pod.Namespace
 
-				abnormal, err := ce.getAbnormal(ce, namespace, name)
+				diagnosis, err := ce.getDiagnosis(ce, namespace, name)
 				if err != nil {
 					if !apierrors.IsNotFound(err) {
-						ce.Error(err, "unable to fetch abnormal", "abnormal", client.ObjectKey{
+						ce.Error(err, "unable to fetch diagnosis", "diagnosis", client.ObjectKey{
 							Namespace: namespace,
 							Name:      name,
 						})
 						continue
 					}
 
-					// Create an abnormal if the abormal on the terminating pod does not exist.
-					abnormal = diagnosisv1.Abnormal{
+					// Create an diagnosis if the abormal on the terminating pod does not exist.
+					diagnosis = diagnosisv1.Diagnosis{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      name,
 							Namespace: namespace,
 						},
-						Spec: diagnosisv1.AbnormalSpec{
+						Spec: diagnosisv1.DiagnosisSpec{
 							Source:   diagnosisv1.CustomSource,
 							NodeName: pod.Spec.NodeName,
 							AssignedInformationCollectors: []diagnosisv1.NamespacedName{
@@ -378,15 +378,15 @@ func (ce *clusterHealthEvaluator) generateTerminatingPodAbnormal(pods []corev1.P
 						},
 					}
 
-					if err := ce.client.Create(ce, &abnormal); err != nil {
-						ce.Error(err, "unable to create abnormal", "abnormal", client.ObjectKey{
+					if err := ce.client.Create(ce, &diagnosis); err != nil {
+						ce.Error(err, "unable to create diagnosis", "diagnosis", client.ObjectKey{
 							Namespace: namespace,
 							Name:      name,
 						})
 						continue
 					}
 
-					ce.Info("create abnormal successfully", "abnormal", client.ObjectKey{
+					ce.Info("create diagnosis successfully", "diagnosis", client.ObjectKey{
 						Namespace: namespace,
 						Name:      name,
 					})

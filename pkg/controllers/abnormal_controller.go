@@ -30,31 +30,31 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/util"
 )
 
-// AbnormalReconciler reconciles a Abnormal object.
-type AbnormalReconciler struct {
+// DiagnosisReconciler reconciles a Diagnosis object.
+type DiagnosisReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
 	mode                 string
-	sourceManagerCh      chan diagnosisv1.Abnormal
-	informationManagerCh chan diagnosisv1.Abnormal
-	diagnoserChainCh     chan diagnosisv1.Abnormal
-	recovererChainCh     chan diagnosisv1.Abnormal
+	sourceManagerCh      chan diagnosisv1.Diagnosis
+	informationManagerCh chan diagnosisv1.Diagnosis
+	diagnoserChainCh     chan diagnosisv1.Diagnosis
+	recovererChainCh     chan diagnosisv1.Diagnosis
 }
 
-// NewAbnormalReconciler creates a new AbnormalReconciler.
-func NewAbnormalReconciler(
+// NewDiagnosisReconciler creates a new DiagnosisReconciler.
+func NewDiagnosisReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	mode string,
-	sourceManagerCh chan diagnosisv1.Abnormal,
-	informationManagerCh chan diagnosisv1.Abnormal,
-	diagnoserChainCh chan diagnosisv1.Abnormal,
-	recovererChainCh chan diagnosisv1.Abnormal,
-) *AbnormalReconciler {
-	return &AbnormalReconciler{
+	sourceManagerCh chan diagnosisv1.Diagnosis,
+	informationManagerCh chan diagnosisv1.Diagnosis,
+	diagnoserChainCh chan diagnosisv1.Diagnosis,
+	recovererChainCh chan diagnosisv1.Diagnosis,
+) *DiagnosisReconciler {
+	return &DiagnosisReconciler{
 		Client:               cli,
 		Log:                  log,
 		Scheme:               scheme,
@@ -66,8 +66,8 @@ func NewAbnormalReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=abnormals/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
@@ -75,89 +75,89 @@ func NewAbnormalReconciler(
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile synchronizes a Abnormal object according to the phase.
-func (r *AbnormalReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+// Reconcile synchronizes a Diagnosis object according to the phase.
+func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("abnormal", req.NamespacedName)
+	log := r.Log.WithValues("diagnosis", req.NamespacedName)
 
-	log.Info("reconciling Abnormal")
+	log.Info("reconciling Diagnosis")
 
-	var abnormal diagnosisv1.Abnormal
-	if err := r.Get(ctx, req.NamespacedName, &abnormal); err != nil {
-		log.Error(err, "unable to fetch Abnormal")
+	var diagnosis diagnosisv1.Diagnosis
+	if err := r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
+		log.Error(err, "unable to fetch Diagnosis")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// The master will process an abnormal which has not been accept yet, while the agent will process
-	// an abnormal in InformationCollecting, Diagnosing, Recovering phases.
+	// The master will process an diagnosis which has not been accept yet, while the agent will process
+	// an diagnosis in InformationCollecting, Diagnosing, Recovering phases.
 	if r.mode == "master" {
-		switch abnormal.Status.Phase {
+		switch diagnosis.Status.Phase {
 		case "":
-			// Set abnormal NodeName if NodeName is empty and PodReference is not nil.
-			if abnormal.Spec.NodeName == "" {
-				if abnormal.Spec.PodReference == nil {
-					log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Abnormal")
+			// Set diagnosis NodeName if NodeName is empty and PodReference is not nil.
+			if diagnosis.Spec.NodeName == "" {
+				if diagnosis.Spec.PodReference == nil {
+					log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Diagnosis")
 					return ctrl.Result{}, nil
 				}
 
 				var pod corev1.Pod
 				if err := r.Get(ctx, client.ObjectKey{
-					Name:      abnormal.Spec.PodReference.Name,
-					Namespace: abnormal.Spec.PodReference.Namespace,
+					Name:      diagnosis.Spec.PodReference.Name,
+					Namespace: diagnosis.Spec.PodReference.Namespace,
 				}, &pod); err != nil {
 					log.Error(err, "unable to fetch Pod")
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
 
-				abnormal.Spec.NodeName = pod.Spec.NodeName
-				if err := r.Update(ctx, &abnormal); err != nil {
-					log.Error(err, "unable to update Abnormal")
+				diagnosis.Spec.NodeName = pod.Spec.NodeName
+				if err := r.Update(ctx, &diagnosis); err != nil {
+					log.Error(err, "unable to update Diagnosis")
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
 			}
 
-			err := util.QueueAbnormal(ctx, r.sourceManagerCh, abnormal)
+			err := util.QueueDiagnosis(ctx, r.sourceManagerCh, diagnosis)
 			if err != nil {
-				log.Error(err, "failed to send abnormal to source manager queue")
+				log.Error(err, "failed to send diagnosis to source manager queue")
 			}
 		}
 	} else if r.mode == "agent" {
-		switch abnormal.Status.Phase {
+		switch diagnosis.Status.Phase {
 		case diagnosisv1.InformationCollecting:
-			_, condition := util.GetAbnormalCondition(&abnormal.Status, diagnosisv1.InformationCollected)
+			_, condition := util.GetDiagnosisCondition(&diagnosis.Status, diagnosisv1.InformationCollected)
 			if condition != nil {
-				log.Info("ignoring Abnormal in phase InformationCollecting with condition InformationCollected")
+				log.Info("ignoring Diagnosis in phase InformationCollecting with condition InformationCollected")
 			} else {
-				err := util.QueueAbnormal(ctx, r.informationManagerCh, abnormal)
+				err := util.QueueDiagnosis(ctx, r.informationManagerCh, diagnosis)
 				if err != nil {
-					log.Error(err, "failed to send abnormal to information manager queue")
+					log.Error(err, "failed to send diagnosis to information manager queue")
 				}
 			}
-		case diagnosisv1.AbnormalDiagnosing:
-			err := util.QueueAbnormal(ctx, r.diagnoserChainCh, abnormal)
+		case diagnosisv1.DiagnosisDiagnosing:
+			err := util.QueueDiagnosis(ctx, r.diagnoserChainCh, diagnosis)
 			if err != nil {
-				log.Error(err, "failed to send abnormal to diagnoser chain queue")
+				log.Error(err, "failed to send diagnosis to diagnoser chain queue")
 			}
-		case diagnosisv1.AbnormalRecovering:
-			err := util.QueueAbnormal(ctx, r.recovererChainCh, abnormal)
+		case diagnosisv1.DiagnosisRecovering:
+			err := util.QueueDiagnosis(ctx, r.recovererChainCh, diagnosis)
 			if err != nil {
-				log.Error(err, "failed to send abnormal to recoverer chain queue")
+				log.Error(err, "failed to send diagnosis to recoverer chain queue")
 			}
-		case diagnosisv1.AbnormalSucceeded:
-			log.Info("ignoring Abnormal in phase Succeeded")
-		case diagnosisv1.AbnormalFailed:
-			log.Info("ignoring Abnormal in phase Failed")
-		case diagnosisv1.AbnormalUnknown:
-			log.Info("ignoring Abnormal in phase Unknown")
+		case diagnosisv1.DiagnosisSucceeded:
+			log.Info("ignoring Diagnosis in phase Succeeded")
+		case diagnosisv1.DiagnosisFailed:
+			log.Info("ignoring Diagnosis in phase Failed")
+		case diagnosisv1.DiagnosisUnknown:
+			log.Info("ignoring Diagnosis in phase Unknown")
 		}
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager setups AbnormalReconciler with the provided manager.
-func (r *AbnormalReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// SetupWithManager setups DiagnosisReconciler with the provided manager.
+func (r *DiagnosisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&diagnosisv1.Abnormal{}).
+		For(&diagnosisv1.Diagnosis{}).
 		Complete(r)
 }

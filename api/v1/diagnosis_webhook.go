@@ -29,23 +29,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// abnormallog is for logging of abnormal webhook.
-var abnormallog = logf.Log.WithName("abnormal-webhook")
+// diagnosislog is for logging of diagnosis webhook.
+var diagnosislog = logf.Log.WithName("diagnosis-webhook")
 
-// SetupWebhookWithManager setups the Abnormal webhook.
-func (r *Abnormal) SetupWebhookWithManager(mgr ctrl.Manager) error {
+// SetupWebhookWithManager setups the Diagnosis webhook.
+func (r *Diagnosis) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-diagnosis-netease-com-v1-abnormal,mutating=true,failurePolicy=fail,groups=diagnosis.netease.com,resources=abnormals,verbs=create;update,versions=v1,name=mabnormal.kb.io
+// +kubebuilder:webhook:path=/mutate-diagnosis-netease-com-v1-diagnosis,mutating=true,failurePolicy=fail,groups=diagnosis.netease.com,resources=diagnoses,verbs=create;update,versions=v1,name=mdiagnosis.kb.io
 
-var _ webhook.Defaulter = &Abnormal{}
+var _ webhook.Defaulter = &Diagnosis{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *Abnormal) Default() {
-	abnormallog.Info("defaulting Abnormal", "abnormal", client.ObjectKey{
+func (r *Diagnosis) Default() {
+	diagnosislog.Info("defaulting Diagnosis", "diagnosis", client.ObjectKey{
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})
@@ -72,33 +72,33 @@ func (r *Abnormal) Default() {
 	}
 }
 
-// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-abnormal,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=abnormals,versions=v1,name=vabnormal.kb.io
+// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-diagnosis,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=diagnoses,versions=v1,name=vdiagnosis.kb.io
 
-var _ webhook.Validator = &Abnormal{}
+var _ webhook.Validator = &Diagnosis{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *Abnormal) ValidateCreate() error {
-	abnormallog.Info("validating creation of Abnormal", "abnormal", client.ObjectKey{
+func (r *Diagnosis) ValidateCreate() error {
+	diagnosislog.Info("validating creation of Diagnosis", "diagnosis", client.ObjectKey{
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})
 
-	return r.validateAbnormal()
+	return r.validateDiagnosis()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *Abnormal) ValidateUpdate(old runtime.Object) error {
-	abnormallog.Info("validating update of Abnormal", "abnormal", client.ObjectKey{
+func (r *Diagnosis) ValidateUpdate(old runtime.Object) error {
+	diagnosislog.Info("validating update of Diagnosis", "diagnosis", client.ObjectKey{
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})
 
-	return r.validateAbnormal()
+	return r.validateDiagnosis()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *Abnormal) ValidateDelete() error {
-	abnormallog.Info("validating deletion of Abnormal", "abnormal", client.ObjectKey{
+func (r *Diagnosis) ValidateDelete() error {
+	diagnosislog.Info("validating deletion of Diagnosis", "diagnosis", client.ObjectKey{
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})
@@ -106,8 +106,8 @@ func (r *Abnormal) ValidateDelete() error {
 	return nil
 }
 
-// validateAbnormal validates Abnormal and returns err if any invalidation is found.
-func (r *Abnormal) validateAbnormal() error {
+// validateDiagnosis validates Diagnosis and returns err if any invalidation is found.
+func (r *Diagnosis) validateDiagnosis() error {
 	var allErrs field.ErrorList
 
 	if r.Spec.NodeName == "" && r.Spec.PodReference == nil {
@@ -185,6 +185,6 @@ func (r *Abnormal) validateAbnormal() error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "diagnosis.netease.com", Kind: "Abnormal"},
+		schema.GroupKind{Group: "diagnosis.netease.com", Kind: "Diagnosis"},
 		r.Name, allErrs)
 }

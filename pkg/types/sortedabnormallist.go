@@ -20,21 +20,21 @@ import (
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 )
 
-// SortedAbnormalListByStartTime contains sorted abnormals by StartTime in ascending order.
+// SortedDiagnosisListByStartTime contains sorted diagnoses by StartTime in ascending order.
 // It satisfies sort.Interface by implemeting the following methods:
 //
 // Len() int
 // Less(i, j int) bool
 // Swap(i, j int)
-type SortedAbnormalListByStartTime []diagnosisv1.Abnormal
+type SortedDiagnosisListByStartTime []diagnosisv1.Diagnosis
 
-// Len is the number of elements in SortedAbnormalListByStartTime.
-func (al SortedAbnormalListByStartTime) Len() int {
+// Len is the number of elements in SortedDiagnosisListByStartTime.
+func (al SortedDiagnosisListByStartTime) Len() int {
 	return len(al)
 }
 
 // Less reports whether the element with index i should sort before the element with index j.
-func (al SortedAbnormalListByStartTime) Less(i, j int) bool {
+func (al SortedDiagnosisListByStartTime) Less(i, j int) bool {
 	if i > len(al) || j > len(al) {
 		return false
 	}
@@ -43,6 +43,6 @@ func (al SortedAbnormalListByStartTime) Less(i, j int) bool {
 }
 
 // Swap swaps the elements with indexes i and j.
-func (al SortedAbnormalListByStartTime) Swap(i, j int) {
+func (al SortedDiagnosisListByStartTime) Swap(i, j int) {
 	al[i], al[j] = al[j], al[i]
 }

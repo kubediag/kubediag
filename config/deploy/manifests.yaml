@@ -4,20 +4,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: abnormals.diagnosis.netease.com
+  name: diagnosers.diagnosis.netease.com
 spec:
   group: diagnosis.netease.com
   names:
-    kind: Abnormal
-    listKind: AbnormalList
-    plural: abnormals
-    singular: abnormal
+    kind: Diagnoser
+    listKind: DiagnoserList
+    plural: diagnosers
+    singular: diagnoser
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: Abnormal is the Schema for the abnormals API.
+      description: Diagnoser is the Schema for the diagnosers API.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -32,7 +32,75 @@ spec:
         metadata:
           type: object
         spec:
-          description: AbnormalSpec defines the desired state of Abnormal.
+          description: DiagnoserSpec defines the desired state of Diagnoser.
+          properties:
+            externalIP:
+              description: ExternalIP is the external serving ip of the diagnoser.
+              type: string
+            externalPort:
+              description: ExternalPort is the external serving port of the diagnoser.
+              format: int32
+              type: integer
+            path:
+              description: Path is the serving http path of diagnoser.
+              type: string
+            scheme:
+              description: Scheme is the serving scheme of diagnoser.
+              type: string
+            timeoutSeconds:
+              description: Number of seconds after which the diagnoser times out.
+                Defaults to 30 seconds. Minimum value is 1.
+              format: int32
+              type: integer
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: diagnoses.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Diagnosis
+    listKind: DiagnosisList
+    plural: diagnoses
+    singular: diagnosis
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Diagnosis is the Schema for the diagnoses API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: DiagnosisSpec defines the desired state of Diagnosis.
           properties:
             assignedDiagnosers:
               description: AssignedDiagnosers is the list of diagnosers to execute
@@ -123,14 +191,14 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the abnormal, meant
+              description: Context is a blob of information about the diagnosis, meant
                 to be user-facing content and display instructions. This field may
                 contain customized values for custom source.
               type: object
             kubernetesEvent:
               description: KubernetesEvent contains the kubernetes event about the
-                abnormal from kubernetes event source. This must be specified if abnormal
-                source is KubernetesEvent.
+                diagnosis from kubernetes event source. This must be specified if
+                diagnosis source is KubernetesEvent.
               properties:
                 action:
                   description: What action was taken/failed regarding to the Regarding
@@ -296,7 +364,7 @@ spec:
               type: object
             nodeName:
               description: One of NodeName and PodReference must be specified. NodeName
-                is a specific node which the abnormal is on.
+                is a specific node which the diagnosis is on.
               type: string
             podReference:
               description: PodReference contains details of the target pod.
@@ -377,8 +445,8 @@ spec:
               type: array
             prometheusAlert:
               description: PrometheusAlert contains the prometheus alert about the
-                abnormal from prometheus alert source. This must be specified if abnormal
-                source is PrometheusAlert.
+                diagnosis from prometheus alert source. This must be specified if
+                diagnosis source is PrometheusAlert.
               properties:
                 annotations:
                   additionalProperties:
@@ -412,14 +480,14 @@ spec:
               - labels
               type: object
             source:
-              description: Source is the abnormal source. Valid sources are PrometheusAlert,
+              description: Source is the diagnosis source. Valid sources are PrometheusAlert,
                 KubernetesEvent and Custom.
               type: string
           required:
           - source
           type: object
         status:
-          description: AbnormalStatus defines the observed state of Abnormal.
+          description: DiagnosisStatus defines the observed state of Diagnosis.
           properties:
             commandExecutors:
               description: CommandExecutors is the list of command execution results.
@@ -453,10 +521,10 @@ spec:
                 type: object
               type: array
             conditions:
-              description: Conditions contains current service state of abnormal.
+              description: Conditions contains current service state of diagnosis.
               items:
-                description: AbnormalCondition contains details for the current condition
-                  of this abnormal.
+                description: DiagnosisCondition contains details for the current condition
+                  of this diagnosis.
                 properties:
                   lastTransitionTime:
                     description: LastTransitionTime specifies last time the condition
@@ -484,13 +552,13 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the abnormal, meant
+              description: Context is a blob of information about the diagnosis, meant
                 to be user-facing content and display instructions. This field may
                 contain customized values for custom source.
               type: object
             diagnoser:
               description: Diagnoser indicates the diagnoser which has identified
-                the abnormal successfully.
+                the diagnosis successfully.
               properties:
                 name:
                   description: Name specifies the name of a kubernetes api resource.
@@ -504,29 +572,29 @@ spec:
               - namespace
               type: object
             identifiable:
-              description: Identifiable indicates if the abnormal could be identified
+              description: Identifiable indicates if the diagnosis could be identified
                 by the diagnoser chain.
               type: boolean
             message:
               description: Message is a human readable message indicating details
-                about why the abnormal is in this condition.
+                about why the diagnosis is in this condition.
               type: string
             phase:
-              description: "Phase is a simple, high-level summary of where the abnormal
+              description: "Phase is a simple, high-level summary of where the diagnosis
                 is in its lifecycle. The conditions array, the reason and message
                 fields contain more detail about the pod's status. There are six possible
-                phase values: \n InformationCollecting: The abnormal has been passed
+                phase values: \n InformationCollecting: The diagnosis has been passed
                 to information manager and some of the information collectors have
                 been started. At least one information collector is still running.
-                Diagnosing: The abnormal has been passed to diagnoser chain and some
+                Diagnosing: The diagnosis has been passed to diagnoser chain and some
                 of the diagnosers have been started. At least one diagnoser is still
-                running. Recovering: The abnormal has been passed to recoverer chain
+                running. Recovering: The diagnosis has been passed to recoverer chain
                 and some of the recoverers have been started. At least one recoverer
-                is still running. Succeeded: The abnormal has been successfully recovered
+                is still running. Succeeded: The diagnosis has been successfully recovered
                 by some of the recoverers. Failed: All diagnosers and recoverers have
                 been executed, and none of diagnosers and recoverers is able to diagnose
-                and recover the abnormal. Unknown: For some reason the state of the
-                abnormal could not be obtained."
+                and recover the diagnosis. Unknown: For some reason the state of the
+                diagnosis could not be obtained."
               type: string
             profilers:
               description: Profilers is the list of profiler status.
@@ -558,15 +626,15 @@ spec:
               type: array
             reason:
               description: Reason is a brief CamelCase message indicating details
-                about why the abnormal is in this state.
+                about why the diagnosis is in this state.
               type: string
             recoverable:
-              description: Recoverable indicates if the abnormal could be recovered
+              description: Recoverable indicates if the diagnosis could be recovered
                 by the recoverer chain.
               type: boolean
             recoverer:
               description: Recoverer indicates the recoverer which has recovered the
-                abnormal successfully.
+                diagnosis successfully.
               properties:
                 name:
                   description: Name specifies the name of a kubernetes api resource.
@@ -607,20 +675,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: abnormalsources.diagnosis.netease.com
+  name: diagnosissources.diagnosis.netease.com
 spec:
   group: diagnosis.netease.com
   names:
-    kind: AbnormalSource
-    listKind: AbnormalSourceList
-    plural: abnormalsources
-    singular: abnormalsource
+    kind: DiagnosisSource
+    listKind: DiagnosisSourceList
+    plural: diagnosissources
+    singular: diagnosissource
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: AbnormalSource is the Schema for the abnormalsources API.
+      description: DiagnosisSource is the Schema for the diagnosissources API.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -635,11 +703,11 @@ spec:
         metadata:
           type: object
         spec:
-          description: AbnormalSourceSpec defines the desired state of AbnormalSource.
+          description: DiagnosisSourceSpec defines the desired state of DiagnosisSource.
           properties:
             assignedDiagnosers:
               description: AssignedDiagnosers is the list of diagnosers to execute
-                diagnosing logics. Abnormals generated by the source contains predefined
+                diagnosing logics. Diagnoses generated by the source contains predefined
                 diagnosers.
               items:
                 description: NamespacedName represents a kubernetes api resource.
@@ -658,7 +726,7 @@ spec:
               type: array
             assignedInformationCollectors:
               description: AssignedInformationCollectors is the list of information
-                collectors to execute information collecting logics. Abnormals generated
+                collectors to execute information collecting logics. Diagnoses generated
                 by the source contains predefined information collectors.
               items:
                 description: NamespacedName represents a kubernetes api resource.
@@ -677,7 +745,7 @@ spec:
               type: array
             assignedRecoverers:
               description: AssignedRecoverers is the list of recoverers to execute
-                recovering logics. Abnormals generated by the source contains predefined
+                recovering logics. Diagnoses generated by the source contains predefined
                 recoverers.
               items:
                 description: NamespacedName represents a kubernetes api resource.
@@ -696,7 +764,7 @@ spec:
               type: array
             commandExecutors:
               description: CommandExecutors is the list of commands to execute during
-                information collecting, diagnosing and recovering. Abnormals generated
+                information collecting, diagnosing and recovering. Diagnoses generated
                 by the source contains predefined command executors.
               items:
                 description: CommandExecutorSpec describes how to execute a command
@@ -726,8 +794,8 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the abnormal, meant
-                to be user-facing content and display instructions. Abnormals generated
+              description: Context is a blob of information about the diagnosis, meant
+                to be user-facing content and display instructions. Diagnoses generated
                 by the source contains predefined context.
               type: object
             profilers:
@@ -792,12 +860,12 @@ spec:
                 type: object
               type: array
             sourceTemplate:
-              description: SourceTemplate is the template of abnormal source. An abnormal
-                source generates abnormal according to the template.
+              description: SourceTemplate is the template of diagnosis source. An
+                diagnosis source generates diagnosis according to the template.
               properties:
                 kubernetesEventTemplate:
                   description: KubernetesEventTemplate specifies the template to create
-                    an abnormal from a kubernetes event.
+                    an diagnosis from a kubernetes event.
                   properties:
                     regexp:
                       description: Regexp is the regular expression for matching kubernetes
@@ -906,11 +974,11 @@ spec:
                 prometheusAlertTemplate:
                   description: One and only one of the following source should be
                     specified. PrometheusAlertTemplate specifies the template to create
-                    an abnormal from a prometheus alert.
+                    an diagnosis from a prometheus alert.
                   properties:
                     nodeNameReferenceLabel:
                       description: NodeNameReferenceLabel specifies the label for
-                        setting NodeName of generated abnormal.
+                        setting NodeName of generated diagnosis.
                       type: string
                     regexp:
                       description: Regexp is the regular expression for matching prometheus
@@ -959,8 +1027,8 @@ spec:
                   type: object
                 type:
                   description: "Type is the type of the source template. There are
-                    two possible type values: \n PrometheusAlert: The abnormal is
-                    generated from a prometheus alert. KubernetesEvent: The abnormal
+                    two possible type values: \n PrometheusAlert: The diagnosis is
+                    generated from a prometheus alert. KubernetesEvent: The diagnosis
                     is generated from a kubernetes event."
                   type: string
               required:
@@ -970,80 +1038,12 @@ spec:
           - sourceTemplate
           type: object
         status:
-          description: AbnormalSourceStatus defines the observed state of AbnormalSource.
+          description: DiagnosisSourceStatus defines the observed state of DiagnosisSource.
           properties:
-            lastAbnormal:
-              description: LastAbnormal contains details about last abnormal generated
+            lastDiagnosis:
+              description: LastDiagnosis contains details about last diagnosis generated
                 by the source.
               type: object
-          type: object
-      type: object
-  version: v1
-  versions:
-  - name: v1
-    served: true
-    storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
-  creationTimestamp: null
-  name: diagnosers.diagnosis.netease.com
-spec:
-  group: diagnosis.netease.com
-  names:
-    kind: Diagnoser
-    listKind: DiagnoserList
-    plural: diagnosers
-    singular: diagnoser
-  scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Diagnoser is the Schema for the diagnosers API.
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: DiagnoserSpec defines the desired state of Diagnoser.
-          properties:
-            externalIP:
-              description: ExternalIP is the external serving ip of the diagnoser.
-              type: string
-            externalPort:
-              description: ExternalPort is the external serving port of the diagnoser.
-              format: int32
-              type: integer
-            path:
-              description: Path is the serving http path of diagnoser.
-              type: string
-            scheme:
-              description: Scheme is the serving scheme of diagnoser.
-              type: string
-            timeoutSeconds:
-              description: Number of seconds after which the diagnoser times out.
-                Defaults to 30 seconds. Minimum value is 1.
-              format: int32
-              type: integer
           type: object
       type: object
   version: v1
@@ -1210,24 +1210,6 @@ webhooks:
     service:
       name: webhook-service
       namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-abnormal
-  failurePolicy: Fail
-  name: mabnormal.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - abnormals
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
       path: /mutate-diagnosis-netease-com-v1-diagnoser
   failurePolicy: Fail
   name: mdiagnoser.kb.io
@@ -1241,6 +1223,24 @@ webhooks:
     - UPDATE
     resources:
     - diagnosers
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-diagnosis
+  failurePolicy: Fail
+  name: mdiagnosis.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - diagnoses
 - clientConfig:
     caBundle: Cg==
     service:
@@ -1406,46 +1406,6 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - abnormals
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - abnormals/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - abnormalsources
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - abnormalsources/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
   - diagnosers
   verbs:
   - create
@@ -1459,6 +1419,46 @@ rules:
   - diagnosis.netease.com
   resources:
   - diagnosers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnoses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnoses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnosissources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - diagnosissources/status
   verbs:
   - get
   - patch
@@ -1905,24 +1905,6 @@ webhooks:
     service:
       name: webhook-service
       namespace: kube-diagnoser
-      path: /validate-diagnosis-netease-com-v1-abnormal
-  failurePolicy: Fail
-  name: vabnormal.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - abnormals
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
       path: /validate-diagnosis-netease-com-v1-diagnoser
   failurePolicy: Fail
   name: vdiagnoser.kb.io
@@ -1936,6 +1918,24 @@ webhooks:
     - UPDATE
     resources:
     - diagnosers
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /validate-diagnosis-netease-com-v1-diagnosis
+  failurePolicy: Fail
+  name: vdiagnosis.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - diagnoses
 - clientConfig:
     caBundle: Cg==
     service:

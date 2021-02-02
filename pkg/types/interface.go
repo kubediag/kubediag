@@ -25,8 +25,8 @@ import (
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
 )
 
-// AbnormalProcessor manages http requests for processing abnormals.
-type AbnormalProcessor interface {
+// DiagnosisProcessor manages http requests for processing diagnoses.
+type DiagnosisProcessor interface {
 	// Context carries values across API boundaries.
 	context.Context
 	// Logger represents the ability to log messages.
@@ -35,16 +35,16 @@ type AbnormalProcessor interface {
 	Handler(http.ResponseWriter, *http.Request)
 }
 
-// AbnormalManager manages processors for processing abnormals.
-type AbnormalManager interface {
+// DiagnosisManager manages processors for processing diagnoses.
+type DiagnosisManager interface {
 	// Context carries values across API boundaries.
 	context.Context
 	// Logger represents the ability to log messages.
 	logr.Logger
-	// Run runs the AbnormalManager.
+	// Run runs the DiagnosisManager.
 	Run(<-chan struct{})
-	// SyncAbnormal syncs abnormals.
-	SyncAbnormal(diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error)
+	// SyncDiagnosis syncs diagnoses.
+	SyncDiagnosis(diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error)
 	// Handler handles http requests.
 	Handler(http.ResponseWriter, *http.Request)
 }

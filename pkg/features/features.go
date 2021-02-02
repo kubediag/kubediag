@@ -32,7 +32,7 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	Alertmanager featuregate.Feature = "Alertmanager"
-	// Eventer generates abnormals from kubernetes events.
+	// Eventer generates diagnoses from kubernetes events.
 	//
 	// Mode: master
 	// Owner: @huangjiuyuan

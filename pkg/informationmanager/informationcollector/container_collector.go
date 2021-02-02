@@ -51,7 +51,7 @@ func NewContainerCollector(
 	logger logr.Logger,
 	dockerEndpoint string,
 	containerCollectorEnabled bool,
-) (types.AbnormalProcessor, error) {
+) (types.DiagnosisProcessor, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerEndpoint))
 	if err != nil {
 		return nil, err
@@ -81,10 +81,10 @@ func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
@@ -96,15 +96,15 @@ func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set container information in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.ContainerInformationContextKey, containers)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.ContainerInformationContextKey, containers)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

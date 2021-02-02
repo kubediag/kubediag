@@ -35,53 +35,53 @@ import (
 	"netease.com/k8s/kube-diagnoser/pkg/types"
 )
 
-func TestUpdateAbnormalCondition(t *testing.T) {
-	abnormalStatus := diagnosisv1.AbnormalStatus{
-		Conditions: []diagnosisv1.AbnormalCondition{
+func TestUpdateDiagnosisCondition(t *testing.T) {
+	diagnosisStatus := diagnosisv1.DiagnosisStatus{
+		Conditions: []diagnosisv1.DiagnosisCondition{
 			{
 				Type:    diagnosisv1.InformationCollected,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
-				Message: "sync abnormal successfully",
+				Message: "sync diagnosis successfully",
 			},
 		},
 	}
 
 	tests := []struct {
-		status    *diagnosisv1.AbnormalStatus
-		condition diagnosisv1.AbnormalCondition
+		status    *diagnosisv1.DiagnosisStatus
+		condition diagnosisv1.DiagnosisCondition
 		expected  bool
 		desc      string
 	}{
 		{
-			status: &abnormalStatus,
-			condition: diagnosisv1.AbnormalCondition{
+			status: &diagnosisStatus,
+			condition: diagnosisv1.DiagnosisCondition{
 				Type:    diagnosisv1.InformationCollected,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
-				Message: "sync abnormal successfully",
+				Message: "sync diagnosis successfully",
 			},
 			expected: false,
 			desc:     "all equal, no update",
 		},
 		{
-			status: &abnormalStatus,
-			condition: diagnosisv1.AbnormalCondition{
-				Type:    diagnosisv1.AbnormalIdentified,
+			status: &diagnosisStatus,
+			condition: diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.DiagnosisIdentified,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
-				Message: "sync abnormal successfully",
+				Message: "sync diagnosis successfully",
 			},
 			expected: true,
 			desc:     "not equal Type, should get updated",
 		},
 		{
-			status: &abnormalStatus,
-			condition: diagnosisv1.AbnormalCondition{
+			status: &diagnosisStatus,
+			condition: diagnosisv1.DiagnosisCondition{
 				Type:    diagnosisv1.InformationCollected,
 				Status:  corev1.ConditionFalse,
 				Reason:  "successfully",
-				Message: "sync abnormal successfully",
+				Message: "sync diagnosis successfully",
 			},
 			expected: true,
 			desc:     "not equal Status, should get updated",
@@ -89,20 +89,20 @@ func TestUpdateAbnormalCondition(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		resultStatus := UpdateAbnormalCondition(test.status, &test.condition)
+		resultStatus := UpdateDiagnosisCondition(test.status, &test.condition)
 		assert.Equal(t, test.expected, resultStatus, test.desc)
 	}
 }
 
-func TestGetAbnormalCondition(t *testing.T) {
+func TestGetDiagnosisCondition(t *testing.T) {
 	type expectedStruct struct {
 		index     int
-		condition *diagnosisv1.AbnormalCondition
+		condition *diagnosisv1.DiagnosisCondition
 	}
 
 	tests := []struct {
-		status   *diagnosisv1.AbnormalStatus
-		condType diagnosisv1.AbnormalConditionType
+		status   *diagnosisv1.DiagnosisStatus
+		condType diagnosisv1.DiagnosisConditionType
 		expected expectedStruct
 		desc     string
 	}{
@@ -113,7 +113,7 @@ func TestGetAbnormalCondition(t *testing.T) {
 			desc:     "status nil, not found",
 		},
 		{
-			status: &diagnosisv1.AbnormalStatus{
+			status: &diagnosisv1.DiagnosisStatus{
 				Conditions: nil,
 			},
 			condType: diagnosisv1.InformationCollected,
@@ -121,29 +121,29 @@ func TestGetAbnormalCondition(t *testing.T) {
 			desc:     "conditions nil, not found",
 		},
 		{
-			status: &diagnosisv1.AbnormalStatus{
-				Conditions: []diagnosisv1.AbnormalCondition{
+			status: &diagnosisv1.DiagnosisStatus{
+				Conditions: []diagnosisv1.DiagnosisCondition{
 					{
 						Type:    diagnosisv1.InformationCollected,
 						Status:  corev1.ConditionTrue,
 						Reason:  "successfully",
-						Message: "sync abnormal successfully",
+						Message: "sync diagnosis successfully",
 					},
 				},
 			},
 			condType: diagnosisv1.InformationCollected,
-			expected: expectedStruct{0, &diagnosisv1.AbnormalCondition{
+			expected: expectedStruct{0, &diagnosisv1.DiagnosisCondition{
 				Type:    diagnosisv1.InformationCollected,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
-				Message: "sync abnormal successfully"},
+				Message: "sync diagnosis successfully"},
 			},
 			desc: "condition found",
 		},
 	}
 
 	for _, test := range tests {
-		resultIndex, resultCond := GetAbnormalCondition(test.status, test.condType)
+		resultIndex, resultCond := GetDiagnosisCondition(test.status, test.condType)
 		assert.Equal(t, test.expected.index, resultIndex, test.desc)
 		assert.Equal(t, test.expected.condition, resultCond, test.desc)
 	}
@@ -463,37 +463,37 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			expected: expectedStruct{
 				pods: nil,
-				err:  fmt.Errorf("abnormal status context nil"),
+				err:  fmt.Errorf("diagnosis status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			expected: expectedStruct{
 				pods: nil,
-				err:  fmt.Errorf("abnormal status context empty"),
+				err:  fmt.Errorf("diagnosis status context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: specRaw,
 					},
@@ -517,8 +517,8 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 			desc: "pods found in spec context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: statusRaw,
 					},
@@ -544,7 +544,7 @@ func TestListPodsFromPodInformationContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pods, err := ListPodsFromPodInformationContext(test.abnormal, logger)
+		pods, err := ListPodsFromPodInformationContext(test.diagnosis, logger)
 		assert.Equal(t, test.expected.pods, pods, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -575,37 +575,37 @@ func TestListFilePathsFromFilePathInformationContext(t *testing.T) {
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			expected: expectedStruct{
 				paths: nil,
-				err:   fmt.Errorf("abnormal status context nil"),
+				err:   fmt.Errorf("diagnosis status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			expected: expectedStruct{
 				paths: nil,
-				err:   fmt.Errorf("abnormal status context empty"),
+				err:   fmt.Errorf("diagnosis status context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: specRaw,
 					},
@@ -618,8 +618,8 @@ func TestListFilePathsFromFilePathInformationContext(t *testing.T) {
 			desc: "file paths found in spec context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: statusRaw,
 					},
@@ -634,7 +634,7 @@ func TestListFilePathsFromFilePathInformationContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		paths, err := ListFilePathsFromFilePathInformationContext(test.abnormal, logger)
+		paths, err := ListFilePathsFromFilePathInformationContext(test.diagnosis, logger)
 		assert.Equal(t, test.expected.paths, paths, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -683,37 +683,37 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			expected: expectedStruct{
 				signals: nil,
-				err:     fmt.Errorf("abnormal status context nil"),
+				err:     fmt.Errorf("diagnosis status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			expected: expectedStruct{
 				signals: nil,
-				err:     fmt.Errorf("abnormal status context empty"),
+				err:     fmt.Errorf("diagnosis status context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: specRaw,
 					},
@@ -735,8 +735,8 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 			desc: "signals found in spec context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: statusRaw,
 					},
@@ -760,7 +760,7 @@ func TestListSignalsFromSignalRecoveryContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		signals, err := ListSignalsFromSignalRecoveryContext(test.abnormal, logger)
+		signals, err := ListSignalsFromSignalRecoveryContext(test.diagnosis, logger)
 		assert.Equal(t, test.expected.signals, signals, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -805,37 +805,37 @@ func TestListProcessesFromProcessInformationContext(t *testing.T) {
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			expected: expectedStruct{
 				processes: nil,
-				err:       fmt.Errorf("abnormal status context nil"),
+				err:       fmt.Errorf("diagnosis status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			expected: expectedStruct{
 				processes: nil,
-				err:       fmt.Errorf("abnormal status context empty"),
+				err:       fmt.Errorf("diagnosis status context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: specRaw,
 					},
@@ -855,8 +855,8 @@ func TestListProcessesFromProcessInformationContext(t *testing.T) {
 			desc: "processes found in spec context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: statusRaw,
 					},
@@ -878,7 +878,7 @@ func TestListProcessesFromProcessInformationContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		processes, err := ListProcessesFromProcessInformationContext(test.abnormal, logger)
+		processes, err := ListProcessesFromProcessInformationContext(test.diagnosis, logger)
 		assert.Equal(t, test.expected.processes, processes, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -888,10 +888,10 @@ func TestListProcessesFromProcessInformationContext(t *testing.T) {
 	}
 }
 
-func TestValidateAbnormalResult(t *testing.T) {
+func TestValidateDiagnosisResult(t *testing.T) {
 	time := time.Now()
-	abnormal := diagnosisv1.Abnormal{
-		Spec: diagnosisv1.AbnormalSpec{
+	diagnosis := diagnosisv1.Diagnosis{
+		Spec: diagnosisv1.DiagnosisSpec{
 			Source: "Custom",
 			KubernetesEvent: &corev1.Event{
 				ObjectMeta: metav1.ObjectMeta{
@@ -915,16 +915,16 @@ func TestValidateAbnormalResult(t *testing.T) {
 				},
 			},
 		},
-		Status: diagnosisv1.AbnormalStatus{
+		Status: diagnosisv1.DiagnosisStatus{
 			Identifiable: false,
 			Recoverable:  false,
-			Phase:        diagnosisv1.AbnormalDiagnosing,
-			Conditions: []diagnosisv1.AbnormalCondition{
+			Phase:        diagnosisv1.DiagnosisDiagnosing,
+			Conditions: []diagnosisv1.DiagnosisCondition{
 				{
 					Type:    diagnosisv1.InformationCollected,
 					Status:  corev1.ConditionTrue,
 					Reason:  "successfully",
-					Message: "sync abnormal successfully",
+					Message: "sync diagnosis successfully",
 				},
 			},
 			StartTime: metav1.NewTime(time),
@@ -935,135 +935,135 @@ func TestValidateAbnormalResult(t *testing.T) {
 		},
 	}
 
-	invalidSpec := abnormal
+	invalidSpec := diagnosis
 	invalidSpec.Spec.Source = "KubernetesEvent"
 
-	invalidIdentifiable := abnormal
+	invalidIdentifiable := diagnosis
 	invalidIdentifiable.Status.Identifiable = true
 
-	invalidRecoverable := abnormal
+	invalidRecoverable := diagnosis
 	invalidRecoverable.Status.Recoverable = true
 
-	invalidPhase := abnormal
-	invalidPhase.Status.Phase = diagnosisv1.AbnormalFailed
+	invalidPhase := diagnosis
+	invalidPhase.Status.Phase = diagnosisv1.DiagnosisFailed
 
-	invalidConditions := abnormal
-	invalidConditions.Status.Conditions = []diagnosisv1.AbnormalCondition{}
+	invalidConditions := diagnosis
+	invalidConditions.Status.Conditions = []diagnosisv1.DiagnosisCondition{}
 
-	invalidMessage := abnormal
+	invalidMessage := diagnosis
 	invalidMessage.Status.Message = "message"
 
-	invalidReason := abnormal
+	invalidReason := diagnosis
 	invalidReason.Status.Reason = "reason"
 
-	invalidStartTime := abnormal
+	invalidStartTime := diagnosis
 	invalidStartTime.Status.StartTime = metav1.NewTime(time.Add(1000))
 
-	invalidDiagnoser := abnormal
+	invalidDiagnoser := diagnosis
 	invalidDiagnoser.Status.Diagnoser = &diagnosisv1.NamespacedName{
 		Namespace: "default",
 		Name:      "diagnoser2",
 	}
 
-	invalidRecoverer := abnormal
+	invalidRecoverer := diagnosis
 	invalidRecoverer.Status.Recoverer = &diagnosisv1.NamespacedName{
 		Namespace: "default",
 		Name:      "recoverer1",
 	}
 
-	valid := abnormal
+	valid := diagnosis
 	valid.Status.Context = &runtime.RawExtension{
 		Raw: []byte("test"),
 	}
 
 	tests := []struct {
-		result   diagnosisv1.Abnormal
-		current  diagnosisv1.Abnormal
+		result   diagnosisv1.Diagnosis
+		current  diagnosisv1.Diagnosis
 		expected error
 		desc     string
 	}{
 		{
-			current:  diagnosisv1.Abnormal{},
-			result:   diagnosisv1.Abnormal{},
+			current:  diagnosisv1.Diagnosis{},
+			result:   diagnosisv1.Diagnosis{},
 			expected: nil,
-			desc:     "empty abnormal",
+			desc:     "empty diagnosis",
 		},
 		{
-			current:  abnormal,
-			result:   abnormal,
+			current:  diagnosis,
+			result:   diagnosis,
 			expected: nil,
 			desc:     "no change",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   valid,
 			expected: nil,
-			desc:     "valid abnormal",
+			desc:     "valid diagnosis",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidSpec,
-			expected: fmt.Errorf("spec field of Abnormal must not be modified"),
+			expected: fmt.Errorf("spec field of Diagnosis must not be modified"),
 			desc:     "invalid spec field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidIdentifiable,
-			expected: fmt.Errorf("identifiable field of Abnormal must not be modified"),
+			expected: fmt.Errorf("identifiable field of Diagnosis must not be modified"),
 			desc:     "invalid identifiable field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidRecoverable,
-			expected: fmt.Errorf("recoverable field of Abnormal must not be modified"),
+			expected: fmt.Errorf("recoverable field of Diagnosis must not be modified"),
 			desc:     "invalid recoverable field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidPhase,
-			expected: fmt.Errorf("phase field of Abnormal must not be modified"),
+			expected: fmt.Errorf("phase field of Diagnosis must not be modified"),
 			desc:     "invalid phase field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidConditions,
-			expected: fmt.Errorf("conditions field of Abnormal must not be modified"),
+			expected: fmt.Errorf("conditions field of Diagnosis must not be modified"),
 			desc:     "invalid conditions field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidMessage,
-			expected: fmt.Errorf("message field of Abnormal must not be modified"),
+			expected: fmt.Errorf("message field of Diagnosis must not be modified"),
 			desc:     "invalid message field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidReason,
-			expected: fmt.Errorf("reason field of Abnormal must not be modified"),
+			expected: fmt.Errorf("reason field of Diagnosis must not be modified"),
 			desc:     "invalid reason field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidStartTime,
-			expected: fmt.Errorf("startTime field of Abnormal must not be modified"),
+			expected: fmt.Errorf("startTime field of Diagnosis must not be modified"),
 			desc:     "invalid startTime field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidDiagnoser,
-			expected: fmt.Errorf("diagnoser field of Abnormal must not be modified"),
+			expected: fmt.Errorf("diagnoser field of Diagnosis must not be modified"),
 			desc:     "invalid diagnoser field",
 		},
 		{
-			current:  abnormal,
+			current:  diagnosis,
 			result:   invalidRecoverer,
-			expected: fmt.Errorf("recoverer field of Abnormal must not be modified"),
+			expected: fmt.Errorf("recoverer field of Diagnosis must not be modified"),
 			desc:     "invalid recoverer field",
 		},
 	}
 
 	for _, test := range tests {
-		err := ValidateAbnormalResult(test.result, test.current)
+		err := ValidateDiagnosisResult(test.result, test.current)
 		if test.expected == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -1072,16 +1072,16 @@ func TestValidateAbnormalResult(t *testing.T) {
 	}
 }
 
-func TestIsAbnormalNodeNameMatched(t *testing.T) {
+func TestIsDiagnosisNodeNameMatched(t *testing.T) {
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		node     string
-		expected bool
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		node      string
+		expected  bool
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					NodeName: "",
 				},
 			},
@@ -1090,8 +1090,8 @@ func TestIsAbnormalNodeNameMatched(t *testing.T) {
 			desc:     "empty node name",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					NodeName: "node1",
 				},
 			},
@@ -1102,35 +1102,35 @@ func TestIsAbnormalNodeNameMatched(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		matched := IsAbnormalNodeNameMatched(test.abnormal, test.node)
+		matched := IsDiagnosisNodeNameMatched(test.diagnosis, test.node)
 		assert.Equal(t, test.expected, matched, test.desc)
 	}
 }
 
-func TestSetAbnormalSpecContext(t *testing.T) {
+func TestSetDiagnosisSpecContext(t *testing.T) {
 	type expectedStruct struct {
-		abnormal diagnosisv1.Abnormal
-		err      error
+		diagnosis diagnosisv1.Diagnosis
+		err       error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		value    interface{}
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		value     interface{}
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: nil,
 				},
 			},
 			key:   "key1",
 			value: "value1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1147,16 +1147,16 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key:   "key1",
 			value: "value1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1173,8 +1173,8 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1189,8 +1189,8 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 			key:   "key3",
 			value: "value3",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1207,8 +1207,8 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 			desc: "context updated",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1223,8 +1223,8 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 			key:   "key2",
 			value: "value3",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1243,8 +1243,8 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, err := SetAbnormalSpecContext(test.abnormal, test.key, test.value)
-		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		diagnosis, err := SetDiagnosisSpecContext(test.diagnosis, test.key, test.value)
+		assert.Equal(t, test.expected.diagnosis, diagnosis, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -1253,30 +1253,30 @@ func TestSetAbnormalSpecContext(t *testing.T) {
 	}
 }
 
-func TestSetAbnormalStatusContext(t *testing.T) {
+func TestSetDiagnosisStatusContext(t *testing.T) {
 	type expectedStruct struct {
-		abnormal diagnosisv1.Abnormal
-		err      error
+		diagnosis diagnosisv1.Diagnosis
+		err       error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		value    interface{}
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		value     interface{}
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			key:   "key1",
 			value: "value1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1293,16 +1293,16 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key:   "key1",
 			value: "value1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1319,8 +1319,8 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1335,8 +1335,8 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 			key:   "key3",
 			value: "value3",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1353,8 +1353,8 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 			desc: "context updated",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1369,8 +1369,8 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 			key:   "key2",
 			value: "value3",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1389,8 +1389,8 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, err := SetAbnormalStatusContext(test.abnormal, test.key, test.value)
-		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		diagnosis, err := SetDiagnosisStatusContext(test.diagnosis, test.key, test.value)
+		assert.Equal(t, test.expected.diagnosis, diagnosis, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -1399,47 +1399,47 @@ func TestSetAbnormalStatusContext(t *testing.T) {
 	}
 }
 
-func TestGetAbnormalSpecContext(t *testing.T) {
+func TestGetDiagnosisSpecContext(t *testing.T) {
 	type expectedStruct struct {
 		value []byte
 		err   error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: nil,
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
 				value: nil,
-				err:   fmt.Errorf("abnormal spec context nil"),
+				err:   fmt.Errorf("diagnosis spec context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
 				value: nil,
-				err:   fmt.Errorf("abnormal spec context empty"),
+				err:   fmt.Errorf("diagnosis spec context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1467,8 +1467,8 @@ func TestGetAbnormalSpecContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, err := GetAbnormalSpecContext(test.abnormal, test.key)
-		assert.Equal(t, test.expected.value, abnormal, test.desc)
+		diagnosis, err := GetDiagnosisSpecContext(test.diagnosis, test.key)
+		assert.Equal(t, test.expected.value, diagnosis, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -1477,47 +1477,47 @@ func TestGetAbnormalSpecContext(t *testing.T) {
 	}
 }
 
-func TestGetAbnormalStatusContext(t *testing.T) {
+func TestGetDiagnosisStatusContext(t *testing.T) {
 	type expectedStruct struct {
 		value []byte
 		err   error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
 				value: nil,
-				err:   fmt.Errorf("abnormal status context nil"),
+				err:   fmt.Errorf("diagnosis status context nil"),
 			},
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
 				value: nil,
-				err:   fmt.Errorf("abnormal status context empty"),
+				err:   fmt.Errorf("diagnosis status context empty"),
 			},
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1545,8 +1545,8 @@ func TestGetAbnormalStatusContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, err := GetAbnormalStatusContext(test.abnormal, test.key)
-		assert.Equal(t, test.expected.value, abnormal, test.desc)
+		diagnosis, err := GetDiagnosisStatusContext(test.diagnosis, test.key)
+		assert.Equal(t, test.expected.value, diagnosis, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
 		} else {
@@ -1555,29 +1555,29 @@ func TestGetAbnormalStatusContext(t *testing.T) {
 	}
 }
 
-func TestRemoveAbnormalSpecContext(t *testing.T) {
+func TestRemoveDiagnosisSpecContext(t *testing.T) {
 	type expectedStruct struct {
-		abnormal diagnosisv1.Abnormal
-		removed  bool
-		err      error
+		diagnosis diagnosisv1.Diagnosis
+		removed   bool
+		err       error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: nil,
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: nil,
 					},
 				},
@@ -1587,15 +1587,15 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{},
 					},
 				},
@@ -1605,8 +1605,8 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1620,8 +1620,8 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 			},
 			key: "key2",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1639,8 +1639,8 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 			desc: "context removed",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Context: &runtime.RawExtension{
 						Raw: []byte{0, 1, 2},
 					},
@@ -1648,8 +1648,8 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Spec: diagnosisv1.AbnormalSpec{
+				diagnosis: diagnosisv1.Diagnosis{
+					Spec: diagnosisv1.DiagnosisSpec{
 						Context: &runtime.RawExtension{
 							Raw: []byte{0, 1, 2},
 						},
@@ -1663,8 +1663,8 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, removed, err := RemoveAbnormalSpecContext(test.abnormal, test.key)
-		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		diagnosis, removed, err := RemoveDiagnosisSpecContext(test.diagnosis, test.key)
+		assert.Equal(t, test.expected.diagnosis, diagnosis, test.desc)
 		assert.Equal(t, test.expected.removed, removed, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -1674,29 +1674,29 @@ func TestRemoveAbnormalSpecContext(t *testing.T) {
 	}
 }
 
-func TestRemoveAbnormalStatusContext(t *testing.T) {
+func TestRemoveDiagnosisStatusContext(t *testing.T) {
 	type expectedStruct struct {
-		abnormal diagnosisv1.Abnormal
-		removed  bool
-		err      error
+		diagnosis diagnosisv1.Diagnosis
+		removed   bool
+		err       error
 	}
 
 	tests := []struct {
-		abnormal diagnosisv1.Abnormal
-		key      string
-		expected expectedStruct
-		desc     string
+		diagnosis diagnosisv1.Diagnosis
+		key       string
+		expected  expectedStruct
+		desc      string
 	}{
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: nil,
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: nil,
 					},
 				},
@@ -1706,15 +1706,15 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 			desc: "nil context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{},
 				},
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{},
 					},
 				},
@@ -1724,8 +1724,8 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 			desc: "empty context",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: func(keysAndValues ...string) []byte {
 							testingMap, err := newTestingMap(keysAndValues...)
@@ -1739,8 +1739,8 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 			},
 			key: "key2",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: func(keysAndValues ...string) []byte {
 								testingMap, err := newTestingMap(keysAndValues...)
@@ -1758,8 +1758,8 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 			desc: "context removed",
 		},
 		{
-			abnormal: diagnosisv1.Abnormal{
-				Status: diagnosisv1.AbnormalStatus{
+			diagnosis: diagnosisv1.Diagnosis{
+				Status: diagnosisv1.DiagnosisStatus{
 					Context: &runtime.RawExtension{
 						Raw: []byte{0, 1, 2},
 					},
@@ -1767,8 +1767,8 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 			},
 			key: "key1",
 			expected: expectedStruct{
-				abnormal: diagnosisv1.Abnormal{
-					Status: diagnosisv1.AbnormalStatus{
+				diagnosis: diagnosisv1.Diagnosis{
+					Status: diagnosisv1.DiagnosisStatus{
 						Context: &runtime.RawExtension{
 							Raw: []byte{0, 1, 2},
 						},
@@ -1782,8 +1782,8 @@ func TestRemoveAbnormalStatusContext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		abnormal, removed, err := RemoveAbnormalStatusContext(test.abnormal, test.key)
-		assert.Equal(t, test.expected.abnormal, abnormal, test.desc)
+		diagnosis, removed, err := RemoveDiagnosisStatusContext(test.diagnosis, test.key)
+		assert.Equal(t, test.expected.diagnosis, diagnosis, test.desc)
 		assert.Equal(t, test.expected.removed, removed, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -1862,72 +1862,72 @@ func TestRetrievePodsOnNode(t *testing.T) {
 	}
 }
 
-func TestRetrieveAbnormalsOnNode(t *testing.T) {
+func TestRetrieveDiagnosesOnNode(t *testing.T) {
 	tests := []struct {
-		abnormals []diagnosisv1.Abnormal
+		diagnoses []diagnosisv1.Diagnosis
 		nodeName  string
-		expected  []diagnosisv1.Abnormal
+		expected  []diagnosisv1.Diagnosis
 		desc      string
 	}{
 		{
-			abnormals: []diagnosisv1.Abnormal{},
+			diagnoses: []diagnosisv1.Diagnosis{},
 			nodeName:  "node1",
-			expected:  []diagnosisv1.Abnormal{},
+			expected:  []diagnosisv1.Diagnosis{},
 			desc:      "empty slice",
 		},
 		{
-			abnormals: []diagnosisv1.Abnormal{
+			diagnoses: []diagnosisv1.Diagnosis{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "abnormal1",
+						Name: "diagnosis1",
 					},
-					Spec: diagnosisv1.AbnormalSpec{
+					Spec: diagnosisv1.DiagnosisSpec{
 						NodeName: "node1",
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "abnormal2",
+						Name: "diagnosis2",
 					},
-					Spec: diagnosisv1.AbnormalSpec{
+					Spec: diagnosisv1.DiagnosisSpec{
 						NodeName: "node2",
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "abnormal3",
+						Name: "diagnosis3",
 					},
-					Spec: diagnosisv1.AbnormalSpec{
+					Spec: diagnosisv1.DiagnosisSpec{
 						NodeName: "node1",
 					},
 				},
 			},
 			nodeName: "node1",
-			expected: []diagnosisv1.Abnormal{
+			expected: []diagnosisv1.Diagnosis{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "abnormal1",
+						Name: "diagnosis1",
 					},
-					Spec: diagnosisv1.AbnormalSpec{
+					Spec: diagnosisv1.DiagnosisSpec{
 						NodeName: "node1",
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "abnormal3",
+						Name: "diagnosis3",
 					},
-					Spec: diagnosisv1.AbnormalSpec{
+					Spec: diagnosisv1.DiagnosisSpec{
 						NodeName: "node1",
 					},
 				},
 			},
-			desc: "abnormals not on provided node removed",
+			desc: "diagnoses not on provided node removed",
 		},
 	}
 
 	for _, test := range tests {
-		resultAbnormals := RetrieveAbnormalsOnNode(test.abnormals, test.nodeName)
-		assert.Equal(t, test.expected, resultAbnormals, test.desc)
+		resultDiagnoses := RetrieveDiagnosesOnNode(test.diagnoses, test.nodeName)
+		assert.Equal(t, test.expected, resultDiagnoses, test.desc)
 	}
 }
 
@@ -1940,7 +1940,7 @@ func TestMatchPrometheusAlert(t *testing.T) {
 	time := time.Now()
 	tests := []struct {
 		prometheusAlertTemplate diagnosisv1.PrometheusAlertTemplate
-		abnormal                diagnosisv1.Abnormal
+		diagnosis               diagnosisv1.Diagnosis
 		expected                expectedStruct
 		desc                    string
 	}{
@@ -1961,8 +1961,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					GeneratorURL: "url1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Labels: model.LabelSet{
 							"alertname": "alert1",
@@ -1986,8 +1986,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 		},
 		{
 			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Labels: model.LabelSet{
 							"alertname": "alert1",
@@ -2026,8 +2026,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					GeneratorURL: "url1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{},
 				},
 			},
@@ -2035,7 +2035,7 @@ func TestMatchPrometheusAlert(t *testing.T) {
 				matched: false,
 				err:     nil,
 			},
-			desc: "empty abnormal prometheus alert",
+			desc: "empty diagnosis prometheus alert",
 		},
 		{
 			prometheusAlertTemplate: diagnosisv1.PrometheusAlertTemplate{
@@ -2043,8 +2043,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					AlertName: "alert1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Labels: model.LabelSet{
 							"alertname": "alert2",
@@ -2068,8 +2068,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Labels: model.LabelSet{
 							"alertname": "alert1",
@@ -2093,8 +2093,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Annotations: model.LabelSet{
 							"message":   "message1",
@@ -2115,8 +2115,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					StartsAt: "invalid time",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						StartsAt: metav1.NewTime(time),
 					},
@@ -2134,8 +2134,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					EndsAt: "invalid time",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						EndsAt: metav1.NewTime(time),
 					},
@@ -2153,8 +2153,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					GeneratorURL: "url1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						GeneratorURL: "url2",
 					},
@@ -2172,8 +2172,8 @@ func TestMatchPrometheusAlert(t *testing.T) {
 					AlertName: "(alert1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					PrometheusAlert: &diagnosisv1.PrometheusAlert{
 						Labels: model.LabelSet{
 							"alertname": "alert1",
@@ -2190,7 +2190,7 @@ func TestMatchPrometheusAlert(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		matched, err := MatchPrometheusAlert(test.prometheusAlertTemplate, test.abnormal)
+		matched, err := MatchPrometheusAlert(test.prometheusAlertTemplate, test.diagnosis)
 		assert.Equal(t, test.expected.matched, matched, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)
@@ -2209,7 +2209,7 @@ func TestMatchKubernetesEvent(t *testing.T) {
 	time := time.Now()
 	tests := []struct {
 		kubernetesEventTemplate diagnosisv1.KubernetesEventTemplate
-		abnormal                diagnosisv1.Abnormal
+		diagnosis               diagnosisv1.Diagnosis
 		expected                expectedStruct
 		desc                    string
 	}{
@@ -2242,8 +2242,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					ReportingInstance:   "instance1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "event1",
@@ -2282,8 +2282,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 		},
 		{
 			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "event1",
@@ -2305,8 +2305,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Namespace: "namespace1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{},
 				},
 			},
@@ -2314,7 +2314,7 @@ func TestMatchKubernetesEvent(t *testing.T) {
 				matched: false,
 				err:     nil,
 			},
-			desc: "empty abnormal kubernetes event",
+			desc: "empty diagnosis kubernetes event",
 		},
 		{
 			kubernetesEventTemplate: diagnosisv1.KubernetesEventTemplate{
@@ -2322,8 +2322,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Name: "event1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "event2",
@@ -2343,8 +2343,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Namespace: "namespace1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Namespace: "namespace2",
@@ -2366,8 +2366,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							Kind: "kind2",
@@ -2389,8 +2389,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							Namespace: "namespace2",
@@ -2412,8 +2412,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							Name: "name2",
@@ -2435,8 +2435,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							UID: "uid2",
@@ -2458,8 +2458,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							APIVersion: "v2",
@@ -2481,8 +2481,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							ResourceVersion: "2",
@@ -2504,8 +2504,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						InvolvedObject: corev1.ObjectReference{
 							FieldPath: "path2",
@@ -2525,8 +2525,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Reason: "reason1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Reason: "reason2",
 					},
@@ -2544,8 +2544,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Message: "message1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Message: "message2",
 					},
@@ -2565,8 +2565,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Source: corev1.EventSource{
 							Component: "component2",
@@ -2588,8 +2588,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					},
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Source: corev1.EventSource{
 							Host: "host2",
@@ -2609,8 +2609,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					FirstTimestamp: "invalid time",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						FirstTimestamp: metav1.NewTime(time),
 					},
@@ -2628,8 +2628,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					LastTimestamp: "invalid time",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						LastTimestamp: metav1.NewTime(time),
 					},
@@ -2647,8 +2647,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Count: "1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Count: 2,
 					},
@@ -2666,8 +2666,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Type: "type1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Type: "type2",
 					},
@@ -2685,8 +2685,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Action: "action1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						Action: "action2",
 					},
@@ -2704,8 +2704,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					ReportingController: "controller1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ReportingController: "controller2",
 					},
@@ -2723,8 +2723,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					ReportingInstance: "instance1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ReportingInstance: "instance2",
 					},
@@ -2742,8 +2742,8 @@ func TestMatchKubernetesEvent(t *testing.T) {
 					Name: "(event1",
 				},
 			},
-			abnormal: diagnosisv1.Abnormal{
-				Spec: diagnosisv1.AbnormalSpec{
+			diagnosis: diagnosisv1.Diagnosis{
+				Spec: diagnosisv1.DiagnosisSpec{
 					KubernetesEvent: &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "event1",
@@ -2760,7 +2760,7 @@ func TestMatchKubernetesEvent(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		matched, err := MatchKubernetesEvent(test.kubernetesEventTemplate, test.abnormal)
+		matched, err := MatchKubernetesEvent(test.kubernetesEventTemplate, test.diagnosis)
 		assert.Equal(t, test.expected.matched, matched, test.desc)
 		if test.expected.err == nil {
 			assert.NoError(t, err, test.desc)

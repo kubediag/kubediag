@@ -40,12 +40,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/abnormalreaper"
 	"netease.com/k8s/kube-diagnoser/pkg/alertmanager"
 	"netease.com/k8s/kube-diagnoser/pkg/clusterhealthevaluator"
 	"netease.com/k8s/kube-diagnoser/pkg/controllers"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
 	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
+	"netease.com/k8s/kube-diagnoser/pkg/diagnosisreaper"
 	"netease.com/k8s/kube-diagnoser/pkg/eventer"
 	"netease.com/k8s/kube-diagnoser/pkg/features"
 	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
@@ -91,12 +91,12 @@ type KubeDiagnoserOptions struct {
 	ClusterHealthEvaluatorHousekeepingInterval time.Duration
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
-	// AbnormalTTL is amount of time to retain abnormals.
-	AbnormalTTL time.Duration
-	// MinimumAbnormalTTLDuration is minimum age for a finished abnormal before it is garbage collected.
-	MinimumAbnormalTTLDuration time.Duration
-	// MaximumAbnormalsPerNode is maximum number of finished abnormals to retain per node.
-	MaximumAbnormalsPerNode int32
+	// DiagnosisTTL is amount of time to retain diagnoses.
+	DiagnosisTTL time.Duration
+	// MinimumDiagnosisTTLDuration is minimum age for a finished diagnosis before it is garbage collected.
+	MinimumDiagnosisTTLDuration time.Duration
+	// MaximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
+	MaximumDiagnosesPerNode int32
 	// APIServerAccessToken is the kubernetes apiserver access token.
 	APIServerAccessToken string
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
@@ -124,11 +124,11 @@ func main() {
 	cmd := &cobra.Command{
 		Use: "kube-diagnoser",
 		Long: `The Kubernetes diagnoser is a daemon that embeds the core pipeline of
-abnormal diagnosis and recovery. It could be run in either master mode or
+diagnosis diagnosis and recovery. It could be run in either master mode or
 agent mode. In master mode it processes prometheus alerts and monitors
-cluster health status. In agent mode it watches Abnormals and executes
+cluster health status. In agent mode it watches Diagnoses and executes
 information collection, diagnosis and recovery according to specification
-of an Abnormal.`,
+of an Diagnosis.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			setupLog.Error(opts.Run(), "failed to run kube diagnoser")
 			os.Exit(1)
@@ -166,11 +166,11 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 		CertDir:                    defaultCertDir,
 		AlertmanagerRepeatInterval: 6 * time.Hour,
 		ClusterHealthEvaluatorHousekeepingInterval: 30 * time.Second,
-		AbnormalTTL:                240 * time.Hour,
-		MinimumAbnormalTTLDuration: 30 * time.Minute,
-		MaximumAbnormalsPerNode:    20,
-		APIServerAccessToken:       string(token),
-		DataRoot:                   defaultDataRoot,
+		DiagnosisTTL:                240 * time.Hour,
+		MinimumDiagnosisTTLDuration: 30 * time.Minute,
+		MaximumDiagnosesPerNode:     20,
+		APIServerAccessToken:        string(token),
+		DataRoot:                    defaultDataRoot,
 	}, nil
 }
 
@@ -204,8 +204,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
-		sourceManagerCh := make(chan diagnosisv1.Abnormal, 1000)
+		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
+		sourceManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
 		eventChainCh := make(chan corev1.Event, 1000)
 
 		// Run source manager.
@@ -273,10 +273,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Abnormal and AbnormalSource.
-		if err = (controllers.NewAbnormalReconciler(
+		// Setup reconcilers for Diagnosis and DiagnosisSource.
+		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Abnormal"),
+			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
 			sourceManagerCh,
@@ -284,8 +284,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			nil,
 			nil,
 		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
-			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
+			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
+			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
 		}
 		if featureGate.Enabled(features.Eventer) {
 			if err = (controllers.NewEventReconciler(
@@ -298,19 +298,19 @@ func (opts *KubeDiagnoserOptions) Run() error {
 				return fmt.Errorf("unable to create controller for Event: %v", err)
 			}
 		}
-		if err = (controllers.NewAbnormalSourceReconciler(
+		if err = (controllers.NewDiagnosisSourceReconciler(
 			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("AbnormalSource"),
+			ctrl.Log.WithName("controllers").WithName("DiagnosisSource"),
 			mgr.GetScheme(),
 		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "AbnormalSource")
-			return fmt.Errorf("unable to create controller for AbnormalSource: %v", err)
+			setupLog.Error(err, "unable to create controller", "controller", "DiagnosisSource")
+			return fmt.Errorf("unable to create controller for DiagnosisSource: %v", err)
 		}
 
-		// Setup webhooks for Abnormal, InformationCollector, Diagnoser and Recoverer.
-		if err = (&diagnosisv1.Abnormal{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Abnormal")
-			return fmt.Errorf("unable to create webhook for Abnormal: %v", err)
+		// Setup webhooks for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		if err = (&diagnosisv1.Diagnosis{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnosis")
+			return fmt.Errorf("unable to create webhook for Diagnosis: %v", err)
 		}
 		if err = (&diagnosisv1.Diagnoser{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnoser")
@@ -347,10 +347,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Abnormals along the pipeline of information collection, diagnosis, recovery.
-		informationManagerCh := make(chan diagnosisv1.Abnormal, 1000)
-		diagnoserChainCh := make(chan diagnosisv1.Abnormal, 1000)
-		recovererChainCh := make(chan diagnosisv1.Abnormal, 1000)
+		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
+		informationManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
+		diagnoserChainCh := make(chan diagnosisv1.Diagnosis, 1000)
+		recovererChainCh := make(chan diagnosisv1.Diagnosis, 1000)
 
 		// Run information manager, diagnoser chain and recoverer chain.
 		informationManager := informationmanager.NewInformationManager(
@@ -402,21 +402,21 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			recovererChain.Run(stopCh)
 		}(stopCh)
 
-		// Run abnormal reaper for garbage collection.
-		abnormalReaper := abnormalreaper.NewAbnormalReaper(
+		// Run diagnosis reaper for garbage collection.
+		diagnosisReaper := diagnosisreaper.NewDiagnosisReaper(
 			context.Background(),
-			ctrl.Log.WithName("abnormalreaper"),
+			ctrl.Log.WithName("diagnosisreaper"),
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
-			opts.AbnormalTTL,
-			opts.MinimumAbnormalTTLDuration,
-			opts.MaximumAbnormalsPerNode,
+			opts.DiagnosisTTL,
+			opts.MinimumDiagnosisTTLDuration,
+			opts.MaximumDiagnosesPerNode,
 			opts.DataRoot,
 		)
 		go func(stopCh chan struct{}) {
-			abnormalReaper.Run(stopCh)
+			diagnosisReaper.Run(stopCh)
 		}(stopCh)
 
 		// Setup information collectors, diagnosers and recoverers.
@@ -492,10 +492,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Abnormal, InformationCollector, Diagnoser and Recoverer.
-		if err = (controllers.NewAbnormalReconciler(
+		// Setup reconcilers for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Abnormal"),
+			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
 			nil,
@@ -503,8 +503,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			diagnoserChainCh,
 			recovererChainCh,
 		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Abnormal")
-			return fmt.Errorf("unable to create controller for Abnormal: %v", err)
+			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
+			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
 		}
 		if err = (controllers.NewInformationCollectorReconciler(
 			mgr.GetClient(),
@@ -558,9 +558,9 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
 	fs.DurationVar(&opts.ClusterHealthEvaluatorHousekeepingInterval, "cluster-health-evaluator-housekeeping-interval", opts.ClusterHealthEvaluatorHousekeepingInterval, "The interval between cluster health updates.")
-	fs.DurationVar(&opts.AbnormalTTL, "abnormal-ttl", opts.AbnormalTTL, "Amount of time to retain abnormals.")
-	fs.DurationVar(&opts.MinimumAbnormalTTLDuration, "minimum-abnormal-ttl-duration", opts.MinimumAbnormalTTLDuration, "Minimum age for a finished abnormal before it is garbage collected.")
-	fs.Int32Var(&opts.MaximumAbnormalsPerNode, "maximum-abnormals-per-node", opts.MaximumAbnormalsPerNode, "Maximum number of finished abnormals to retain per node.")
+	fs.DurationVar(&opts.DiagnosisTTL, "diagnosis-ttl", opts.DiagnosisTTL, "Amount of time to retain diagnoses.")
+	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
+	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.StringVar(&opts.APIServerAccessToken, "apiserver-access-token", opts.APIServerAccessToken, "The kubernetes apiserver access token.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kube diagnoser data.")

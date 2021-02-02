@@ -1,13 +1,13 @@
-# permissions for end users to edit abnormalsources.
+# permissions for end users to edit diagnosissources.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: abnormalsource-editor-role
+  name: diagnosissource-editor-role
 rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - abnormalsources
+  - diagnosissources
   verbs:
   - create
   - delete
@@ -19,6 +19,6 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - abnormalsources/status
+  - diagnosissources/status
   verbs:
   - get

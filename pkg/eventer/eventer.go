@@ -38,21 +38,21 @@ var (
 			Help: "Counter of events received by eventer",
 		},
 	)
-	eventerAbnormalGenerationSuccessCount = prometheus.NewCounter(
+	eventerDiagnosisGenerationSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "eventer_abnormal_generation_success_count",
-			Help: "Counter of successful abnormal generations by eventer",
+			Name: "eventer_diagnosis_generation_success_count",
+			Help: "Counter of successful diagnosis generations by eventer",
 		},
 	)
-	eventerAbnormalGenerationErrorCount = prometheus.NewCounter(
+	eventerDiagnosisGenerationErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "eventer_abnormal_generation_error_count",
-			Help: "Counter of erroneous abnormal generations by eventer",
+			Name: "eventer_diagnosis_generation_error_count",
+			Help: "Counter of erroneous diagnosis generations by eventer",
 		},
 	)
 )
 
-// Eventer generates abnormals from kubernetes events.
+// Eventer generates diagnoses from kubernetes events.
 type Eventer interface {
 	// Run runs the Eventer.
 	Run(<-chan struct{})
@@ -67,8 +67,8 @@ type eventer struct {
 
 	// eventChainCh is a channel for queuing Events to be processed by eventer.
 	eventChainCh chan corev1.Event
-	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
-	sourceManagerCh chan diagnosisv1.Abnormal
+	// sourceManagerCh is a channel for queuing Diagnoses to be processed by source manager.
+	sourceManagerCh chan diagnosisv1.Diagnosis
 	// eventerEnabled indicates whether eventer is enabled.
 	eventerEnabled bool
 }
@@ -78,13 +78,13 @@ func NewEventer(
 	ctx context.Context,
 	logger logr.Logger,
 	eventChainCh chan corev1.Event,
-	sourceManagerCh chan diagnosisv1.Abnormal,
+	sourceManagerCh chan diagnosisv1.Diagnosis,
 	eventerEnabled bool,
 ) Eventer {
 	metrics.Registry.MustRegister(
 		eventReceivedCount,
-		eventerAbnormalGenerationSuccessCount,
-		eventerAbnormalGenerationErrorCount,
+		eventerDiagnosisGenerationSuccessCount,
+		eventerDiagnosisGenerationErrorCount,
 	)
 
 	return &eventer{
@@ -108,32 +108,32 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 		case event := <-ev.eventChainCh:
 			eventReceivedCount.Inc()
 
-			// Create abnormal according to the kubernetes event.
-			name := fmt.Sprintf("%s.%s.%s", util.KubernetesEventGeneratedAbnormalPrefix, event.Namespace, event.Name)
+			// Create diagnosis according to the kubernetes event.
+			name := fmt.Sprintf("%s.%s.%s", util.KubernetesEventGeneratedDiagnosisPrefix, event.Namespace, event.Name)
 			namespace := util.DefautlNamespace
-			abnormal := diagnosisv1.Abnormal{
+			diagnosis := diagnosisv1.Diagnosis{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: diagnosisv1.AbnormalSpec{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Source:          diagnosisv1.KubernetesEventSource,
 					KubernetesEvent: &event,
 				},
 			}
 
-			// Add abnormal to the queue processed by source manager.
-			err := util.QueueAbnormal(ev, ev.sourceManagerCh, abnormal)
+			// Add diagnosis to the queue processed by source manager.
+			err := util.QueueDiagnosis(ev, ev.sourceManagerCh, diagnosis)
 			if err != nil {
-				eventerAbnormalGenerationErrorCount.Inc()
-				ev.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				eventerDiagnosisGenerationErrorCount.Inc()
+				ev.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			}
 
-			// Increment counter of successful abnormal generations by eventer.
-			eventerAbnormalGenerationSuccessCount.Inc()
+			// Increment counter of successful diagnosis generations by eventer.
+			eventerDiagnosisGenerationSuccessCount.Inc()
 		// Stop source manager on stop signal.
 		case <-stopCh:
 			return

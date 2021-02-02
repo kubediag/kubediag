@@ -42,30 +42,30 @@ var (
 	sourceManagerSyncSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "source_manager_sync_success_count",
-			Help: "Counter of successful abnormal syncs by source manager",
+			Help: "Counter of successful diagnosis syncs by source manager",
 		},
 	)
 	sourceManagerSyncErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "source_manager_sync_error_count",
-			Help: "Counter of erroneous abnormal syncs by source manager",
+			Help: "Counter of erroneous diagnosis syncs by source manager",
 		},
 	)
-	prometheusAlertGeneratedAbnormalCreationCount = prometheus.NewCounter(
+	prometheusAlertGeneratedDiagnosisCreationCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "prometheus_alert_generated_abnormal_creation_count",
-			Help: "Counter of prometheus alert generated abnormal creations by source manager",
+			Name: "prometheus_alert_generated_diagnosis_creation_count",
+			Help: "Counter of prometheus alert generated diagnosis creations by source manager",
 		},
 	)
-	eventGeneratedAbnormalCreationCount = prometheus.NewCounter(
+	eventGeneratedDiagnosisCreationCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "event_generated_abnormal_creation_count",
-			Help: "Counter of event generated abnormal creations by source manager",
+			Name: "event_generated_diagnosis_creation_count",
+			Help: "Counter of event generated diagnosis creations by source manager",
 		},
 	)
 )
 
-// sourceManager manages abnormal sources in the system.
+// sourceManager manages diagnosis sources in the system.
 type sourceManager struct {
 	// Context carries values across API boundaries.
 	context.Context
@@ -82,8 +82,8 @@ type sourceManager struct {
 	cache cache.Cache
 	// nodeName specifies the node name.
 	nodeName string
-	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
-	sourceManagerCh chan diagnosisv1.Abnormal
+	// sourceManagerCh is a channel for queuing Diagnoses to be processed by source manager.
+	sourceManagerCh chan diagnosisv1.Diagnosis
 }
 
 // NewSourceManager creates a new sourceManager.
@@ -95,13 +95,13 @@ func NewSourceManager(
 	scheme *runtime.Scheme,
 	cache cache.Cache,
 	nodeName string,
-	sourceManagerCh chan diagnosisv1.Abnormal,
-) types.AbnormalManager {
+	sourceManagerCh chan diagnosisv1.Diagnosis,
+) types.DiagnosisManager {
 	metrics.Registry.MustRegister(
 		sourceManagerSyncSuccessCount,
 		sourceManagerSyncErrorCount,
-		prometheusAlertGeneratedAbnormalCreationCount,
-		eventGeneratedAbnormalCreationCount,
+		prometheusAlertGeneratedDiagnosisCreationCount,
+		eventGeneratedDiagnosisCreationCount,
 	)
 
 	return &sourceManager{
@@ -125,42 +125,42 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 
 	for {
 		select {
-		// Process abnormals queuing in source manager channel.
-		case abnormal := <-sm.sourceManagerCh:
-			if abnormal.Generation != 0 {
+		// Process diagnoses queuing in source manager channel.
+		case diagnosis := <-sm.sourceManagerCh:
+			if diagnosis.Generation != 0 {
 				err := sm.client.Get(sm, client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
-				}, &abnormal)
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
+				}, &diagnosis)
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						continue
 					}
 
-					err := util.QueueAbnormal(sm, sm.sourceManagerCh, abnormal)
+					err := util.QueueDiagnosis(sm, sm.sourceManagerCh, diagnosis)
 					if err != nil {
-						sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-							Name:      abnormal.Name,
-							Namespace: abnormal.Namespace,
+						sm.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
+							Name:      diagnosis.Name,
+							Namespace: diagnosis.Namespace,
 						})
 					}
 					continue
 				}
 
-				// Only process abnormal which has not been accept yet.
-				if abnormal.Status.Phase != "" {
+				// Only process diagnosis which has not been accept yet.
+				if diagnosis.Status.Phase != "" {
 					continue
 				}
 			}
 
-			abnormal, err := sm.SyncAbnormal(abnormal)
+			diagnosis, err := sm.SyncDiagnosis(diagnosis)
 			if err != nil {
-				sm.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+				sm.Error(err, "failed to sync Diagnosis", "diagnosis", diagnosis)
 			}
 
-			sm.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
+			sm.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
 			})
 		// Stop source manager on stop signal.
 		case <-stopCh:
@@ -169,49 +169,49 @@ func (sm *sourceManager) Run(stopCh <-chan struct{}) {
 	}
 }
 
-// SyncAbnormal syncs abnormals.
-func (sm *sourceManager) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	// Create an abnormal from specified source if it is nonexistent.
-	if abnormal.Generation == 0 {
-		abnormalSources, err := sm.listAbnormalSources()
+// SyncDiagnosis syncs diagnoses.
+func (sm *sourceManager) SyncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	// Create an diagnosis from specified source if it is nonexistent.
+	if diagnosis.Generation == 0 {
+		diagnosisSources, err := sm.listDiagnosisSources()
 		if err != nil {
-			sm.Error(err, "failed to list AbnormalSources")
-			sm.addAbnormalToSourceManagerQueue(abnormal)
-			return abnormal, err
+			sm.Error(err, "failed to list DiagnosisSources")
+			sm.addDiagnosisToSourceManagerQueue(diagnosis)
+			return diagnosis, err
 		}
 
-		if abnormal.Spec.Source == diagnosisv1.PrometheusAlertSource && abnormal.Spec.PrometheusAlert != nil {
-			abnormal, err := sm.createAbnormalFromPrometheusAlert(abnormalSources, abnormal)
+		if diagnosis.Spec.Source == diagnosisv1.PrometheusAlertSource && diagnosis.Spec.PrometheusAlert != nil {
+			diagnosis, err := sm.createDiagnosisFromPrometheusAlert(diagnosisSources, diagnosis)
 			if err != nil {
-				sm.addAbnormalToSourceManagerQueue(abnormal)
-				return abnormal, err
+				sm.addDiagnosisToSourceManagerQueue(diagnosis)
+				return diagnosis, err
 			}
-		} else if abnormal.Spec.Source == diagnosisv1.KubernetesEventSource && abnormal.Spec.KubernetesEvent != nil {
-			abnormal, err := sm.createAbnormalFromKubernetesEvent(abnormalSources, abnormal)
+		} else if diagnosis.Spec.Source == diagnosisv1.KubernetesEventSource && diagnosis.Spec.KubernetesEvent != nil {
+			diagnosis, err := sm.createDiagnosisFromKubernetesEvent(diagnosisSources, diagnosis)
 			if err != nil {
-				sm.addAbnormalToSourceManagerQueue(abnormal)
-				return abnormal, err
+				sm.addDiagnosisToSourceManagerQueue(diagnosis)
+				return diagnosis, err
 			}
 		}
 	} else {
-		sm.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		sm.Info("starting to sync Diagnosis", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 
-		sm.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Accepted", "Accepted abnormal")
+		sm.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "Accepted", "Accepted diagnosis")
 
-		abnormal, err := sm.sendAbnormalToInformationManager(abnormal)
+		diagnosis, err := sm.sendDiagnosisToInformationManager(diagnosis)
 		if err != nil {
-			sm.addAbnormalToSourceManagerQueue(abnormal)
-			return abnormal, err
+			sm.addDiagnosisToSourceManagerQueue(diagnosis)
+			return diagnosis, err
 		}
 	}
 
-	// Increment counter of successful abnormal syncs by source manager.
+	// Increment counter of successful diagnosis syncs by source manager.
 	sourceManagerSyncSuccessCount.Inc()
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
 // Handler handles http requests.
@@ -219,151 +219,151 @@ func (sm *sourceManager) Handler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 }
 
-// listAbnormalSources lists AbnormalSources from cache.
-func (sm *sourceManager) listAbnormalSources() ([]diagnosisv1.AbnormalSource, error) {
-	var abnormalSourcesList diagnosisv1.AbnormalSourceList
-	if err := sm.cache.List(sm, &abnormalSourcesList); err != nil {
+// listDiagnosisSources lists DiagnosisSources from cache.
+func (sm *sourceManager) listDiagnosisSources() ([]diagnosisv1.DiagnosisSource, error) {
+	var diagnosisSourcesList diagnosisv1.DiagnosisSourceList
+	if err := sm.cache.List(sm, &diagnosisSourcesList); err != nil {
 		return nil, err
 	}
 
-	return abnormalSourcesList.Items, nil
+	return diagnosisSourcesList.Items, nil
 }
 
-// createAbnormalFromPrometheusAlert creates an Abnormal from prometheus alert and abnormal sources.
-func (sm *sourceManager) createAbnormalFromPrometheusAlert(abnormalSources []diagnosisv1.AbnormalSource, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	for _, abnormalSource := range abnormalSources {
-		sourceTemplate := abnormalSource.Spec.SourceTemplate
+// createDiagnosisFromPrometheusAlert creates an Diagnosis from prometheus alert and diagnosis sources.
+func (sm *sourceManager) createDiagnosisFromPrometheusAlert(diagnosisSources []diagnosisv1.DiagnosisSource, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	for _, diagnosisSource := range diagnosisSources {
+		sourceTemplate := diagnosisSource.Spec.SourceTemplate
 		if sourceTemplate.Type == diagnosisv1.PrometheusAlertSource && sourceTemplate.PrometheusAlertTemplate != nil {
-			// Set all fields of the abnormal according to abnormal source if the prometheus alert contains
+			// Set all fields of the diagnosis according to diagnosis source if the prometheus alert contains
 			// all match of the regular expression pattern defined in prometheus alert template.
-			matched, err := util.MatchPrometheusAlert(*sourceTemplate.PrometheusAlertTemplate, abnormal)
+			matched, err := util.MatchPrometheusAlert(*sourceTemplate.PrometheusAlertTemplate, diagnosis)
 			if err != nil {
-				sm.Error(err, "failed to compare abnormal source template and prometheus alert")
+				sm.Error(err, "failed to compare diagnosis source template and prometheus alert")
 				continue
 			}
 
 			if matched {
-				sm.Info("creating Abnormal from prometheus alert", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				sm.Info("creating Diagnosis from prometheus alert", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 
-				abnormal.Spec.NodeName = string(abnormal.Spec.PrometheusAlert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
-				abnormal.Spec.AssignedInformationCollectors = abnormalSource.Spec.AssignedInformationCollectors
-				abnormal.Spec.AssignedDiagnosers = abnormalSource.Spec.AssignedDiagnosers
-				abnormal.Spec.AssignedRecoverers = abnormalSource.Spec.AssignedRecoverers
-				abnormal.Spec.CommandExecutors = abnormalSource.Spec.CommandExecutors
-				abnormal.Spec.Profilers = abnormalSource.Spec.Profilers
-				abnormal.Spec.Context = abnormalSource.Spec.Context
+				diagnosis.Spec.NodeName = string(diagnosis.Spec.PrometheusAlert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
+				diagnosis.Spec.AssignedInformationCollectors = diagnosisSource.Spec.AssignedInformationCollectors
+				diagnosis.Spec.AssignedDiagnosers = diagnosisSource.Spec.AssignedDiagnosers
+				diagnosis.Spec.AssignedRecoverers = diagnosisSource.Spec.AssignedRecoverers
+				diagnosis.Spec.CommandExecutors = diagnosisSource.Spec.CommandExecutors
+				diagnosis.Spec.Profilers = diagnosisSource.Spec.Profilers
+				diagnosis.Spec.Context = diagnosisSource.Spec.Context
 
-				if err := sm.client.Create(sm, &abnormal); err != nil {
+				if err := sm.client.Create(sm, &diagnosis); err != nil {
 					if !apierrors.IsAlreadyExists(err) {
-						sm.Error(err, "unable to create Abnormal")
-						return abnormal, err
+						sm.Error(err, "unable to create Diagnosis")
+						return diagnosis, err
 					}
 				} else {
-					// Increment counter of prometheus alert generated abnormal creations by source manager.
-					prometheusAlertGeneratedAbnormalCreationCount.Inc()
+					// Increment counter of prometheus alert generated diagnosis creations by source manager.
+					prometheusAlertGeneratedDiagnosisCreationCount.Inc()
 				}
 
-				return abnormal, nil
+				return diagnosis, nil
 			}
 		}
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// createAbnormalFromKubernetesEvent creates an Abnormal from kubernetes event and abnormal sources.
-func (sm *sourceManager) createAbnormalFromKubernetesEvent(abnormalSources []diagnosisv1.AbnormalSource, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	for _, abnormalSource := range abnormalSources {
-		sourceTemplate := abnormalSource.Spec.SourceTemplate
+// createDiagnosisFromKubernetesEvent creates an Diagnosis from kubernetes event and diagnosis sources.
+func (sm *sourceManager) createDiagnosisFromKubernetesEvent(diagnosisSources []diagnosisv1.DiagnosisSource, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	for _, diagnosisSource := range diagnosisSources {
+		sourceTemplate := diagnosisSource.Spec.SourceTemplate
 		if sourceTemplate.Type == diagnosisv1.KubernetesEventSource && sourceTemplate.KubernetesEventTemplate != nil {
-			// Set all fields of the abnormal according to abnormal source if the kubernetes event contains
+			// Set all fields of the diagnosis according to diagnosis source if the kubernetes event contains
 			// all match of the regular expression pattern defined in kubernetes event template.
-			matched, err := util.MatchKubernetesEvent(*sourceTemplate.KubernetesEventTemplate, abnormal)
+			matched, err := util.MatchKubernetesEvent(*sourceTemplate.KubernetesEventTemplate, diagnosis)
 			if err != nil {
-				sm.Error(err, "failed to compare abnormal source template and kubernetes event")
+				sm.Error(err, "failed to compare diagnosis source template and kubernetes event")
 				continue
 			}
 
 			if matched {
-				sm.Info("creating Abnormal from kubernetes event", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				sm.Info("creating Diagnosis from kubernetes event", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 
 				// Set EventTime of the event for compatibility since validation failure will be encountered
 				// if EventTime is nil.
-				if abnormal.Spec.KubernetesEvent.EventTime.IsZero() {
-					abnormal.Spec.KubernetesEvent.EventTime = metav1.NewMicroTime(time.Unix(0, 0))
+				if diagnosis.Spec.KubernetesEvent.EventTime.IsZero() {
+					diagnosis.Spec.KubernetesEvent.EventTime = metav1.NewMicroTime(time.Unix(0, 0))
 				}
 
-				abnormal.Spec.NodeName = abnormal.Spec.KubernetesEvent.Source.Host
-				abnormal.Spec.AssignedInformationCollectors = abnormalSource.Spec.AssignedInformationCollectors
-				abnormal.Spec.AssignedDiagnosers = abnormalSource.Spec.AssignedDiagnosers
-				abnormal.Spec.AssignedRecoverers = abnormalSource.Spec.AssignedRecoverers
-				abnormal.Spec.CommandExecutors = abnormalSource.Spec.CommandExecutors
-				abnormal.Spec.Profilers = abnormalSource.Spec.Profilers
-				abnormal.Spec.Context = abnormalSource.Spec.Context
+				diagnosis.Spec.NodeName = diagnosis.Spec.KubernetesEvent.Source.Host
+				diagnosis.Spec.AssignedInformationCollectors = diagnosisSource.Spec.AssignedInformationCollectors
+				diagnosis.Spec.AssignedDiagnosers = diagnosisSource.Spec.AssignedDiagnosers
+				diagnosis.Spec.AssignedRecoverers = diagnosisSource.Spec.AssignedRecoverers
+				diagnosis.Spec.CommandExecutors = diagnosisSource.Spec.CommandExecutors
+				diagnosis.Spec.Profilers = diagnosisSource.Spec.Profilers
+				diagnosis.Spec.Context = diagnosisSource.Spec.Context
 
-				if err := sm.client.Create(sm, &abnormal); err != nil {
+				if err := sm.client.Create(sm, &diagnosis); err != nil {
 					if !apierrors.IsAlreadyExists(err) {
-						sm.Error(err, "unable to create Abnormal")
-						return abnormal, err
+						sm.Error(err, "unable to create Diagnosis")
+						return diagnosis, err
 					}
 				} else {
-					// Increment counter of event generated abnormal creations by source manager.
-					eventGeneratedAbnormalCreationCount.Inc()
+					// Increment counter of event generated diagnosis creations by source manager.
+					eventGeneratedDiagnosisCreationCount.Inc()
 				}
 
-				return abnormal, nil
+				return diagnosis, nil
 			}
 		}
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// sendAbnormalToInformationManager sends Abnormal to information manager.
-func (sm *sourceManager) sendAbnormalToInformationManager(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	sm.Info("sending Abnormal to information manager", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// sendDiagnosisToInformationManager sends Diagnosis to information manager.
+func (sm *sourceManager) sendDiagnosisToInformationManager(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	sm.Info("sending Diagnosis to information manager", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
-	abnormal.Status.StartTime = metav1.Now()
-	abnormal.Status.Phase = diagnosisv1.InformationCollecting
-	if err := sm.client.Status().Update(sm, &abnormal); err != nil {
-		sm.Error(err, "unable to update Abnormal")
-		return abnormal, err
+	diagnosis.Status.StartTime = metav1.Now()
+	diagnosis.Status.Phase = diagnosisv1.InformationCollecting
+	if err := sm.client.Status().Update(sm, &diagnosis); err != nil {
+		sm.Error(err, "unable to update Diagnosis")
+		return diagnosis, err
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// addAbnormalToSourceManagerQueue adds Abnormal to the queue processed by source manager.
-func (sm *sourceManager) addAbnormalToSourceManagerQueue(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToSourceManagerQueue adds Diagnosis to the queue processed by source manager.
+func (sm *sourceManager) addDiagnosisToSourceManagerQueue(diagnosis diagnosisv1.Diagnosis) {
 	sourceManagerSyncErrorCount.Inc()
 
-	err := util.QueueAbnormal(sm, sm.sourceManagerCh, abnormal)
+	err := util.QueueDiagnosis(sm, sm.sourceManagerCh, diagnosis)
 	if err != nil {
-		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		sm.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }
 
-// addAbnormalToSourceManagerQueueWithTimer adds Abnormal to the queue processed by source manager with a timer.
-func (sm *sourceManager) addAbnormalToSourceManagerQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToSourceManagerQueueWithTimer adds Diagnosis to the queue processed by source manager with a timer.
+func (sm *sourceManager) addDiagnosisToSourceManagerQueueWithTimer(diagnosis diagnosisv1.Diagnosis) {
 	sourceManagerSyncErrorCount.Inc()
 
-	err := util.QueueAbnormalWithTimer(sm, 30*time.Second, sm.sourceManagerCh, abnormal)
+	err := util.QueueDiagnosisWithTimer(sm, 30*time.Second, sm.sourceManagerCh, diagnosis)
 	if err != nil {
-		sm.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		sm.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }

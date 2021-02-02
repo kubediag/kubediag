@@ -54,7 +54,7 @@ func NewPodCollector(
 	cache cache.Cache,
 	nodeName string,
 	podCollectorEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &podCollector{
 		Context:             ctx,
 		Logger:              logger,
@@ -80,10 +80,10 @@ func (pc *podCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
@@ -95,15 +95,15 @@ func (pc *podCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set pod information in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.PodInformationContextKey, pods)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.PodInformationContextKey, pods)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

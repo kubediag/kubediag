@@ -46,25 +46,25 @@ var (
 	recovererChainSyncSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "recoverer_chain_sync_success_count",
-			Help: "Counter of successful abnormal syncs by recoverer chain",
+			Help: "Counter of successful diagnosis syncs by recoverer chain",
 		},
 	)
 	recovererChainSyncSkipCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "recoverer_chain_sync_skip_count",
-			Help: "Counter of skipped abnormal syncs by recoverer chain",
+			Help: "Counter of skipped diagnosis syncs by recoverer chain",
 		},
 	)
 	recovererChainSyncFailCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "recoverer_chain_sync_fail_count",
-			Help: "Counter of failed abnormal syncs by recoverer chain",
+			Help: "Counter of failed diagnosis syncs by recoverer chain",
 		},
 	)
 	recovererChainSyncErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "recoverer_chain_sync_error_count",
-			Help: "Counter of erroneous abnormal syncs by recoverer chain",
+			Help: "Counter of erroneous diagnosis syncs by recoverer chain",
 		},
 	)
 	recovererChainCommandExecutorSuccessCount = prometheus.NewCounter(
@@ -118,8 +118,8 @@ type recovererChain struct {
 	port int
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
-	// recovererChainCh is a channel for queuing Abnormals to be processed by recoverer chain.
-	recovererChainCh chan diagnosisv1.Abnormal
+	// recovererChainCh is a channel for queuing Diagnoses to be processed by recoverer chain.
+	recovererChainCh chan diagnosisv1.Diagnosis
 }
 
 // NewRecovererChain creates a new recovererChain.
@@ -134,8 +134,8 @@ func NewRecovererChain(
 	bindAddress string,
 	port int,
 	dataRoot string,
-	recovererChainCh chan diagnosisv1.Abnormal,
-) types.AbnormalManager {
+	recovererChainCh chan diagnosisv1.Diagnosis,
+) types.DiagnosisManager {
 	metrics.Registry.MustRegister(
 		recovererChainSyncSuccessCount,
 		recovererChainSyncSkipCount,
@@ -179,41 +179,41 @@ func (rc *recovererChain) Run(stopCh <-chan struct{}) {
 
 	for {
 		select {
-		// Process abnormals queuing in recoverer chain channel.
-		case abnormal := <-rc.recovererChainCh:
+		// Process diagnoses queuing in recoverer chain channel.
+		case diagnosis := <-rc.recovererChainCh:
 			err := rc.client.Get(rc, client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			}, &abnormal)
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			}, &diagnosis)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					continue
 				}
 
-				err := util.QueueAbnormal(rc, rc.recovererChainCh, abnormal)
+				err := util.QueueDiagnosis(rc, rc.recovererChainCh, diagnosis)
 				if err != nil {
-					rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
-						Name:      abnormal.Name,
-						Namespace: abnormal.Namespace,
+					rc.Error(err, "failed to send diagnosis to recoverer chain queue", "diagnosis", client.ObjectKey{
+						Name:      diagnosis.Name,
+						Namespace: diagnosis.Namespace,
 					})
 				}
 				continue
 			}
 
-			// Only process abnormal in AbnormalRecovering phase.
-			if abnormal.Status.Phase != diagnosisv1.AbnormalRecovering {
+			// Only process diagnosis in DiagnosisRecovering phase.
+			if diagnosis.Status.Phase != diagnosisv1.DiagnosisRecovering {
 				continue
 			}
 
-			if util.IsAbnormalNodeNameMatched(abnormal, rc.nodeName) {
-				abnormal, err := rc.SyncAbnormal(abnormal)
+			if util.IsDiagnosisNodeNameMatched(diagnosis, rc.nodeName) {
+				diagnosis, err := rc.SyncDiagnosis(diagnosis)
 				if err != nil {
-					rc.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+					rc.Error(err, "failed to sync Diagnosis", "diagnosis", diagnosis)
 				}
 
-				rc.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				rc.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			}
 		// Stop recoverer chain on stop signal.
@@ -223,31 +223,31 @@ func (rc *recovererChain) Run(stopCh <-chan struct{}) {
 	}
 }
 
-// SyncAbnormal syncs abnormals.
-func (rc *recovererChain) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	rc.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// SyncDiagnosis syncs diagnoses.
+func (rc *recovererChain) SyncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	rc.Info("starting to sync Diagnosis", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
 	recoverers, err := rc.listRecoverers()
 	if err != nil {
 		rc.Error(err, "failed to list Recoverers")
-		rc.addAbnormalToRecovererChainQueue(abnormal)
-		return abnormal, err
+		rc.addDiagnosisToRecovererChainQueue(diagnosis)
+		return diagnosis, err
 	}
 
-	abnormal, err = rc.runRecovery(recoverers, abnormal)
+	diagnosis, err = rc.runRecovery(recoverers, diagnosis)
 	if err != nil {
 		rc.Error(err, "failed to run recovery")
-		rc.addAbnormalToRecovererChainQueue(abnormal)
-		return abnormal, err
+		rc.addDiagnosisToRecovererChainQueue(diagnosis)
+		return diagnosis, err
 	}
 
-	// Increment counter of successful abnormal syncs by recoverer chain.
+	// Increment counter of successful diagnosis syncs by recoverer chain.
 	recovererChainSyncSuccessCount.Inc()
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
 // Handler handles http requests and response with recoverers.
@@ -285,72 +285,72 @@ func (rc *recovererChain) listRecoverers() ([]diagnosisv1.Recoverer, error) {
 	return recovererList.Items, nil
 }
 
-// runRecovery recovers an abnormal with recoverers.
-func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// runRecovery recovers an diagnosis with recoverers.
+func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
 	// Run command executor of Recoverer type.
-	for _, executorSpec := range abnormal.Spec.CommandExecutors {
+	for _, executorSpec := range diagnosis.Spec.CommandExecutors {
 		if executorSpec.Type == diagnosisv1.RecovererType {
 			executorStatus, err := util.RunCommandExecutor(executorSpec, rc)
 			if err != nil {
 				recovererChainCommandExecutorFailCount.Inc()
-				rc.Error(err, "failed to run command executor", "command", executorSpec.Command, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				rc.Error(err, "failed to run command executor", "command", executorSpec.Command, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			} else {
 				recovererChainCommandExecutorSuccessCount.Inc()
 			}
 
-			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executorStatus)
+			diagnosis.Status.CommandExecutors = append(diagnosis.Status.CommandExecutors, executorStatus)
 		}
 	}
 
 	// Run profiler of Recoverer type.
-	for _, profilerSpec := range abnormal.Spec.Profilers {
+	for _, profilerSpec := range diagnosis.Spec.Profilers {
 		if profilerSpec.Type == diagnosisv1.RecovererType {
-			profilerStatus, err := util.RunProfiler(rc, abnormal.Name, abnormal.Namespace, rc.bindAddress, rc.dataRoot, profilerSpec, abnormal.Spec.PodReference, rc.client, rc)
+			profilerStatus, err := util.RunProfiler(rc, diagnosis.Name, diagnosis.Namespace, rc.bindAddress, rc.dataRoot, profilerSpec, diagnosis.Spec.PodReference, rc.client, rc)
 			if err != nil {
 				recovererChainProfilerFailCount.Inc()
-				rc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				rc.Error(err, "failed to run profiler", "profiler", profilerSpec, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			} else {
 				recovererChainProfilerSuccessCount.Inc()
 			}
 
-			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profilerStatus)
+			diagnosis.Status.Profilers = append(diagnosis.Status.Profilers, profilerStatus)
 		}
 	}
 
 	// Skip recovery if AssignedRecoverers is empty.
-	if len(abnormal.Spec.AssignedRecoverers) == 0 {
+	if len(diagnosis.Spec.AssignedRecoverers) == 0 {
 		recovererChainSyncSkipCount.Inc()
-		rc.Info("skipping recovery", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		rc.Info("skipping recovery", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
-		rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
+		rc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "SkippingRecovery", "Skipping recovery")
 
-		abnormal, err := rc.setAbnormalSucceeded(abnormal)
+		diagnosis, err := rc.setDiagnosisSucceeded(diagnosis)
 		if err != nil {
-			return abnormal, err
+			return diagnosis, err
 		}
 
-		return abnormal, nil
+		return diagnosis, nil
 	}
 
 	for _, recoverer := range recoverers {
 		// Execute only matched recoverers.
 		matched := false
-		for _, assignedRecoverer := range abnormal.Spec.AssignedRecoverers {
+		for _, assignedRecoverer := range diagnosis.Spec.AssignedRecoverers {
 			if recoverer.Name == assignedRecoverer.Name && recoverer.Namespace == assignedRecoverer.Namespace {
 				rc.Info("assigned recoverer matched", "recoverer", client.ObjectKey{
 					Name:      recoverer.Name,
 					Namespace: recoverer.Namespace,
-				}, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				}, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 				matched = true
 				break
@@ -364,9 +364,9 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 		rc.Info("running recovery", "recoverer", client.ObjectKey{
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
-		}, "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		}, "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 
 		var host string
@@ -391,123 +391,123 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, abnorm
 			Transport: rc.transport,
 		}
 
-		// Send http request to the recoverers with payload of abnormal.
-		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, rc)
+		// Send http request to the recoverers with payload of diagnosis.
+		result, err := util.DoHTTPRequestWithDiagnosis(diagnosis, url, *cli, rc)
 		if err != nil {
 			rc.Error(err, "failed to do http request to recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
 				Namespace: recoverer.Namespace,
-			}, "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
+			}, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
 			})
 			continue
 		}
 
-		// Validate an abnormal after processed by a recoverer.
-		err = util.ValidateAbnormalResult(result, abnormal)
+		// Validate an diagnosis after processed by a recoverer.
+		err = util.ValidateDiagnosisResult(result, diagnosis)
 		if err != nil {
 			rc.Error(err, "invalid result from recoverer", "recoverer", client.ObjectKey{
 				Name:      recoverer.Name,
 				Namespace: recoverer.Namespace,
-			}, "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
+			}, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
 			})
 			continue
 		}
 
-		abnormal.Status = result.Status
-		abnormal.Status.Recoverer = &diagnosisv1.NamespacedName{
+		diagnosis.Status = result.Status
+		diagnosis.Status.Recoverer = &diagnosisv1.NamespacedName{
 			Name:      recoverer.Name,
 			Namespace: recoverer.Namespace,
 		}
-		abnormal, err := rc.setAbnormalSucceeded(abnormal)
+		diagnosis, err := rc.setDiagnosisSucceeded(diagnosis)
 		if err != nil {
-			return abnormal, err
+			return diagnosis, err
 		}
 
-		rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Recovered", "Abnormal recovered by %s/%s", recoverer.Namespace, recoverer.Name)
+		rc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "Recovered", "Diagnosis recovered by %s/%s", recoverer.Namespace, recoverer.Name)
 
-		return abnormal, nil
+		return diagnosis, nil
 	}
 
-	abnormal, err := rc.setAbnormalFailed(abnormal)
+	diagnosis, err := rc.setDiagnosisFailed(diagnosis)
 	if err != nil {
-		return abnormal, err
+		return diagnosis, err
 	}
 
-	rc.eventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedRecover", "Unable to recover abnormal %s(%s)", abnormal.Name, abnormal.UID)
+	rc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "FailedRecover", "Unable to recover diagnosis %s(%s)", diagnosis.Name, diagnosis.UID)
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// setAbnormalSucceeded sets abnormal phase to Succeeded.
-func (rc *recovererChain) setAbnormalSucceeded(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	rc.Info("setting Abnormal phase to succeeded", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// setDiagnosisSucceeded sets diagnosis phase to Succeeded.
+func (rc *recovererChain) setDiagnosisSucceeded(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	rc.Info("setting Diagnosis phase to succeeded", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
-	abnormal.Status.Phase = diagnosisv1.AbnormalSucceeded
-	abnormal.Status.Recoverable = true
-	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
-		Type:   diagnosisv1.AbnormalRecovered,
+	diagnosis.Status.Phase = diagnosisv1.DiagnosisSucceeded
+	diagnosis.Status.Recoverable = true
+	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+		Type:   diagnosisv1.DiagnosisRecovered,
 		Status: corev1.ConditionTrue,
 	})
-	if err := rc.client.Status().Update(rc, &abnormal); err != nil {
-		rc.Error(err, "unable to update Abnormal")
-		return abnormal, err
+	if err := rc.client.Status().Update(rc, &diagnosis); err != nil {
+		rc.Error(err, "unable to update Diagnosis")
+		return diagnosis, err
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// setAbnormalFailed sets abnormal phase to Failed.
-func (rc *recovererChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	rc.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// setDiagnosisFailed sets diagnosis phase to Failed.
+func (rc *recovererChain) setDiagnosisFailed(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	rc.Info("setting Diagnosis phase to failed", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
-	abnormal.Status.Phase = diagnosisv1.AbnormalFailed
-	abnormal.Status.Recoverable = false
-	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
-		Type:   diagnosisv1.AbnormalRecovered,
+	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+	diagnosis.Status.Recoverable = false
+	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+		Type:   diagnosisv1.DiagnosisRecovered,
 		Status: corev1.ConditionFalse,
 	})
-	if err := rc.client.Status().Update(rc, &abnormal); err != nil {
-		rc.Error(err, "unable to update Abnormal")
-		return abnormal, err
+	if err := rc.client.Status().Update(rc, &diagnosis); err != nil {
+		rc.Error(err, "unable to update Diagnosis")
+		return diagnosis, err
 	}
 
 	recovererChainSyncFailCount.Inc()
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// addAbnormalToRecovererChainQueue adds Abnormal to the queue processed by recoverer chain.
-func (rc *recovererChain) addAbnormalToRecovererChainQueue(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToRecovererChainQueue adds Diagnosis to the queue processed by recoverer chain.
+func (rc *recovererChain) addDiagnosisToRecovererChainQueue(diagnosis diagnosisv1.Diagnosis) {
 	recovererChainSyncErrorCount.Inc()
 
-	err := util.QueueAbnormal(rc, rc.recovererChainCh, abnormal)
+	err := util.QueueDiagnosis(rc, rc.recovererChainCh, diagnosis)
 	if err != nil {
-		rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		rc.Error(err, "failed to send diagnosis to recoverer chain queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }
 
-// addAbnormalToRecovererChainQueueWithTimer adds Abnormal to the queue processed by recoverer chain with a timer.
-func (rc *recovererChain) addAbnormalToRecovererChainQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToRecovererChainQueueWithTimer adds Diagnosis to the queue processed by recoverer chain with a timer.
+func (rc *recovererChain) addDiagnosisToRecovererChainQueueWithTimer(diagnosis diagnosisv1.Diagnosis) {
 	recovererChainSyncErrorCount.Inc()
 
-	err := util.QueueAbnormalWithTimer(rc, 30*time.Second, rc.recovererChainCh, abnormal)
+	err := util.QueueDiagnosisWithTimer(rc, 30*time.Second, rc.recovererChainCh, diagnosis)
 	if err != nil {
-		rc.Error(err, "failed to send abnormal to recoverer chain queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		rc.Error(err, "failed to send diagnosis to recoverer chain queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }
