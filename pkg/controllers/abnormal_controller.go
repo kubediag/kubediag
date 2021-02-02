@@ -26,8 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 // DiagnosisReconciler reconciles a Diagnosis object.

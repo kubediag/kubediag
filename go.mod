@@ -1,4 +1,4 @@
-module netease.com/k8s/kube-diagnoser
+module github.com/kube-diagnoser/kube-diagnoser
 
 go 1.14
 

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"netease.com/k8s/kube-diagnoser/pkg/types"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/types"
 )
 
 func TestEvaluatePodHealth(t *testing.T) {

@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 var (

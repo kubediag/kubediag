@@ -25,7 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"netease.com/k8s/kube-diagnoser/pkg/util"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 // EventReconciler reconciles an Event object.

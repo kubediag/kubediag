@@ -27,9 +27,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/types"
-	"netease.com/k8s/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/types"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 // podCollector manages information of all pods on the node.

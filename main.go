@@ -39,20 +39,20 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/alertmanager"
-	"netease.com/k8s/kube-diagnoser/pkg/clusterhealthevaluator"
-	"netease.com/k8s/kube-diagnoser/pkg/controllers"
-	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain"
-	"netease.com/k8s/kube-diagnoser/pkg/diagnoserchain/diagnoser"
-	"netease.com/k8s/kube-diagnoser/pkg/diagnosisreaper"
-	"netease.com/k8s/kube-diagnoser/pkg/eventer"
-	"netease.com/k8s/kube-diagnoser/pkg/features"
-	"netease.com/k8s/kube-diagnoser/pkg/informationmanager"
-	"netease.com/k8s/kube-diagnoser/pkg/informationmanager/informationcollector"
-	"netease.com/k8s/kube-diagnoser/pkg/recovererchain"
-	"netease.com/k8s/kube-diagnoser/pkg/recovererchain/recoverer"
-	"netease.com/k8s/kube-diagnoser/pkg/sourcemanager"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/alertmanager"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/clusterhealthevaluator"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/controllers"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain/diagnoser"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnosisreaper"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/eventer"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager/informationcollector"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain/recoverer"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/sourcemanager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -100,7 +100,7 @@ type KubeDiagnoserOptions struct {
 	// APIServerAccessToken is the kubernetes apiserver access token.
 	APIServerAccessToken string
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
-	// piecemeal the default values from "netease.com/k8s/kube-diagnoser/pkg/features/features.go".
+	// piecemeal the default values from "github.com/kube-diagnoser/kube-diagnoser/pkg/features/features.go".
 	FeatureGates map[string]bool
 	// DataRoot is root directory of persistent kube diagnoser data.
 	DataRoot string

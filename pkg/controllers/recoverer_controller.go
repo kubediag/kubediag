@@ -22,7 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 )
 
 // RecovererReconciler reconciles a Recoverer object

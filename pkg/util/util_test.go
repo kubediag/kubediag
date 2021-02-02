@@ -31,8 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
-	"netease.com/k8s/kube-diagnoser/pkg/types"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/types"
 )
 
 func TestUpdateDiagnosisCondition(t *testing.T) {

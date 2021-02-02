@@ -17,7 +17,7 @@ limitations under the License.
 package types
 
 import (
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 )
 
 // SortedDiagnosisListByStartTime contains sorted diagnoses by StartTime in ascending order.
