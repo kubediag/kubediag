@@ -47,7 +47,7 @@ func NewSystemdCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	systemdCollectorEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &systemdCollector{
 		Context:                 ctx,
 		Logger:                  logger,
@@ -71,15 +71,15 @@ func (sc *systemdCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
 		// List all systemd unit names in context.
-		names, err := util.ListSystemdUnitNamesFromProcessInformationContext(abnormal, sc)
+		names, err := util.ListSystemdUnitNamesFromProcessInformationContext(diagnosis, sc)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list systemd unit names: %v", err), http.StatusInternalServerError)
 			return
@@ -101,15 +101,15 @@ func (sc *systemdCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set systemd property information in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.SystemdUnitPropertyInformationContextKey, units)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.SystemdUnitPropertyInformationContextKey, units)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

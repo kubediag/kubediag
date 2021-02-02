@@ -46,25 +46,25 @@ var (
 	diagnoserChainSyncSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "diagnoser_chain_sync_success_count",
-			Help: "Counter of successful abnormal syncs by diagnoser chain",
+			Help: "Counter of successful diagnosis syncs by diagnoser chain",
 		},
 	)
 	diagnoserChainSyncSkipCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "diagnoser_chain_sync_skip_count",
-			Help: "Counter of skipped abnormal syncs by diagnoser chain",
+			Help: "Counter of skipped diagnosis syncs by diagnoser chain",
 		},
 	)
 	diagnoserChainSyncFailCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "diagnoser_chain_sync_fail_count",
-			Help: "Counter of failed abnormal syncs by diagnoser chain",
+			Help: "Counter of failed diagnosis syncs by diagnoser chain",
 		},
 	)
 	diagnoserChainSyncErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "diagnoser_chain_sync_error_count",
-			Help: "Counter of erroneous abnormal syncs by diagnoser chain",
+			Help: "Counter of erroneous diagnosis syncs by diagnoser chain",
 		},
 	)
 	diagnoserChainCommandExecutorSuccessCount = prometheus.NewCounter(
@@ -118,8 +118,8 @@ type diagnoserChain struct {
 	port int
 	// dataRoot is root directory of persistent kube diagnoser data.
 	dataRoot string
-	// diagnoserChainCh is a channel for queuing Abnormals to be processed by diagnoser chain.
-	diagnoserChainCh chan diagnosisv1.Abnormal
+	// diagnoserChainCh is a channel for queuing Diagnoses to be processed by diagnoser chain.
+	diagnoserChainCh chan diagnosisv1.Diagnosis
 }
 
 // NewDiagnoserChain creates a new diagnoserChain.
@@ -134,8 +134,8 @@ func NewDiagnoserChain(
 	bindAddress string,
 	port int,
 	dataRoot string,
-	diagnoserChainCh chan diagnosisv1.Abnormal,
-) types.AbnormalManager {
+	diagnoserChainCh chan diagnosisv1.Diagnosis,
+) types.DiagnosisManager {
 	metrics.Registry.MustRegister(
 		diagnoserChainSyncSuccessCount,
 		diagnoserChainSyncSkipCount,
@@ -179,41 +179,41 @@ func (dc *diagnoserChain) Run(stopCh <-chan struct{}) {
 
 	for {
 		select {
-		// Process abnormals queuing in diagnoser chain channel.
-		case abnormal := <-dc.diagnoserChainCh:
+		// Process diagnoses queuing in diagnoser chain channel.
+		case diagnosis := <-dc.diagnoserChainCh:
 			err := dc.client.Get(dc, client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
-			}, &abnormal)
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			}, &diagnosis)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					continue
 				}
 
-				err := util.QueueAbnormal(dc, dc.diagnoserChainCh, abnormal)
+				err := util.QueueDiagnosis(dc, dc.diagnoserChainCh, diagnosis)
 				if err != nil {
-					dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
-						Name:      abnormal.Name,
-						Namespace: abnormal.Namespace,
+					dc.Error(err, "failed to send diagnosis to diagnoser chain queue", "diagnosis", client.ObjectKey{
+						Name:      diagnosis.Name,
+						Namespace: diagnosis.Namespace,
 					})
 				}
 				continue
 			}
 
-			// Only process abnormal in AbnormalDiagnosing phase.
-			if abnormal.Status.Phase != diagnosisv1.AbnormalDiagnosing {
+			// Only process diagnosis in DiagnosisDiagnosing phase.
+			if diagnosis.Status.Phase != diagnosisv1.DiagnosisDiagnosing {
 				continue
 			}
 
-			if util.IsAbnormalNodeNameMatched(abnormal, dc.nodeName) {
-				abnormal, err := dc.SyncAbnormal(abnormal)
+			if util.IsDiagnosisNodeNameMatched(diagnosis, dc.nodeName) {
+				diagnosis, err := dc.SyncDiagnosis(diagnosis)
 				if err != nil {
-					dc.Error(err, "failed to sync Abnormal", "abnormal", abnormal)
+					dc.Error(err, "failed to sync Diagnosis", "diagnosis", diagnosis)
 				}
 
-				dc.Info("syncing Abnormal successfully", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				dc.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			}
 		// Stop diagnoser chain on stop signal.
@@ -223,31 +223,31 @@ func (dc *diagnoserChain) Run(stopCh <-chan struct{}) {
 	}
 }
 
-// SyncAbnormal syncs abnormals.
-func (dc *diagnoserChain) SyncAbnormal(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	dc.Info("starting to sync Abnormal", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// SyncDiagnosis syncs diagnoses.
+func (dc *diagnoserChain) SyncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	dc.Info("starting to sync Diagnosis", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
 	diagnosers, err := dc.listDiagnosers()
 	if err != nil {
 		dc.Error(err, "failed to list Diagnosers")
-		dc.addAbnormalToDiagnoserChainQueue(abnormal)
-		return abnormal, err
+		dc.addDiagnosisToDiagnoserChainQueue(diagnosis)
+		return diagnosis, err
 	}
 
-	abnormal, err = dc.runDiagnosis(diagnosers, abnormal)
+	diagnosis, err = dc.runDiagnosis(diagnosers, diagnosis)
 	if err != nil {
 		dc.Error(err, "failed to run diagnosis")
-		dc.addAbnormalToDiagnoserChainQueue(abnormal)
-		return abnormal, err
+		dc.addDiagnosisToDiagnoserChainQueue(diagnosis)
+		return diagnosis, err
 	}
 
-	// Increment counter of successful abnormal syncs by diagnoser chain.
+	// Increment counter of successful diagnosis syncs by diagnoser chain.
 	diagnoserChainSyncSuccessCount.Inc()
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
 // Handler handles http requests and response with diagnosers.
@@ -285,72 +285,72 @@ func (dc *diagnoserChain) listDiagnosers() ([]diagnosisv1.Diagnoser, error) {
 	return diagnoserList.Items, nil
 }
 
-// runDiagnosis diagnoses an abnormal with diagnosers.
-func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
+// runDiagnosis diagnoses an diagnosis with diagnosers.
+func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
 	// Run command executor of Diagnoser type.
-	for _, executorSpec := range abnormal.Spec.CommandExecutors {
+	for _, executorSpec := range diagnosis.Spec.CommandExecutors {
 		if executorSpec.Type == diagnosisv1.DiagnoserType {
 			executorStatus, err := util.RunCommandExecutor(executorSpec, dc)
 			if err != nil {
 				diagnoserChainCommandExecutorFailCount.Inc()
-				dc.Error(err, "failed to run command executor", "command", executorSpec.Command, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				dc.Error(err, "failed to run command executor", "command", executorSpec.Command, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			} else {
 				diagnoserChainCommandExecutorSuccessCount.Inc()
 			}
 
-			abnormal.Status.CommandExecutors = append(abnormal.Status.CommandExecutors, executorStatus)
+			diagnosis.Status.CommandExecutors = append(diagnosis.Status.CommandExecutors, executorStatus)
 		}
 	}
 
 	// Run profiler of Diagnoser type.
-	for _, profilerSpec := range abnormal.Spec.Profilers {
+	for _, profilerSpec := range diagnosis.Spec.Profilers {
 		if profilerSpec.Type == diagnosisv1.DiagnoserType {
-			profilerStatus, err := util.RunProfiler(dc, abnormal.Name, abnormal.Namespace, dc.bindAddress, dc.dataRoot, profilerSpec, abnormal.Spec.PodReference, dc.client, dc)
+			profilerStatus, err := util.RunProfiler(dc, diagnosis.Name, diagnosis.Namespace, dc.bindAddress, dc.dataRoot, profilerSpec, diagnosis.Spec.PodReference, dc.client, dc)
 			if err != nil {
 				diagnoserChainProfilerFailCount.Inc()
-				dc.Error(err, "failed to run profiler", "profiler", profilerSpec, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				dc.Error(err, "failed to run profiler", "profiler", profilerSpec, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			} else {
 				diagnoserChainProfilerSuccessCount.Inc()
 			}
 
-			abnormal.Status.Profilers = append(abnormal.Status.Profilers, profilerStatus)
+			diagnosis.Status.Profilers = append(diagnosis.Status.Profilers, profilerStatus)
 		}
 	}
 
 	// Skip diagnosis if AssignedDiagnosers is empty.
-	if len(abnormal.Spec.AssignedDiagnosers) == 0 {
+	if len(diagnosis.Spec.AssignedDiagnosers) == 0 {
 		diagnoserChainSyncSkipCount.Inc()
-		dc.Info("skipping diagnosis", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		dc.Info("skipping diagnosis", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
-		dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
+		dc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "SkippingDiagnosis", "Skipping diagnosis")
 
-		abnormal, err := dc.sendAbnormalToRecovererChain(abnormal)
+		diagnosis, err := dc.sendDiagnosisToRecovererChain(diagnosis)
 		if err != nil {
-			return abnormal, err
+			return diagnosis, err
 		}
 
-		return abnormal, nil
+		return diagnosis, nil
 	}
 
 	for _, diagnoser := range diagnosers {
 		// Execute only matched diagnosers.
 		matched := false
-		for _, assignedDiagnoser := range abnormal.Spec.AssignedDiagnosers {
+		for _, assignedDiagnoser := range diagnosis.Spec.AssignedDiagnosers {
 			if diagnoser.Name == assignedDiagnoser.Name && diagnoser.Namespace == assignedDiagnoser.Namespace {
 				dc.Info("assigned diagnoser matched", "diagnoser", client.ObjectKey{
 					Name:      diagnoser.Name,
 					Namespace: diagnoser.Namespace,
-				}, "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				}, "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 				matched = true
 				break
@@ -364,9 +364,9 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 		dc.Info("running diagnosis", "diagnoser", client.ObjectKey{
 			Name:      diagnoser.Name,
 			Namespace: diagnoser.Namespace,
-		}, "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		}, "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 
 		var host string
@@ -391,123 +391,123 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, abnor
 			Transport: dc.transport,
 		}
 
-		// Send http request to the diagnosers with payload of abnormal.
-		result, err := util.DoHTTPRequestWithAbnormal(abnormal, url, *cli, dc)
+		// Send http request to the diagnosers with payload of diagnosis.
+		result, err := util.DoHTTPRequestWithDiagnosis(diagnosis, url, *cli, dc)
 		if err != nil {
 			dc.Error(err, "failed to do http request to diagnoser", "diagnoser", client.ObjectKey{
 				Name:      diagnoser.Name,
 				Namespace: diagnoser.Namespace,
-			}, "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
+			}, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
 			})
 			continue
 		}
 
-		// Validate an abnormal after processed by a diagnoser.
-		err = util.ValidateAbnormalResult(result, abnormal)
+		// Validate an diagnosis after processed by a diagnoser.
+		err = util.ValidateDiagnosisResult(result, diagnosis)
 		if err != nil {
 			dc.Error(err, "invalid result from diagnoser", "diagnoser", client.ObjectKey{
 				Name:      diagnoser.Name,
 				Namespace: diagnoser.Namespace,
-			}, "abnormal", client.ObjectKey{
-				Name:      abnormal.Name,
-				Namespace: abnormal.Namespace,
+			}, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
 			})
 			continue
 		}
 
-		abnormal.Status = result.Status
-		abnormal.Status.Diagnoser = &diagnosisv1.NamespacedName{
+		diagnosis.Status = result.Status
+		diagnosis.Status.Diagnoser = &diagnosisv1.NamespacedName{
 			Name:      diagnoser.Name,
 			Namespace: diagnoser.Namespace,
 		}
-		abnormal, err := dc.sendAbnormalToRecovererChain(abnormal)
+		diagnosis, err := dc.sendDiagnosisToRecovererChain(diagnosis)
 		if err != nil {
-			return abnormal, err
+			return diagnosis, err
 		}
 
-		dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeNormal, "Identified", "Abnormal identified by %s/%s", diagnoser.Namespace, diagnoser.Name)
+		dc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "Identified", "Diagnosis identified by %s/%s", diagnoser.Namespace, diagnoser.Name)
 
-		return abnormal, nil
+		return diagnosis, nil
 	}
 
-	abnormal, err := dc.setAbnormalFailed(abnormal)
+	diagnosis, err := dc.setDiagnosisFailed(diagnosis)
 	if err != nil {
-		return abnormal, err
+		return diagnosis, err
 	}
 
-	dc.eventRecorder.Eventf(&abnormal, corev1.EventTypeWarning, "FailedIdentify", "Unable to identify abnormal %s(%s)", abnormal.Name, abnormal.UID)
+	dc.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "FailedIdentify", "Unable to identify diagnosis %s(%s)", diagnosis.Name, diagnosis.UID)
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// sendAbnormalToRecovererChain sends Abnormal to recoverer chain.
-func (dc *diagnoserChain) sendAbnormalToRecovererChain(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	dc.Info("sending Abnormal to recoverer chain", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// sendDiagnosisToRecovererChain sends Diagnosis to recoverer chain.
+func (dc *diagnoserChain) sendDiagnosisToRecovererChain(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	dc.Info("sending Diagnosis to recoverer chain", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
-	abnormal.Status.Phase = diagnosisv1.AbnormalRecovering
-	abnormal.Status.Identifiable = true
-	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
-		Type:   diagnosisv1.AbnormalIdentified,
+	diagnosis.Status.Phase = diagnosisv1.DiagnosisRecovering
+	diagnosis.Status.Identifiable = true
+	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+		Type:   diagnosisv1.DiagnosisIdentified,
 		Status: corev1.ConditionTrue,
 	})
-	if err := dc.client.Status().Update(dc, &abnormal); err != nil {
-		dc.Error(err, "unable to update Abnormal")
-		return abnormal, err
+	if err := dc.client.Status().Update(dc, &diagnosis); err != nil {
+		dc.Error(err, "unable to update Diagnosis")
+		return diagnosis, err
 	}
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// setAbnormalFailed sets abnormal phase to Failed.
-func (dc *diagnoserChain) setAbnormalFailed(abnormal diagnosisv1.Abnormal) (diagnosisv1.Abnormal, error) {
-	dc.Info("setting Abnormal phase to failed", "abnormal", client.ObjectKey{
-		Name:      abnormal.Name,
-		Namespace: abnormal.Namespace,
+// setDiagnosisFailed sets diagnosis phase to Failed.
+func (dc *diagnoserChain) setDiagnosisFailed(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	dc.Info("setting Diagnosis phase to failed", "diagnosis", client.ObjectKey{
+		Name:      diagnosis.Name,
+		Namespace: diagnosis.Namespace,
 	})
 
-	abnormal.Status.Phase = diagnosisv1.AbnormalFailed
-	abnormal.Status.Identifiable = false
-	util.UpdateAbnormalCondition(&abnormal.Status, &diagnosisv1.AbnormalCondition{
-		Type:   diagnosisv1.AbnormalIdentified,
+	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+	diagnosis.Status.Identifiable = false
+	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+		Type:   diagnosisv1.DiagnosisIdentified,
 		Status: corev1.ConditionFalse,
 	})
-	if err := dc.client.Status().Update(dc, &abnormal); err != nil {
-		dc.Error(err, "unable to update Abnormal")
-		return abnormal, err
+	if err := dc.client.Status().Update(dc, &diagnosis); err != nil {
+		dc.Error(err, "unable to update Diagnosis")
+		return diagnosis, err
 	}
 
 	diagnoserChainSyncFailCount.Inc()
 
-	return abnormal, nil
+	return diagnosis, nil
 }
 
-// addAbnormalToDiagnoserChainQueue adds Abnormal to the queue processed by diagnoser chain.
-func (dc *diagnoserChain) addAbnormalToDiagnoserChainQueue(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToDiagnoserChainQueue adds Diagnosis to the queue processed by diagnoser chain.
+func (dc *diagnoserChain) addDiagnosisToDiagnoserChainQueue(diagnosis diagnosisv1.Diagnosis) {
 	diagnoserChainSyncErrorCount.Inc()
 
-	err := util.QueueAbnormal(dc, dc.diagnoserChainCh, abnormal)
+	err := util.QueueDiagnosis(dc, dc.diagnoserChainCh, diagnosis)
 	if err != nil {
-		dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		dc.Error(err, "failed to send diagnosis to diagnoser chain queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }
 
-// addAbnormalToDiagnoserChainQueueWithTimer adds Abnormal to the queue processed by diagnoser chain with a timer.
-func (dc *diagnoserChain) addAbnormalToDiagnoserChainQueueWithTimer(abnormal diagnosisv1.Abnormal) {
+// addDiagnosisToDiagnoserChainQueueWithTimer adds Diagnosis to the queue processed by diagnoser chain with a timer.
+func (dc *diagnoserChain) addDiagnosisToDiagnoserChainQueueWithTimer(diagnosis diagnosisv1.Diagnosis) {
 	diagnoserChainSyncErrorCount.Inc()
 
-	err := util.QueueAbnormalWithTimer(dc, 30*time.Second, dc.diagnoserChainCh, abnormal)
+	err := util.QueueDiagnosisWithTimer(dc, 30*time.Second, dc.diagnoserChainCh, diagnosis)
 	if err != nil {
-		dc.Error(err, "failed to send abnormal to diagnoser chain queue", "abnormal", client.ObjectKey{
-			Name:      abnormal.Name,
-			Namespace: abnormal.Namespace,
+		dc.Error(err, "failed to send diagnosis to diagnoser chain queue", "diagnosis", client.ObjectKey{
+			Name:      diagnosis.Name,
+			Namespace: diagnosis.Namespace,
 		})
 	}
 }

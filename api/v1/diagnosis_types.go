@@ -24,44 +24,44 @@ import (
 )
 
 const (
-	// PrometheusAlertSource means that the abnormal is detected via prometheus alert.
-	PrometheusAlertSource AbnormalSourceType = "PrometheusAlert"
-	// KubernetesEventSource means that the abnormal is detected via kubernetes event.
-	KubernetesEventSource AbnormalSourceType = "KubernetesEvent"
-	// CustomSource means that the abnormal is a customized abnormal created by user.
-	CustomSource AbnormalSourceType = "Custom"
+	// PrometheusAlertSource means that the diagnosis is detected via prometheus alert.
+	PrometheusAlertSource DiagnosisSourceType = "PrometheusAlert"
+	// KubernetesEventSource means that the diagnosis is detected via kubernetes event.
+	KubernetesEventSource DiagnosisSourceType = "KubernetesEvent"
+	// CustomSource means that the diagnosis is a customized diagnosis created by user.
+	CustomSource DiagnosisSourceType = "Custom"
 
-	// InformationCollecting means that the information manager is sending abnormal to assigned
+	// InformationCollecting means that the information manager is sending diagnosis to assigned
 	// information collectors.
-	InformationCollecting AbnormalPhase = "InformationCollecting"
-	// AbnormalDiagnosing means that the abnormal has been passed to diagnoser chain and some of
+	InformationCollecting DiagnosisPhase = "InformationCollecting"
+	// DiagnosisDiagnosing means that the diagnosis has been passed to diagnoser chain and some of
 	// the diagnosers have been started. At least one diagnoser is still running.
-	AbnormalDiagnosing AbnormalPhase = "Diagnosing"
-	// AbnormalRecovering means that the abnormal has been passed to recoverer chain and some of
+	DiagnosisDiagnosing DiagnosisPhase = "Diagnosing"
+	// DiagnosisRecovering means that the diagnosis has been passed to recoverer chain and some of
 	// the recoverers have been started. At least one recoverer is still running.
-	AbnormalRecovering AbnormalPhase = "Recovering"
-	// AbnormalSucceeded means that the abnormal has been successfully recovered by some of
+	DiagnosisRecovering DiagnosisPhase = "Recovering"
+	// DiagnosisSucceeded means that the diagnosis has been successfully recovered by some of
 	// the recoverers.
-	AbnormalSucceeded AbnormalPhase = "Succeeded"
-	// AbnormalFailed means that all diagnosers and recoverers have been executed, and none of
-	// diagnosers and recoverers is able to diagnose and recover the abnormal.
-	AbnormalFailed AbnormalPhase = "Failed"
-	// AbnormalUnknown means that for some reason the state of the abnormal could not be obtained.
-	AbnormalUnknown AbnormalPhase = "Unknown"
+	DiagnosisSucceeded DiagnosisPhase = "Succeeded"
+	// DiagnosisFailed means that all diagnosers and recoverers have been executed, and none of
+	// diagnosers and recoverers is able to diagnose and recover the diagnosis.
+	DiagnosisFailed DiagnosisPhase = "Failed"
+	// DiagnosisUnknown means that for some reason the state of the diagnosis could not be obtained.
+	DiagnosisUnknown DiagnosisPhase = "Unknown"
 
 	// InformationCollectorType means that the command executor or profiler is an information collector.
-	InformationCollectorType AbnormalProcessorType = "InformationCollector"
+	InformationCollectorType DiagnosisProcessorType = "InformationCollector"
 	// DiagnoserType means that the command executor or profiler is an diagnoser.
-	DiagnoserType AbnormalProcessorType = "Diagnoser"
+	DiagnoserType DiagnosisProcessorType = "Diagnoser"
 	// RecovererType means that the command executor or profiler is an recoverer.
-	RecovererType AbnormalProcessorType = "Recoverer"
+	RecovererType DiagnosisProcessorType = "Recoverer"
 
-	// InformationCollected means that the abnormal has been passed to information manager.
-	InformationCollected AbnormalConditionType = "InformationCollected"
-	// AbnormalIdentified means that the abnormal has been identified by the diagnoser chain.
-	AbnormalIdentified AbnormalConditionType = "Identified"
-	// AbnormalRecovered means that the abnormal has been recovered by the recoverer chain.
-	AbnormalRecovered AbnormalConditionType = "Recovered"
+	// InformationCollected means that the diagnosis has been passed to information manager.
+	InformationCollected DiagnosisConditionType = "InformationCollected"
+	// DiagnosisIdentified means that the diagnosis has been identified by the diagnoser chain.
+	DiagnosisIdentified DiagnosisConditionType = "Identified"
+	// DiagnosisRecovered means that the diagnosis has been recovered by the recoverer chain.
+	DiagnosisRecovered DiagnosisConditionType = "Recovered"
 
 	// ArthasJavaProfilerType means that the java profiler is run by arthas.
 	ArthasJavaProfilerType JavaProfilerType = "Arthas"
@@ -69,20 +69,20 @@ const (
 	MemoryAnalyzerJavaProfilerType JavaProfilerType = "MemoryAnalyzer"
 )
 
-// AbnormalSpec defines the desired state of Abnormal.
-type AbnormalSpec struct {
-	// Source is the abnormal source. Valid sources are PrometheusAlert, KubernetesEvent and Custom.
-	Source AbnormalSourceType `json:"source"`
-	// PrometheusAlert contains the prometheus alert about the abnormal from prometheus
-	// alert source. This must be specified if abnormal source is PrometheusAlert.
+// DiagnosisSpec defines the desired state of Diagnosis.
+type DiagnosisSpec struct {
+	// Source is the diagnosis source. Valid sources are PrometheusAlert, KubernetesEvent and Custom.
+	Source DiagnosisSourceType `json:"source"`
+	// PrometheusAlert contains the prometheus alert about the diagnosis from prometheus
+	// alert source. This must be specified if diagnosis source is PrometheusAlert.
 	// +optional
 	PrometheusAlert *PrometheusAlert `json:"prometheusAlert,omitempty"`
-	// KubernetesEvent contains the kubernetes event about the abnormal from kubernetes
-	// event source. This must be specified if abnormal source is KubernetesEvent.
+	// KubernetesEvent contains the kubernetes event about the diagnosis from kubernetes
+	// event source. This must be specified if diagnosis source is KubernetesEvent.
 	// +optional
 	KubernetesEvent *corev1.Event `json:"kubernetesEvent,omitempty"`
 	// One of NodeName and PodReference must be specified.
-	// NodeName is a specific node which the abnormal is on.
+	// NodeName is a specific node which the diagnosis is on.
 	// +optional
 	NodeName string `json:"nodeName,omitempty"`
 	// PodReference contains details of the target pod.
@@ -111,15 +111,15 @@ type AbnormalSpec struct {
 	// diagnosing and recovering.
 	// +optional
 	Profilers []ProfilerSpec `json:"profilers,omitempty"`
-	// Context is a blob of information about the abnormal, meant to be user-facing
+	// Context is a blob of information about the diagnosis, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
 	// +optional
 	Context *runtime.RawExtension `json:"context,omitempty"`
 }
 
-// AbnormalSourceType is the source of abnormals.
-type AbnormalSourceType string
+// DiagnosisSourceType is the source of diagnoses.
+type DiagnosisSourceType string
 
 // PrometheusAlert is a generic representation of an prometheus alert.
 // It is the "Alert" type in model.go: https://github.com/prometheus/common/blob/v0.12.0/model/alert.go#L29.
@@ -168,7 +168,7 @@ type CommandExecutorSpec struct {
 	// InformationCollector: The command executor will be run by information manager.
 	// Diagnoser: The command executor will be run by diagnoser chain.
 	// Recoverer: The command executor will be run by recoverer chain.
-	Type AbnormalProcessorType `json:"type"`
+	Type DiagnosisProcessorType `json:"type"`
 	// Number of seconds after which the command times out.
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
@@ -185,7 +185,7 @@ type ProfilerSpec struct {
 	// InformationCollector: The profiler will be run by information manager.
 	// Diagnoser: The profiler will be run by diagnoser chain.
 	// Recoverer: The profiler will be run by recoverer chain.
-	Type AbnormalProcessorType `json:"type"`
+	Type DiagnosisProcessorType `json:"type"`
 	// One and only one of the following programming languages should be specified.
 	// Go specifies the action to perform for profiling a go program.
 	// +optional
@@ -221,47 +221,47 @@ type JavaProfilerSpec struct {
 	HPROFFilePath string `json:"hprofFilePath,omitempty"`
 }
 
-// AbnormalStatus defines the observed state of Abnormal.
-type AbnormalStatus struct {
-	// Identifiable indicates if the abnormal could be identified by the diagnoser chain.
+// DiagnosisStatus defines the observed state of Diagnosis.
+type DiagnosisStatus struct {
+	// Identifiable indicates if the diagnosis could be identified by the diagnoser chain.
 	Identifiable bool `json:"identifiable"`
-	// Recoverable indicates if the abnormal could be recovered by the recoverer chain.
+	// Recoverable indicates if the diagnosis could be recovered by the recoverer chain.
 	Recoverable bool `json:"recoverable"`
-	// Phase is a simple, high-level summary of where the abnormal is in its lifecycle.
+	// Phase is a simple, high-level summary of where the diagnosis is in its lifecycle.
 	// The conditions array, the reason and message fields contain more detail about the
 	// pod's status.
 	// There are six possible phase values:
 	//
-	// InformationCollecting: The abnormal has been passed to information manager and some of the
+	// InformationCollecting: The diagnosis has been passed to information manager and some of the
 	// information collectors have been started. At least one information collector is still running.
-	// Diagnosing: The abnormal has been passed to diagnoser chain and some of the diagnosers
+	// Diagnosing: The diagnosis has been passed to diagnoser chain and some of the diagnosers
 	// have been started. At least one diagnoser is still running.
-	// Recovering: The abnormal has been passed to recoverer chain and some of the recoverers
+	// Recovering: The diagnosis has been passed to recoverer chain and some of the recoverers
 	// have been started. At least one recoverer is still running.
-	// Succeeded: The abnormal has been successfully recovered by some of the recoverers.
+	// Succeeded: The diagnosis has been successfully recovered by some of the recoverers.
 	// Failed: All diagnosers and recoverers have been executed, and none of diagnosers and
-	// recoverers is able to diagnose and recover the abnormal.
-	// Unknown: For some reason the state of the abnormal could not be obtained.
+	// recoverers is able to diagnose and recover the diagnosis.
+	// Unknown: For some reason the state of the diagnosis could not be obtained.
 	// +optional
-	Phase AbnormalPhase `json:"phase,omitempty"`
-	// Conditions contains current service state of abnormal.
+	Phase DiagnosisPhase `json:"phase,omitempty"`
+	// Conditions contains current service state of diagnosis.
 	// +optional
-	Conditions []AbnormalCondition `json:"conditions,omitempty"`
-	// Message is a human readable message indicating details about why the abnormal is in
+	Conditions []DiagnosisCondition `json:"conditions,omitempty"`
+	// Message is a human readable message indicating details about why the diagnosis is in
 	// this condition.
 	// +optional
 	Message string `json:"message,omitempty"`
-	// Reason is a brief CamelCase message indicating details about why the abnormal is in
+	// Reason is a brief CamelCase message indicating details about why the diagnosis is in
 	// this state.
 	// +optional
 	Reason string `json:"reason,omitempty"`
 	// StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
 	// +optional
 	StartTime metav1.Time `json:"startTime,omitempty"`
-	// Diagnoser indicates the diagnoser which has identified the abnormal successfully.
+	// Diagnoser indicates the diagnoser which has identified the diagnosis successfully.
 	// +optional
 	Diagnoser *NamespacedName `json:"diagnoser,omitempty"`
-	// Recoverer indicates the recoverer which has recovered the abnormal successfully.
+	// Recoverer indicates the recoverer which has recovered the diagnosis successfully.
 	// +optional
 	Recoverer *NamespacedName `json:"recoverer,omitempty"`
 	// CommandExecutors is the list of command execution results.
@@ -270,7 +270,7 @@ type AbnormalStatus struct {
 	// Profilers is the list of profiler status.
 	// +optional
 	Profilers []ProfilerStatus `json:"profilers,omitempty"`
-	// Context is a blob of information about the abnormal, meant to be user-facing
+	// Context is a blob of information about the diagnosis, meant to be user-facing
 	// content and display instructions. This field may contain customized values for
 	// custom source.
 	// +optional
@@ -286,7 +286,7 @@ type CommandExecutorStatus struct {
 	// InformationCollector: The command executor will be run by information manager.
 	// Diagnoser: The command executor will be run by diagnoser chain.
 	// Recoverer: The command executor will be run by recoverer chain.
-	Type AbnormalProcessorType `json:"type"`
+	Type DiagnosisProcessorType `json:"type"`
 	// Stdout is standard output of the command.
 	// +optional
 	Stdout string `json:"stdout,omitempty"`
@@ -307,7 +307,7 @@ type ProfilerStatus struct {
 	// InformationCollector: The profiler will be run by information manager.
 	// Diagnoser: The profiler will be run by diagnoser chain.
 	// Recoverer: The profiler will be run by recoverer chain.
-	Type AbnormalProcessorType `json:"type"`
+	Type DiagnosisProcessorType `json:"type"`
 	// Endpoint specifies how to navigate through a profile.
 	// It will be set as expired after expiration seconds.
 	Endpoint string `json:"endpoint"`
@@ -316,10 +316,10 @@ type ProfilerStatus struct {
 	Error string `json:"error,omitempty"`
 }
 
-// AbnormalCondition contains details for the current condition of this abnormal.
-type AbnormalCondition struct {
+// DiagnosisCondition contains details for the current condition of this diagnosis.
+type DiagnosisCondition struct {
 	// Type is the type of the condition.
-	Type AbnormalConditionType `json:"type"`
+	Type DiagnosisConditionType `json:"type"`
 	// Status is the status of the condition.
 	// Can be True, False, Unknown.
 	Status corev1.ConditionStatus `json:"status"`
@@ -335,14 +335,14 @@ type AbnormalCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// AbnormalPhase is a label for the condition of a abnormal at the current time.
-type AbnormalPhase string
+// DiagnosisPhase is a label for the condition of a diagnosis at the current time.
+type DiagnosisPhase string
 
-// AbnormalProcessorType is a valid value for CommandExecutorSpec.Type or ProfilerSpec.Type.
-type AbnormalProcessorType string
+// DiagnosisProcessorType is a valid value for CommandExecutorSpec.Type or ProfilerSpec.Type.
+type DiagnosisProcessorType string
 
-// AbnormalConditionType is a valid value for AbnormalCondition.Type.
-type AbnormalConditionType string
+// DiagnosisConditionType is a valid value for DiagnosisCondition.Type.
+type DiagnosisConditionType string
 
 // JavaProfilerType is a valid value for JavaProfiler.Type.
 type JavaProfilerType string
@@ -350,24 +350,24 @@ type JavaProfilerType string
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// Abnormal is the Schema for the abnormals API.
-type Abnormal struct {
+// Diagnosis is the Schema for the diagnoses API.
+type Diagnosis struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   AbnormalSpec   `json:"spec,omitempty"`
-	Status AbnormalStatus `json:"status,omitempty"`
+	Spec   DiagnosisSpec   `json:"spec,omitempty"`
+	Status DiagnosisStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// AbnormalList contains a list of Abnormal.
-type AbnormalList struct {
+// DiagnosisList contains a list of Diagnosis.
+type DiagnosisList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Abnormal `json:"items"`
+	Items           []Diagnosis `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Abnormal{}, &AbnormalList{})
+	SchemeBuilder.Register(&Diagnosis{}, &DiagnosisList{})
 }

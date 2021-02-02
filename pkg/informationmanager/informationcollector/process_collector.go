@@ -48,7 +48,7 @@ func NewProcessCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	processCollectorEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &processCollector{
 		Context:                 ctx,
 		Logger:                  logger,
@@ -72,10 +72,10 @@ func (pc *processCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
@@ -87,15 +87,15 @@ func (pc *processCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set process information in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.ProcessInformationContextKey, processes)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.ProcessInformationContextKey, processes)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

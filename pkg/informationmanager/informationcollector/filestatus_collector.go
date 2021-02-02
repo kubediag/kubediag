@@ -50,7 +50,7 @@ func NewFileStatusCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	fileStatusCollectorEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &fileStatusCollector{
 		Context:                    ctx,
 		Logger:                     logger,
@@ -74,15 +74,15 @@ func (fc *fileStatusCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
 		// List all file paths in context.
-		paths, err := util.ListFilePathsFromFilePathInformationContext(abnormal, fc)
+		paths, err := util.ListFilePathsFromFilePathInformationContext(diagnosis, fc)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list file paths: %v", err), http.StatusInternalServerError)
 			return
@@ -194,15 +194,15 @@ func (fc *fileStatusCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Set file status information result in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.FileStatusInformationContextKey, fileStatusLists)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.FileStatusInformationContextKey, fileStatusLists)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

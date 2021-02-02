@@ -43,16 +43,16 @@ var (
 			Help: "Counter of prometheus alerts received by alertmanager",
 		},
 	)
-	alertmanagerAbnormalGenerationSuccessCount = prometheus.NewCounter(
+	alertmanagerDiagnosisGenerationSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "alertmanager_abnormal_generation_success_count",
-			Help: "Counter of successful abnormal generations by alertmanager",
+			Name: "alertmanager_diagnosis_generation_success_count",
+			Help: "Counter of successful diagnosis generations by alertmanager",
 		},
 	)
-	alertmanagerAbnormalGenerationErrorCount = prometheus.NewCounter(
+	alertmanagerDiagnosisGenerationErrorCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "alertmanager_abnormal_generation_error_count",
-			Help: "Counter of erroneous abnormal generations by alertmanager",
+			Name: "alertmanager_diagnosis_generation_error_count",
+			Help: "Counter of erroneous diagnosis generations by alertmanager",
 		},
 	)
 )
@@ -75,8 +75,8 @@ type alertmanager struct {
 	repeatInterval time.Duration
 	// firingAlertSet contains all alerts fired by alertmanager.
 	firingAlertSet map[uint64]time.Time
-	// sourceManagerCh is a channel for queuing Abnormals to be processed by source manager.
-	sourceManagerCh chan diagnosisv1.Abnormal
+	// sourceManagerCh is a channel for queuing Diagnoses to be processed by source manager.
+	sourceManagerCh chan diagnosisv1.Diagnosis
 	// alertmanagerEnabled indicates whether alertmanager is enabled.
 	alertmanagerEnabled bool
 }
@@ -86,13 +86,13 @@ func NewAlertmanager(
 	ctx context.Context,
 	logger logr.Logger,
 	repeatInterval time.Duration,
-	sourceManagerCh chan diagnosisv1.Abnormal,
+	sourceManagerCh chan diagnosisv1.Diagnosis,
 	alertmanagerEnabled bool,
 ) Alertmanager {
 	metrics.Registry.MustRegister(
 		prometheusAlertReceivedCount,
-		alertmanagerAbnormalGenerationSuccessCount,
-		alertmanagerAbnormalGenerationErrorCount,
+		alertmanagerDiagnosisGenerationSuccessCount,
+		alertmanagerDiagnosisGenerationErrorCount,
 	)
 
 	firingAlertSet := make(map[uint64]time.Time)
@@ -120,7 +120,7 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			alertmanagerAbnormalGenerationErrorCount.Inc()
+			alertmanagerDiagnosisGenerationErrorCount.Inc()
 			am.Error(err, "unable to read request body")
 			http.Error(w, fmt.Sprintf("unable to read request body: %v", err), http.StatusBadRequest)
 			return
@@ -130,7 +130,7 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 		var alerts []*types.Alert
 		err = json.Unmarshal(body, &alerts)
 		if err != nil {
-			alertmanagerAbnormalGenerationErrorCount.Inc()
+			alertmanagerDiagnosisGenerationErrorCount.Inc()
 			am.Error(err, "failed to unmarshal request body")
 			http.Error(w, fmt.Sprintf("failed to unmarshal request body: %v", err), http.StatusInternalServerError)
 			return
@@ -150,8 +150,8 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Create abnormal according to the prometheus alert.
-			name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedAbnormalPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
+			// Create diagnosis according to the prometheus alert.
+			name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
 			namespace := util.DefautlNamespace
 			prometheusAlert := diagnosisv1.PrometheusAlert{
 				Labels:      alert.Labels,
@@ -164,33 +164,33 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 				},
 				GeneratorURL: alert.GeneratorURL,
 			}
-			abnormal := diagnosisv1.Abnormal{
+			diagnosis := diagnosisv1.Diagnosis{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: diagnosisv1.AbnormalSpec{
+				Spec: diagnosisv1.DiagnosisSpec{
 					Source:          diagnosisv1.PrometheusAlertSource,
 					PrometheusAlert: &prometheusAlert,
 				},
 			}
 
-			// Add abnormal to the queue processed by source manager.
-			err := util.QueueAbnormal(am, am.sourceManagerCh, abnormal)
+			// Add diagnosis to the queue processed by source manager.
+			err := util.QueueDiagnosis(am, am.sourceManagerCh, diagnosis)
 			if err != nil {
-				alertmanagerAbnormalGenerationErrorCount.Inc()
-				am.Error(err, "failed to send abnormal to source manager queue", "abnormal", client.ObjectKey{
-					Name:      abnormal.Name,
-					Namespace: abnormal.Namespace,
+				alertmanagerDiagnosisGenerationErrorCount.Inc()
+				am.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
 				})
 			}
 
-			// Update alert fired time if the abnormal is created successfully.
+			// Update alert fired time if the diagnosis is created successfully.
 			am.firingAlertSet[uint64(fingerprint)] = now
 		}
 
-		// Increment counter of successful abnormal generations by alertmanager.
-		alertmanagerAbnormalGenerationSuccessCount.Inc()
+		// Increment counter of successful diagnosis generations by alertmanager.
+		alertmanagerDiagnosisGenerationSuccessCount.Inc()
 
 		w.Write([]byte("OK"))
 	default:

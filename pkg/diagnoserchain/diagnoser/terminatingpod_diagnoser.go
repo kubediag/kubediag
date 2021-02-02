@@ -52,7 +52,7 @@ func NewTerminatingPodDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,
 	terminatingPodDiagnoserEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &terminatingPodDiagnoser{
 		Context:                        ctx,
 		Logger:                         logger,
@@ -76,29 +76,29 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
 		// List all pods on the node.
-		pods, err := util.ListPodsFromPodInformationContext(abnormal, td)
+		pods, err := util.ListPodsFromPodInformationContext(diagnosis, td)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list pods: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// List all processes on the node.
-		processes, err := util.ListProcessesFromProcessInformationContext(abnormal, td)
+		processes, err := util.ListProcessesFromProcessInformationContext(diagnosis, td)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list processes: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Get all containerd shim processes from pods which are not terminated by deadline. Response with
-		// request payload of abnormal if abnormal pods not found.
+		// request payload of diagnosis if abnormal pods not found.
 		abnormalPods := td.getAbnormalPods(pods)
 		if len(abnormalPods) == 0 {
 			td.Info("abnormal pods not found")
@@ -120,21 +120,21 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 				Signal: syscall.SIGKILL,
 			})
 		}
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.SignalRecoveryContextKey, signals)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.SignalRecoveryContextKey, signals)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Set terminating pod diagnosis result in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.TerminatingPodDiagnosisContextKey, abnormalPods)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.TerminatingPodDiagnosisContextKey, abnormalPods)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Remove pod information in status context.
-		abnormal, removed, err := util.RemoveAbnormalStatusContext(abnormal, util.PodInformationContextKey)
+		diagnosis, removed, err := util.RemoveDiagnosisStatusContext(diagnosis, util.PodInformationContextKey)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to remove context field: %v", err), http.StatusInternalServerError)
 			return
@@ -145,7 +145,7 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Remove process information in status context.
-		abnormal, removed, err = util.RemoveAbnormalStatusContext(abnormal, util.ProcessInformationContextKey)
+		diagnosis, removed, err = util.RemoveDiagnosisStatusContext(diagnosis, util.ProcessInformationContextKey)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to remove context field: %v", err), http.StatusInternalServerError)
 			return
@@ -155,9 +155,9 @@ func (td *terminatingPodDiagnoser) Handler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

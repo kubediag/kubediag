@@ -45,7 +45,7 @@ var _ webhook.Defaulter = &Diagnoser{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *Diagnoser) Default() {
-	abnormallog.Info("defaulting Diagnoser", "diagnoser", client.ObjectKey{
+	diagnosislog.Info("defaulting Diagnoser", "diagnoser", client.ObjectKey{
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})

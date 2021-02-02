@@ -47,7 +47,7 @@ func NewSignalRecoverer(
 	ctx context.Context,
 	logger logr.Logger,
 	signalRecovererEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &signalRecoverer{
 		Context:                ctx,
 		Logger:                 logger,
@@ -71,15 +71,15 @@ func (sr *signalRecoverer) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
 		// Get process signal details.
-		signals, err := util.ListSignalsFromSignalRecoveryContext(abnormal, sr)
+		signals, err := util.ListSignalsFromSignalRecoveryContext(diagnosis, sr)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to get process signal details: %v", err), http.StatusInternalServerError)
 			return
@@ -95,9 +95,9 @@ func (sr *signalRecoverer) Handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 

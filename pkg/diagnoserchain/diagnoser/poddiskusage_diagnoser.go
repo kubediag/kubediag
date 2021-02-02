@@ -48,7 +48,7 @@ func NewPodDiskUsageDiagnoser(
 	ctx context.Context,
 	logger logr.Logger,
 	podDiskUsageDiagnoserEnabled bool,
-) types.AbnormalProcessor {
+) types.DiagnosisProcessor {
 	return &podDiskUsageDiagnoser{
 		Context:                      ctx,
 		Logger:                       logger,
@@ -72,15 +72,15 @@ func (pd *podDiskUsageDiagnoser) Handler(w http.ResponseWriter, r *http.Request)
 		}
 		defer r.Body.Close()
 
-		var abnormal diagnosisv1.Abnormal
-		err = json.Unmarshal(body, &abnormal)
+		var diagnosis diagnosisv1.Diagnosis
+		err = json.Unmarshal(body, &diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an abnormal: %v", err), http.StatusNotAcceptable)
+			http.Error(w, fmt.Sprintf("unable to unmarshal request body into an diagnosis: %v", err), http.StatusNotAcceptable)
 			return
 		}
 
 		// List all pods on the node.
-		pods, err := util.ListPodsFromPodInformationContext(abnormal, pd)
+		pods, err := util.ListPodsFromPodInformationContext(diagnosis, pd)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to list pods: %v", err), http.StatusInternalServerError)
 			return
@@ -108,7 +108,7 @@ func (pd *podDiskUsageDiagnoser) Handler(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Remove pod information in status context.
-		abnormal, removed, err := util.RemoveAbnormalStatusContext(abnormal, util.PodInformationContextKey)
+		diagnosis, removed, err := util.RemoveDiagnosisStatusContext(diagnosis, util.PodInformationContextKey)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to remove context field: %v", err), http.StatusInternalServerError)
 			return
@@ -119,15 +119,15 @@ func (pd *podDiskUsageDiagnoser) Handler(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Set pod disk usage diagnosis result in status context.
-		abnormal, err = util.SetAbnormalStatusContext(abnormal, util.PodDiskUsageDiagnosisContextKey, sorted)
+		diagnosis, err = util.SetDiagnosisStatusContext(diagnosis, util.PodDiskUsageDiagnosisContextKey, sorted)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to set context field: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		data, err := json.Marshal(abnormal)
+		data, err := json.Marshal(diagnosis)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal abnormal: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal diagnosis: %v", err), http.StatusInternalServerError)
 			return
 		}
 
