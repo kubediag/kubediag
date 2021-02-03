@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	diagnosisv1 "netease.com/k8s/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 )
 
 // DiagnosisProcessor manages http requests for processing diagnoses.
