@@ -410,6 +410,14 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 				Name:      diagnosis.Name,
 				Namespace: diagnosis.Namespace,
 			})
+
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.InformationCollected,
+				Status:  corev1.ConditionFalse,
+				Reason:  "InformationNotCollected",
+				Message: fmt.Sprintf("Collector %s/%s failed to collect information: %s", collector.Namespace, collector.Name, err),
+			})
+
 			continue
 		}
 
@@ -428,6 +436,12 @@ func (im *informationManager) runInformationCollection(informationCollectors []d
 
 		informationCollected = true
 		diagnosis.Status = result.Status
+		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			Type:    diagnosisv1.InformationCollected,
+			Status:  corev1.ConditionTrue,
+			Reason:  "InformationCollected",
+			Message: fmt.Sprintf("Information is collected by collector %s/%s", collector.Namespace, collector.Name),
+		})
 
 		im.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "InformationCollected", "Information collected by %s/%s", collector.Namespace, collector.Name)
 	}
@@ -461,10 +475,6 @@ func (im *informationManager) sendDiagnosisToDiagnoserChain(diagnosis diagnosisv
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisDiagnosing
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.InformationCollected,
-		Status: corev1.ConditionTrue,
-	})
 	if err := im.client.Status().Update(im, &diagnosis); err != nil {
 		im.Error(err, "unable to update Diagnosis")
 		return diagnosis, err
@@ -481,10 +491,6 @@ func (im *informationManager) setDiagnosisFailed(diagnosis diagnosisv1.Diagnosis
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.InformationCollected,
-		Status: corev1.ConditionFalse,
-	})
 	if err := im.client.Status().Update(im, &diagnosis); err != nil {
 		im.Error(err, "unable to update Diagnosis")
 		return diagnosis, err

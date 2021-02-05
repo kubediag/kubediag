@@ -401,6 +401,14 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, diagno
 				Name:      diagnosis.Name,
 				Namespace: diagnosis.Namespace,
 			})
+
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.DiagnosisRecovered,
+				Status:  corev1.ConditionFalse,
+				Reason:  "DiagnosisNotRecovered",
+				Message: fmt.Sprintf("Recoverer %s/%s failed to recover diagnosis: %s", recoverer.Namespace, recoverer.Name, err),
+			})
+
 			continue
 		}
 
@@ -418,10 +426,12 @@ func (rc *recovererChain) runRecovery(recoverers []diagnosisv1.Recoverer, diagno
 		}
 
 		diagnosis.Status = result.Status
-		diagnosis.Status.Recoverer = &diagnosisv1.NamespacedName{
-			Name:      recoverer.Name,
-			Namespace: recoverer.Namespace,
-		}
+		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			Type:    diagnosisv1.DiagnosisRecovered,
+			Status:  corev1.ConditionTrue,
+			Reason:  "DiagnosisRecovered",
+			Message: fmt.Sprintf("Diagnosis is recovered by recoverer %s/%s", recoverer.Namespace, recoverer.Name),
+		})
 		diagnosis, err := rc.setDiagnosisSucceeded(diagnosis)
 		if err != nil {
 			return diagnosis, err
@@ -450,11 +460,6 @@ func (rc *recovererChain) setDiagnosisSucceeded(diagnosis diagnosisv1.Diagnosis)
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisSucceeded
-	diagnosis.Status.Recoverable = true
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.DiagnosisRecovered,
-		Status: corev1.ConditionTrue,
-	})
 	if err := rc.client.Status().Update(rc, &diagnosis); err != nil {
 		rc.Error(err, "unable to update Diagnosis")
 		return diagnosis, err
@@ -471,11 +476,6 @@ func (rc *recovererChain) setDiagnosisFailed(diagnosis diagnosisv1.Diagnosis) (d
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-	diagnosis.Status.Recoverable = false
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.DiagnosisRecovered,
-		Status: corev1.ConditionFalse,
-	})
 	if err := rc.client.Status().Update(rc, &diagnosis); err != nil {
 		rc.Error(err, "unable to update Diagnosis")
 		return diagnosis, err
