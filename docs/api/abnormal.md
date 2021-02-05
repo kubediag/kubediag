@@ -120,6 +120,14 @@ Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故�
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | source | Go 语言性能剖析器源。通常是一个 HTTP 访问路径。 | string | true |
+| type | Go 语言性能剖析器的类型。支持 Profile、Heap、Goroutine 类型。 | string | true |
+| tls | 连接到远程服务器时要用到的 TLS 配置。 |  [GoProfilerTLS](#goprofilertls) | false |
+
+## GoProfilerTLS
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| secretReference | 用于连接远程 HTTPS 服务器，且包含 Token 内容的 Secret 引用。 | [NamespacedName](#namespacedname) | true |
 
 ## JavaProfilerSpec
 
