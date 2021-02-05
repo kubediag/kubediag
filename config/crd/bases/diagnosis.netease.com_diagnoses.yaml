@@ -490,29 +490,6 @@ spec:
                 to be user-facing content and display instructions. This field may
                 contain customized values for custom source.
               type: object
-            diagnoser:
-              description: Diagnoser indicates the diagnoser which has identified
-                the diagnosis successfully.
-              properties:
-                name:
-                  description: Name specifies the name of a kubernetes api resource.
-                  type: string
-                namespace:
-                  description: Namespace specifies the namespace of a kubernetes api
-                    resource.
-                  type: string
-              required:
-              - name
-              - namespace
-              type: object
-            identifiable:
-              description: Identifiable indicates if the diagnosis could be identified
-                by the diagnoser chain.
-              type: boolean
-            message:
-              description: Message is a human readable message indicating details
-                about why the diagnosis is in this condition.
-              type: string
             phase:
               description: "Phase is a simple, high-level summary of where the diagnosis
                 is in its lifecycle. The conditions array, the reason and message
@@ -558,37 +535,11 @@ spec:
                 - type
                 type: object
               type: array
-            reason:
-              description: Reason is a brief CamelCase message indicating details
-                about why the diagnosis is in this state.
-              type: string
-            recoverable:
-              description: Recoverable indicates if the diagnosis could be recovered
-                by the recoverer chain.
-              type: boolean
-            recoverer:
-              description: Recoverer indicates the recoverer which has recovered the
-                diagnosis successfully.
-              properties:
-                name:
-                  description: Name specifies the name of a kubernetes api resource.
-                  type: string
-                namespace:
-                  description: Namespace specifies the namespace of a kubernetes api
-                    resource.
-                  type: string
-              required:
-              - name
-              - namespace
-              type: object
             startTime:
               description: StartTime is RFC 3339 date and time at which the object
                 was acknowledged by the system.
               format: date-time
               type: string
-          required:
-          - identifiable
-          - recoverable
           type: object
       type: object
   version: v1

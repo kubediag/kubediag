@@ -916,9 +916,7 @@ func TestValidateDiagnosisResult(t *testing.T) {
 			},
 		},
 		Status: diagnosisv1.DiagnosisStatus{
-			Identifiable: false,
-			Recoverable:  false,
-			Phase:        diagnosisv1.DiagnosisDiagnosing,
+			Phase: diagnosisv1.DiagnosisDiagnosing,
 			Conditions: []diagnosisv1.DiagnosisCondition{
 				{
 					Type:    diagnosisv1.InformationCollected,
@@ -928,21 +926,11 @@ func TestValidateDiagnosisResult(t *testing.T) {
 				},
 			},
 			StartTime: metav1.NewTime(time),
-			Diagnoser: &diagnosisv1.NamespacedName{
-				Namespace: "default",
-				Name:      "diagnoser1",
-			},
 		},
 	}
 
 	invalidSpec := diagnosis
 	invalidSpec.Spec.Source = "KubernetesEvent"
-
-	invalidIdentifiable := diagnosis
-	invalidIdentifiable.Status.Identifiable = true
-
-	invalidRecoverable := diagnosis
-	invalidRecoverable.Status.Recoverable = true
 
 	invalidPhase := diagnosis
 	invalidPhase.Status.Phase = diagnosisv1.DiagnosisFailed
@@ -950,26 +938,8 @@ func TestValidateDiagnosisResult(t *testing.T) {
 	invalidConditions := diagnosis
 	invalidConditions.Status.Conditions = []diagnosisv1.DiagnosisCondition{}
 
-	invalidMessage := diagnosis
-	invalidMessage.Status.Message = "message"
-
-	invalidReason := diagnosis
-	invalidReason.Status.Reason = "reason"
-
 	invalidStartTime := diagnosis
 	invalidStartTime.Status.StartTime = metav1.NewTime(time.Add(1000))
-
-	invalidDiagnoser := diagnosis
-	invalidDiagnoser.Status.Diagnoser = &diagnosisv1.NamespacedName{
-		Namespace: "default",
-		Name:      "diagnoser2",
-	}
-
-	invalidRecoverer := diagnosis
-	invalidRecoverer.Status.Recoverer = &diagnosisv1.NamespacedName{
-		Namespace: "default",
-		Name:      "recoverer1",
-	}
 
 	valid := diagnosis
 	valid.Status.Context = &runtime.RawExtension{
@@ -1008,18 +978,6 @@ func TestValidateDiagnosisResult(t *testing.T) {
 		},
 		{
 			current:  diagnosis,
-			result:   invalidIdentifiable,
-			expected: fmt.Errorf("identifiable field of Diagnosis must not be modified"),
-			desc:     "invalid identifiable field",
-		},
-		{
-			current:  diagnosis,
-			result:   invalidRecoverable,
-			expected: fmt.Errorf("recoverable field of Diagnosis must not be modified"),
-			desc:     "invalid recoverable field",
-		},
-		{
-			current:  diagnosis,
 			result:   invalidPhase,
 			expected: fmt.Errorf("phase field of Diagnosis must not be modified"),
 			desc:     "invalid phase field",
@@ -1032,33 +990,9 @@ func TestValidateDiagnosisResult(t *testing.T) {
 		},
 		{
 			current:  diagnosis,
-			result:   invalidMessage,
-			expected: fmt.Errorf("message field of Diagnosis must not be modified"),
-			desc:     "invalid message field",
-		},
-		{
-			current:  diagnosis,
-			result:   invalidReason,
-			expected: fmt.Errorf("reason field of Diagnosis must not be modified"),
-			desc:     "invalid reason field",
-		},
-		{
-			current:  diagnosis,
 			result:   invalidStartTime,
 			expected: fmt.Errorf("startTime field of Diagnosis must not be modified"),
 			desc:     "invalid startTime field",
-		},
-		{
-			current:  diagnosis,
-			result:   invalidDiagnoser,
-			expected: fmt.Errorf("diagnoser field of Diagnosis must not be modified"),
-			desc:     "invalid diagnoser field",
-		},
-		{
-			current:  diagnosis,
-			result:   invalidRecoverer,
-			expected: fmt.Errorf("recoverer field of Diagnosis must not be modified"),
-			desc:     "invalid recoverer field",
 		},
 	}
 

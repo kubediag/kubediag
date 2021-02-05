@@ -429,16 +429,6 @@ func (in *DiagnosisStatus) DeepCopyInto(out *DiagnosisStatus) {
 		}
 	}
 	in.StartTime.DeepCopyInto(&out.StartTime)
-	if in.Diagnoser != nil {
-		in, out := &in.Diagnoser, &out.Diagnoser
-		*out = new(NamespacedName)
-		**out = **in
-	}
-	if in.Recoverer != nil {
-		in, out := &in.Recoverer, &out.Recoverer
-		*out = new(NamespacedName)
-		**out = **in
-	}
 	if in.CommandExecutors != nil {
 		in, out := &in.CommandExecutors, &out.CommandExecutors
 		*out = make([]CommandExecutorStatus, len(*in))

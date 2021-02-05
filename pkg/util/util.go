@@ -443,32 +443,14 @@ func ValidateDiagnosisResult(result diagnosisv1.Diagnosis, current diagnosisv1.D
 	if !reflect.DeepEqual(result.Spec, current.Spec) {
 		return fmt.Errorf("spec field of Diagnosis must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Identifiable, current.Status.Identifiable) {
-		return fmt.Errorf("identifiable field of Diagnosis must not be modified")
-	}
-	if !reflect.DeepEqual(result.Status.Recoverable, current.Status.Recoverable) {
-		return fmt.Errorf("recoverable field of Diagnosis must not be modified")
-	}
 	if !reflect.DeepEqual(result.Status.Phase, current.Status.Phase) {
 		return fmt.Errorf("phase field of Diagnosis must not be modified")
 	}
 	if !reflect.DeepEqual(result.Status.Conditions, current.Status.Conditions) {
 		return fmt.Errorf("conditions field of Diagnosis must not be modified")
 	}
-	if !reflect.DeepEqual(result.Status.Message, current.Status.Message) {
-		return fmt.Errorf("message field of Diagnosis must not be modified")
-	}
-	if !reflect.DeepEqual(result.Status.Reason, current.Status.Reason) {
-		return fmt.Errorf("reason field of Diagnosis must not be modified")
-	}
 	if !reflect.DeepEqual(result.Status.StartTime, current.Status.StartTime) {
 		return fmt.Errorf("startTime field of Diagnosis must not be modified")
-	}
-	if !reflect.DeepEqual(result.Status.Diagnoser, current.Status.Diagnoser) {
-		return fmt.Errorf("diagnoser field of Diagnosis must not be modified")
-	}
-	if !reflect.DeepEqual(result.Status.Recoverer, current.Status.Recoverer) {
-		return fmt.Errorf("recoverer field of Diagnosis must not be modified")
 	}
 
 	return nil
