@@ -223,10 +223,6 @@ type JavaProfilerSpec struct {
 
 // DiagnosisStatus defines the observed state of Diagnosis.
 type DiagnosisStatus struct {
-	// Identifiable indicates if the diagnosis could be identified by the diagnoser chain.
-	Identifiable bool `json:"identifiable"`
-	// Recoverable indicates if the diagnosis could be recovered by the recoverer chain.
-	Recoverable bool `json:"recoverable"`
 	// Phase is a simple, high-level summary of where the diagnosis is in its lifecycle.
 	// The conditions array, the reason and message fields contain more detail about the
 	// pod's status.
@@ -247,23 +243,9 @@ type DiagnosisStatus struct {
 	// Conditions contains current service state of diagnosis.
 	// +optional
 	Conditions []DiagnosisCondition `json:"conditions,omitempty"`
-	// Message is a human readable message indicating details about why the diagnosis is in
-	// this condition.
-	// +optional
-	Message string `json:"message,omitempty"`
-	// Reason is a brief CamelCase message indicating details about why the diagnosis is in
-	// this state.
-	// +optional
-	Reason string `json:"reason,omitempty"`
 	// StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
 	// +optional
 	StartTime metav1.Time `json:"startTime,omitempty"`
-	// Diagnoser indicates the diagnoser which has identified the diagnosis successfully.
-	// +optional
-	Diagnoser *NamespacedName `json:"diagnoser,omitempty"`
-	// Recoverer indicates the recoverer which has recovered the diagnosis successfully.
-	// +optional
-	Recoverer *NamespacedName `json:"recoverer,omitempty"`
 	// CommandExecutors is the list of command execution results.
 	// +optional
 	CommandExecutors []CommandExecutorStatus `json:"commandExecutors,omitempty"`

@@ -401,6 +401,14 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, diagn
 				Name:      diagnosis.Name,
 				Namespace: diagnosis.Namespace,
 			})
+
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.DiagnosisIdentified,
+				Status:  corev1.ConditionFalse,
+				Reason:  "DiagnosisNotIdentified",
+				Message: fmt.Sprintf("Diagnoser %s/%s failed to identify diagnosis: %s", diagnoser.Namespace, diagnoser.Name, err),
+			})
+
 			continue
 		}
 
@@ -418,10 +426,12 @@ func (dc *diagnoserChain) runDiagnosis(diagnosers []diagnosisv1.Diagnoser, diagn
 		}
 
 		diagnosis.Status = result.Status
-		diagnosis.Status.Diagnoser = &diagnosisv1.NamespacedName{
-			Name:      diagnoser.Name,
-			Namespace: diagnoser.Namespace,
-		}
+		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			Type:    diagnosisv1.DiagnosisIdentified,
+			Status:  corev1.ConditionTrue,
+			Reason:  "DiagnosisIdentified",
+			Message: fmt.Sprintf("Diagnosis is identified by diagnoser %s/%s", diagnoser.Namespace, diagnoser.Name),
+		})
 		diagnosis, err := dc.sendDiagnosisToRecovererChain(diagnosis)
 		if err != nil {
 			return diagnosis, err
@@ -450,11 +460,6 @@ func (dc *diagnoserChain) sendDiagnosisToRecovererChain(diagnosis diagnosisv1.Di
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisRecovering
-	diagnosis.Status.Identifiable = true
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.DiagnosisIdentified,
-		Status: corev1.ConditionTrue,
-	})
 	if err := dc.client.Status().Update(dc, &diagnosis); err != nil {
 		dc.Error(err, "unable to update Diagnosis")
 		return diagnosis, err
@@ -471,11 +476,6 @@ func (dc *diagnoserChain) setDiagnosisFailed(diagnosis diagnosisv1.Diagnosis) (d
 	})
 
 	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-	diagnosis.Status.Identifiable = false
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:   diagnosisv1.DiagnosisIdentified,
-		Status: corev1.ConditionFalse,
-	})
 	if err := dc.client.Status().Update(dc, &diagnosis); err != nil {
 		dc.Error(err, "unable to update Diagnosis")
 		return diagnosis, err
