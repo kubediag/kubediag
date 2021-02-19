@@ -8,7 +8,12 @@ spec:
   - name: go-profiler
     type: InformationCollector
     go:
-      source: http://127.0.0.1:8090/debug/pprof/heap
+      source: https://10.0.2.15:6443
+      type: Heap
+      tls:
+        secretReference:
+          name: <secret-name>
+          namespace: <secret-namespace>
     timeoutSeconds: 60
     expirationSeconds: 300
   nodeName: my-node
