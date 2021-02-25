@@ -68,13 +68,15 @@ func NewDiagnosisReconciler(
 
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operationsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=triggers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch
 
 // Reconcile synchronizes a Diagnosis object according to the phase.
 func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
