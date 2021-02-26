@@ -16,4 +16,13 @@ resources:
 - group: diagnosis
   kind: DiagnosisSource
   version: v1
+- group: diagnosis
+  kind: Operation
+  version: v1
+- group: diagnosis
+  kind: OperationSet
+  version: v1
+- group: diagnosis
+  kind: Trigger
+  version: v1
 version: "2"

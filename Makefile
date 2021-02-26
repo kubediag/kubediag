@@ -21,6 +21,7 @@ test: generate fmt vet manifests
 
 # Build kube-diagnoser binary
 kube-diagnoser: generate fmt vet
+	go mod vendor
 	go build -mod vendor -o bin/kube-diagnoser main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config

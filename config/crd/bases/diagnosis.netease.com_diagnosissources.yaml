@@ -171,9 +171,10 @@ spec:
                             type: object
                         type: object
                       type:
-                        description: 'Heap: The profiler will be run by heap Profile:
-                          The profiler will be run by cpu profile Goroutine: The profiler
-                          will be run by goroutine'
+                        description: "Type is the type of go profiler.There are three
+                          possible types values: \n Heap: The profiler will be run
+                          by heap Profile: The profiler will be run by cpu profile
+                          Goroutine: The profiler will be run by goroutine"
                         type: string
                     required:
                     - source
@@ -228,62 +229,6 @@ spec:
                       description: Regexp is the regular expression for matching kubernetes
                         event template.
                       properties:
-                        action:
-                          description: Action is the regular expression for matching
-                            "Action" of kubernetes event.
-                          type: string
-                        count:
-                          description: Count is the regular expression for matching
-                            "Count" of kubernetes event.
-                          type: string
-                        firstTimestamp:
-                          description: FirstTimestamp is the regular expression for
-                            matching "FirstTimestamp" of kubernetes event.
-                          type: string
-                        involvedObject:
-                          description: InvolvedObject is the regular expression for
-                            matching "InvolvedObject" of kubernetes event. All fields
-                            of "InvolvedObject" are regular expressions.
-                          properties:
-                            apiVersion:
-                              description: API version of the referent.
-                              type: string
-                            fieldPath:
-                              description: 'If referring to a piece of an object instead
-                                of an entire object, this string should contain a
-                                valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
-                                For example, if the object reference is to a container
-                                within a pod, this would take on a value like: "spec.containers{name}"
-                                (where "name" refers to the name of the container
-                                that triggered the event) or if no container name
-                                is specified "spec.containers[2]" (container with
-                                index 2 in this pod). This syntax is chosen only to
-                                have some well-defined way of referencing a part of
-                                an object. TODO: this design is not final and this
-                                field is subject to change in the future.'
-                              type: string
-                            kind:
-                              description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                              type: string
-                            namespace:
-                              description: 'Namespace of the referent. More info:
-                                https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                              type: string
-                            resourceVersion:
-                              description: 'Specific resourceVersion to which this
-                                reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                              type: string
-                            uid:
-                              description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                              type: string
-                          type: object
-                        lastTimestamp:
-                          description: LastTimestamp is the regular expression for
-                            matching "LastTimestamp" of kubernetes event.
-                          type: string
                         message:
                           description: Message is the regular expression for matching
                             "Message" of kubernetes event.
@@ -300,14 +245,6 @@ spec:
                           description: Reason is the regular expression for matching
                             "Reason" of kubernetes event.
                           type: string
-                        reportingController:
-                          description: ReportingController is the regular expression
-                            for matching "ReportingController" of kubernetes event.
-                          type: string
-                        reportingInstance:
-                          description: ReportingInstance is the regular expression
-                            for matching "ReportingInstance" of kubernetes event.
-                          type: string
                         source:
                           description: Source is the regular expression for matching
                             "Source" of kubernetes event. All fields of "Source" are
@@ -320,10 +257,6 @@ spec:
                               description: Node name on which the event is generated.
                               type: string
                           type: object
-                        type:
-                          description: Type is the regular expression for matching
-                            "Type" of kubernetes event.
-                          type: string
                       type: object
                   required:
                   - regexp
@@ -382,14 +315,6 @@ spec:
                   - nodeNameReferenceLabel
                   - regexp
                   type: object
-                type:
-                  description: "Type is the type of the source template. There are
-                    two possible type values: \n PrometheusAlert: The diagnosis is
-                    generated from a prometheus alert. KubernetesEvent: The diagnosis
-                    is generated from a kubernetes event."
-                  type: string
-              required:
-              - type
               type: object
           required:
           - sourceTemplate

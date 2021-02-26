@@ -1,0 +1,24 @@
+# permissions for end users to edit operationsets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operationset-editor-role
+rules:
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operationsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operationsets/status
+  verbs:
+  - get

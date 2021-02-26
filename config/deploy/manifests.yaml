@@ -20,10 +20,14 @@ spec:
       description: Diagnoser is the Schema for the diagnosers API.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -44,7 +48,8 @@ spec:
               description: Scheme is the serving scheme of diagnoser.
               type: string
             timeoutSeconds:
-              description: Number of seconds after which the diagnoser times out. Defaults to 30 seconds. Minimum value is 1.
+              description: Number of seconds after which the diagnoser times out.
+                Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
           type: object
@@ -83,10 +88,14 @@ spec:
       description: Diagnosis is the Schema for the diagnoses API.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -94,7 +103,9 @@ spec:
           description: DiagnosisSpec defines the desired state of Diagnosis.
           properties:
             assignedDiagnosers:
-              description: AssignedDiagnosers is the list of diagnosers to execute diagnosing logics. Diagnosers would be executed in the specified sequence. Only assigned diagnosers will be executed.
+              description: AssignedDiagnosers is the list of diagnosers to execute
+                diagnosing logics. Diagnosers would be executed in the specified sequence.
+                Only assigned diagnosers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -102,7 +113,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -110,7 +122,10 @@ spec:
                 type: object
               type: array
             assignedInformationCollectors:
-              description: AssignedInformationCollectors is the list of information collectors to execute information collecting logics. Information collectors would be executed in the specified sequence. Only assigned information collectors will be executed.
+              description: AssignedInformationCollectors is the list of information
+                collectors to execute information collecting logics. Information collectors
+                would be executed in the specified sequence. Only assigned information
+                collectors will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -118,7 +133,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -126,7 +142,9 @@ spec:
                 type: object
               type: array
             assignedRecoverers:
-              description: AssignedRecoverers is the list of recoverers to execute recovering logics. Recoverers would be executed in the specified sequence. Only assigned recoverers will be executed.
+              description: AssignedRecoverers is the list of recoverers to execute
+                recovering logics. Recoverers would be executed in the specified sequence.
+                Only assigned recoverers will be executed.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -134,7 +152,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -142,9 +161,12 @@ spec:
                 type: object
               type: array
             commandExecutors:
-              description: CommandExecutors is the list of commands to execute during information collecting, diagnosing and recovering.
+              description: CommandExecutors is the list of commands to execute during
+                information collecting, diagnosing and recovering.
               items:
-                description: CommandExecutorSpec describes how to execute a command with the given arguments. A CommandExecutor could be an information collector, a diagnoser or a recoverer.
+                description: CommandExecutorSpec describes how to execute a command
+                  with the given arguments. A CommandExecutor could be an information
+                  collector, a diagnoser or a recoverer.
                 properties:
                   command:
                     description: Command represents a command being prepared and run.
@@ -152,11 +174,16 @@ spec:
                       type: string
                     type: array
                   timeoutSeconds:
-                    description: Number of seconds after which the command times out. Defaults to 30 seconds. Minimum value is 1.
+                    description: Number of seconds after which the command times out.
+                      Defaults to 30 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   type:
-                    description: "Type is the type of the command executor. There are three possible type values: \n InformationCollector: The command executor will be run by information manager. Diagnoser: The command executor will be run by diagnoser chain. Recoverer: The command executor will be run by recoverer chain."
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
                     type: string
                 required:
                 - command
@@ -164,16 +191,24 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the diagnosis, meant to be user-facing content and display instructions. This field may contain customized values for custom source.
+              description: Context is a blob of information about the diagnosis, meant
+                to be user-facing content and display instructions. This field may
+                contain customized values for custom source.
               type: object
             kubernetesEvent:
-              description: KubernetesEvent contains the kubernetes event about the diagnosis from kubernetes event source. This must be specified if diagnosis source is KubernetesEvent.
+              description: KubernetesEvent contains the kubernetes event about the
+                diagnosis from kubernetes event source. This must be specified if
+                diagnosis source is KubernetesEvent.
               properties:
                 action:
-                  description: What action was taken/failed regarding to the Regarding object.
+                  description: What action was taken/failed regarding to the Regarding
+                    object.
                   type: string
                 apiVersion:
-                  description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                  description: 'APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the
+                    latest internal value, and may reject unrecognized values. More
+                    info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
                   type: string
                 count:
                   description: The number of times this event has occurred.
@@ -184,7 +219,8 @@ spec:
                   format: date-time
                   type: string
                 firstTimestamp:
-                  description: The time at which the event was first recorded. (Time of server receipt is in TypeMeta.)
+                  description: The time at which the event was first recorded. (Time
+                    of server receipt is in TypeMeta.)
                   format: date-time
                   type: string
                 involvedObject:
@@ -194,7 +230,17 @@ spec:
                       description: API version of the referent.
                       type: string
                     fieldPath:
-                      description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
+                      description: 'If referring to a piece of an object instead of
+                        an entire object, this string should contain a valid JSON/Go
+                        field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within
+                        a pod, this would take on a value like: "spec.containers{name}"
+                        (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]"
+                        (container with index 2 in this pod). This syntax is chosen
+                        only to have some well-defined way of referencing a part of
+                        an object. TODO: this design is not final and this field is
+                        subject to change in the future.'
                       type: string
                     kind:
                       description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
@@ -206,27 +252,35 @@ spec:
                       description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
                       type: string
                     resourceVersion:
-                      description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                      description: 'Specific resourceVersion to which this reference
+                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
                       type: string
                     uid:
                       description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                       type: string
                   type: object
                 kind:
-                  description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  description: 'Kind is a string value representing the REST resource
+                    this object represents. Servers may infer this from the endpoint
+                    the client submits requests to. Cannot be updated. In CamelCase.
+                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                   type: string
                 lastTimestamp:
-                  description: The time at which the most recent occurrence of this event was recorded.
+                  description: The time at which the most recent occurrence of this
+                    event was recorded.
                   format: date-time
                   type: string
                 message:
-                  description: 'A human-readable description of the status of this operation. TODO: decide on maximum length.'
+                  description: 'A human-readable description of the status of this
+                    operation. TODO: decide on maximum length.'
                   type: string
                 metadata:
                   description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                   type: object
                 reason:
-                  description: 'This should be a short, machine understandable string that gives the reason for the transition into the object''s current status. TODO: provide exact specification for format.'
+                  description: 'This should be a short, machine understandable string
+                    that gives the reason for the transition into the object''s current
+                    status. TODO: provide exact specification for format.'
                   type: string
                 related:
                   description: Optional secondary object for more complex actions.
@@ -235,7 +289,17 @@ spec:
                       description: API version of the referent.
                       type: string
                     fieldPath:
-                      description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
+                      description: 'If referring to a piece of an object instead of
+                        an entire object, this string should contain a valid JSON/Go
+                        field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within
+                        a pod, this would take on a value like: "spec.containers{name}"
+                        (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]"
+                        (container with index 2 in this pod). This syntax is chosen
+                        only to have some well-defined way of referencing a part of
+                        an object. TODO: this design is not final and this field is
+                        subject to change in the future.'
                       type: string
                     kind:
                       description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
@@ -247,23 +311,27 @@ spec:
                       description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
                       type: string
                     resourceVersion:
-                      description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                      description: 'Specific resourceVersion to which this reference
+                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
                       type: string
                     uid:
                       description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                       type: string
                   type: object
                 reportingComponent:
-                  description: Name of the controller that emitted this Event, e.g. `kubernetes.io/kubelet`.
+                  description: Name of the controller that emitted this Event, e.g.
+                    `kubernetes.io/kubelet`.
                   type: string
                 reportingInstance:
                   description: ID of the controller instance, e.g. `kubelet-xyzf`.
                   type: string
                 series:
-                  description: Data about the Event series this event represents or nil if it's a singleton Event.
+                  description: Data about the Event series this event represents or
+                    nil if it's a singleton Event.
                   properties:
                     count:
-                      description: Number of occurrences in this series up to the last heartbeat time
+                      description: Number of occurrences in this series up to the
+                        last heartbeat time
                       format: int32
                       type: integer
                     lastObservedTime:
@@ -271,11 +339,13 @@ spec:
                       format: date-time
                       type: string
                     state:
-                      description: 'State of this Series: Ongoing or Finished Deprecated. Planned removal for 1.18'
+                      description: 'State of this Series: Ongoing or Finished Deprecated.
+                        Planned removal for 1.18'
                       type: string
                   type: object
                 source:
-                  description: The component reporting this event. Should be a short machine understandable string.
+                  description: The component reporting this event. Should be a short
+                    machine understandable string.
                   properties:
                     component:
                       description: Component from which the event is generated.
@@ -285,14 +355,16 @@ spec:
                       type: string
                   type: object
                 type:
-                  description: Type of this event (Normal, Warning), new types could be added in the future
+                  description: Type of this event (Normal, Warning), new types could
+                    be added in the future
                   type: string
               required:
               - involvedObject
               - metadata
               type: object
             nodeName:
-              description: One of NodeName and PodReference must be specified. NodeName is a specific node which the diagnosis is on.
+              description: One of NodeName and PodReference must be specified. NodeName
+                is a specific node which the diagnosis is on.
               type: string
             podReference:
               description: PodReference contains details of the target pod.
@@ -311,31 +383,40 @@ spec:
               - namespace
               type: object
             profilers:
-              description: Profilers is the list of profiler desired behaviors to be performed during information collecting, diagnosing and recovering.
+              description: Profilers is the list of profiler desired behaviors to
+                be performed during information collecting, diagnosing and recovering.
               items:
-                description: ProfilerSpec describes desired behavior of a profiler to be performed against a program to determine its performance status.
+                description: ProfilerSpec describes desired behavior of a profiler
+                  to be performed against a program to determine its performance status.
                 properties:
                   expirationSeconds:
-                    description: Number of seconds after which the profiler endpoint expires. Defaults to 7200 seconds. Minimum value is 1.
+                    description: Number of seconds after which the profiler endpoint
+                      expires. Defaults to 7200 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   go:
-                    description: One and only one of the following programming languages should be specified. Go specifies the action to perform for profiling a go program.
+                    description: One and only one of the following programming languages
+                      should be specified. Go specifies the action to perform for
+                      profiling a go program.
                     properties:
                       source:
-                        description: Source specifies the profile source. It must be a local file path or a URL.
+                        description: Source specifies the profile source. It must
+                          be a local file path or a URL.
                         type: string
                       tls:
                         description: TLS specifies the secret reference for source
                         properties:
                           secretReference:
-                            description: SecretReference specifies the secret in cluster which hold token and ca.crt to access GoProfiler Source.
+                            description: SecretReference specifies the secret in cluster
+                              which hold token and ca.crt to access GoProfiler Source.
                             properties:
                               name:
-                                description: Name specifies the name of a kubernetes api resource.
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
                                 type: string
                               namespace:
-                                description: Namespace specifies the namespace of a kubernetes api resource.
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
                                 type: string
                             required:
                             - name
@@ -343,20 +424,28 @@ spec:
                             type: object
                         type: object
                       type:
-                        description: 'Heap: The profiler will be run by heap Profile: The profiler will be run by cpu profile Goroutine: The profiler will be run by goroutine'
+                        description: "Type is the type of go profiler.There are three
+                          possible types values: \n Heap: The profiler will be run
+                          by heap Profile: The profiler will be run by cpu profile
+                          Goroutine: The profiler will be run by goroutine"
                         type: string
                     required:
                     - source
                     - type
                     type: object
                   java:
-                    description: Java specifies the action to perform for profiling a java program.
+                    description: Java specifies the action to perform for profiling
+                      a java program.
                     properties:
                       hprofFilePath:
-                        description: HPROFFilePath is the path of hprof file. It must be an absolute path on node.
+                        description: HPROFFilePath is the path of hprof file. It must
+                          be an absolute path on node.
                         type: string
                       type:
-                        description: "Type is the type of the java profiler. There are two possible type values: \n Arthas: The profiler will be run by arthas. MemoryAnalyzer: The profiler will be run by eclipse memory analyzer."
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
                         type: string
                     required:
                     - type
@@ -365,11 +454,16 @@ spec:
                     description: Name specifies the name of a profiler.
                     type: string
                   timeoutSeconds:
-                    description: Number of seconds after which the profiler times out. Defaults to 30 seconds. Minimum value is 1.
+                    description: Number of seconds after which the profiler times
+                      out. Defaults to 30 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   type:
-                    description: "Type is the type of the profiler. There are three possible type values: \n InformationCollector: The profiler will be run by information manager. Diagnoser: The profiler will be run by diagnoser chain. Recoverer: The profiler will be run by recoverer chain."
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
                     type: string
                 required:
                 - name
@@ -377,13 +471,16 @@ spec:
                 type: object
               type: array
             prometheusAlert:
-              description: PrometheusAlert contains the prometheus alert about the diagnosis from prometheus alert source. This must be specified if diagnosis source is PrometheusAlert.
+              description: PrometheusAlert contains the prometheus alert about the
+                diagnosis from prometheus alert source. This must be specified if
+                diagnosis source is PrometheusAlert.
               properties:
                 annotations:
                   additionalProperties:
                     description: A LabelValue is an associated value for a LabelName.
                     type: string
-                  description: Annotations contains extra key value information which does not define alert identity.
+                  description: Annotations contains extra key value information which
+                    does not define alert identity.
                   type: object
                 endsAt:
                   description: EndsAt specifies the known end time for this alert.
@@ -396,7 +493,9 @@ spec:
                   additionalProperties:
                     description: A LabelValue is an associated value for a LabelName.
                     type: string
-                  description: Labels contains label value pairs for purpose of aggregation, matching, and disposition dispatching. This must minimally include an "alertname" label.
+                  description: Labels contains label value pairs for purpose of aggregation,
+                    matching, and disposition dispatching. This must minimally include
+                    an "alertname" label.
                   type: object
                 startsAt:
                   description: StartsAt specifies the known start time for this alert.
@@ -408,7 +507,8 @@ spec:
               - labels
               type: object
             source:
-              description: Source is the diagnosis source. Valid sources are PrometheusAlert, KubernetesEvent and Custom.
+              description: Source is the diagnosis source. Valid sources are PrometheusAlert,
+                KubernetesEvent and Custom.
               type: string
           required:
           - source
@@ -436,7 +536,11 @@ spec:
                     description: Stdout is standard output of the command.
                     type: string
                   type:
-                    description: "Type is the type of the command executor. There are three possible type values: \n InformationCollector: The command executor will be run by information manager. Diagnoser: The command executor will be run by diagnoser chain. Recoverer: The command executor will be run by recoverer chain."
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
                     type: string
                 required:
                 - command
@@ -446,20 +550,25 @@ spec:
             conditions:
               description: Conditions contains current service state of diagnosis.
               items:
-                description: DiagnosisCondition contains details for the current condition of this diagnosis.
+                description: DiagnosisCondition contains details for the current condition
+                  of this diagnosis.
                 properties:
                   lastTransitionTime:
-                    description: LastTransitionTime specifies last time the condition transitioned from one status to another.
+                    description: LastTransitionTime specifies last time the condition
+                      transitioned from one status to another.
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human readable message indicating details about last transition.
+                    description: Message is a human readable message indicating details
+                      about last transition.
                     type: string
                   reason:
-                    description: Reason is a unique, one-word, CamelCase reason for the condition's last transition.
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
                     type: string
                   status:
-                    description: Status is the status of the condition. Can be True, False, Unknown.
+                    description: Status is the status of the condition. Can be True,
+                      False, Unknown.
                     type: string
                   type:
                     description: Type is the type of the condition.
@@ -470,10 +579,26 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the diagnosis, meant to be user-facing content and display instructions. This field may contain customized values for custom source.
+              description: Context is a blob of information about the diagnosis, meant
+                to be user-facing content and display instructions. This field may
+                contain customized values for custom source.
               type: object
             phase:
-              description: "Phase is a simple, high-level summary of where the diagnosis is in its lifecycle. The conditions array, the reason and message fields contain more detail about the pod's status. There are six possible phase values: \n InformationCollecting: The diagnosis has been passed to information manager and some of the information collectors have been started. At least one information collector is still running. Diagnosing: The diagnosis has been passed to diagnoser chain and some of the diagnosers have been started. At least one diagnoser is still running. Recovering: The diagnosis has been passed to recoverer chain and some of the recoverers have been started. At least one recoverer is still running. Succeeded: The diagnosis has been successfully recovered by some of the recoverers. Failed: All diagnosers and recoverers have been executed, and none of diagnosers and recoverers is able to diagnose and recover the diagnosis. Unknown: For some reason the state of the diagnosis could not be obtained."
+              description: "Phase is a simple, high-level summary of where the diagnosis
+                is in its lifecycle. The conditions array, the reason and message
+                fields contain more detail about the pod's status. There are six possible
+                phase values: \n InformationCollecting: The diagnosis has been passed
+                to information manager and some of the information collectors have
+                been started. At least one information collector is still running.
+                Diagnosing: The diagnosis has been passed to diagnoser chain and some
+                of the diagnosers have been started. At least one diagnoser is still
+                running. Recovering: The diagnosis has been passed to recoverer chain
+                and some of the recoverers have been started. At least one recoverer
+                is still running. Succeeded: The diagnosis has been successfully recovered
+                by some of the recoverers. Failed: All diagnosers and recoverers have
+                been executed, and none of diagnosers and recoverers is able to diagnose
+                and recover the diagnosis. Unknown: For some reason the state of the
+                diagnosis could not be obtained."
               type: string
             profilers:
               description: Profilers is the list of profiler status.
@@ -481,7 +606,8 @@ spec:
                 description: ProfilerStatus is the profiler status.
                 properties:
                   endpoint:
-                    description: Endpoint specifies how to navigate through a profile. It will be set as expired after expiration seconds.
+                    description: Endpoint specifies how to navigate through a profile.
+                      It will be set as expired after expiration seconds.
                     type: string
                   error:
                     description: Error is the profiler error.
@@ -490,7 +616,11 @@ spec:
                     description: Name specifies the name of a profiler.
                     type: string
                   type:
-                    description: "Type is the type of the profiler. There are three possible type values: \n InformationCollector: The profiler will be run by information manager. Diagnoser: The profiler will be run by diagnoser chain. Recoverer: The profiler will be run by recoverer chain."
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
                     type: string
                 required:
                 - endpoint
@@ -499,7 +629,8 @@ spec:
                 type: object
               type: array
             startTime:
-              description: StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
+              description: StartTime is RFC 3339 date and time at which the object
+                was acknowledged by the system.
               format: date-time
               type: string
           type: object
@@ -538,10 +669,14 @@ spec:
       description: DiagnosisSource is the Schema for the diagnosissources API.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -549,7 +684,9 @@ spec:
           description: DiagnosisSourceSpec defines the desired state of DiagnosisSource.
           properties:
             assignedDiagnosers:
-              description: AssignedDiagnosers is the list of diagnosers to execute diagnosing logics. Diagnoses generated by the source contains predefined diagnosers.
+              description: AssignedDiagnosers is the list of diagnosers to execute
+                diagnosing logics. Diagnoses generated by the source contains predefined
+                diagnosers.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -557,7 +694,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -565,7 +703,9 @@ spec:
                 type: object
               type: array
             assignedInformationCollectors:
-              description: AssignedInformationCollectors is the list of information collectors to execute information collecting logics. Diagnoses generated by the source contains predefined information collectors.
+              description: AssignedInformationCollectors is the list of information
+                collectors to execute information collecting logics. Diagnoses generated
+                by the source contains predefined information collectors.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -573,7 +713,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -581,7 +722,9 @@ spec:
                 type: object
               type: array
             assignedRecoverers:
-              description: AssignedRecoverers is the list of recoverers to execute recovering logics. Diagnoses generated by the source contains predefined recoverers.
+              description: AssignedRecoverers is the list of recoverers to execute
+                recovering logics. Diagnoses generated by the source contains predefined
+                recoverers.
               items:
                 description: NamespacedName represents a kubernetes api resource.
                 properties:
@@ -589,7 +732,8 @@ spec:
                     description: Name specifies the name of a kubernetes api resource.
                     type: string
                   namespace:
-                    description: Namespace specifies the namespace of a kubernetes api resource.
+                    description: Namespace specifies the namespace of a kubernetes
+                      api resource.
                     type: string
                 required:
                 - name
@@ -597,9 +741,13 @@ spec:
                 type: object
               type: array
             commandExecutors:
-              description: CommandExecutors is the list of commands to execute during information collecting, diagnosing and recovering. Diagnoses generated by the source contains predefined command executors.
+              description: CommandExecutors is the list of commands to execute during
+                information collecting, diagnosing and recovering. Diagnoses generated
+                by the source contains predefined command executors.
               items:
-                description: CommandExecutorSpec describes how to execute a command with the given arguments. A CommandExecutor could be an information collector, a diagnoser or a recoverer.
+                description: CommandExecutorSpec describes how to execute a command
+                  with the given arguments. A CommandExecutor could be an information
+                  collector, a diagnoser or a recoverer.
                 properties:
                   command:
                     description: Command represents a command being prepared and run.
@@ -607,11 +755,16 @@ spec:
                       type: string
                     type: array
                   timeoutSeconds:
-                    description: Number of seconds after which the command times out. Defaults to 30 seconds. Minimum value is 1.
+                    description: Number of seconds after which the command times out.
+                      Defaults to 30 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   type:
-                    description: "Type is the type of the command executor. There are three possible type values: \n InformationCollector: The command executor will be run by information manager. Diagnoser: The command executor will be run by diagnoser chain. Recoverer: The command executor will be run by recoverer chain."
+                    description: "Type is the type of the command executor. There
+                      are three possible type values: \n InformationCollector: The
+                      command executor will be run by information manager. Diagnoser:
+                      The command executor will be run by diagnoser chain. Recoverer:
+                      The command executor will be run by recoverer chain."
                     type: string
                 required:
                 - command
@@ -619,34 +772,45 @@ spec:
                 type: object
               type: array
             context:
-              description: Context is a blob of information about the diagnosis, meant to be user-facing content and display instructions. Diagnoses generated by the source contains predefined context.
+              description: Context is a blob of information about the diagnosis, meant
+                to be user-facing content and display instructions. Diagnoses generated
+                by the source contains predefined context.
               type: object
             profilers:
-              description: Profilers is the list of profiler desired behaviors to be performed during information collecting, diagnosing and recovering.
+              description: Profilers is the list of profiler desired behaviors to
+                be performed during information collecting, diagnosing and recovering.
               items:
-                description: ProfilerSpec describes desired behavior of a profiler to be performed against a program to determine its performance status.
+                description: ProfilerSpec describes desired behavior of a profiler
+                  to be performed against a program to determine its performance status.
                 properties:
                   expirationSeconds:
-                    description: Number of seconds after which the profiler endpoint expires. Defaults to 7200 seconds. Minimum value is 1.
+                    description: Number of seconds after which the profiler endpoint
+                      expires. Defaults to 7200 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   go:
-                    description: One and only one of the following programming languages should be specified. Go specifies the action to perform for profiling a go program.
+                    description: One and only one of the following programming languages
+                      should be specified. Go specifies the action to perform for
+                      profiling a go program.
                     properties:
                       source:
-                        description: Source specifies the profile source. It must be a local file path or a URL.
+                        description: Source specifies the profile source. It must
+                          be a local file path or a URL.
                         type: string
                       tls:
                         description: TLS specifies the secret reference for source
                         properties:
                           secretReference:
-                            description: SecretReference specifies the secret in cluster which hold token and ca.crt to access GoProfiler Source.
+                            description: SecretReference specifies the secret in cluster
+                              which hold token and ca.crt to access GoProfiler Source.
                             properties:
                               name:
-                                description: Name specifies the name of a kubernetes api resource.
+                                description: Name specifies the name of a kubernetes
+                                  api resource.
                                 type: string
                               namespace:
-                                description: Namespace specifies the namespace of a kubernetes api resource.
+                                description: Namespace specifies the namespace of
+                                  a kubernetes api resource.
                                 type: string
                             required:
                             - name
@@ -654,20 +818,28 @@ spec:
                             type: object
                         type: object
                       type:
-                        description: 'Heap: The profiler will be run by heap Profile: The profiler will be run by cpu profile Goroutine: The profiler will be run by goroutine'
+                        description: "Type is the type of go profiler.There are three
+                          possible types values: \n Heap: The profiler will be run
+                          by heap Profile: The profiler will be run by cpu profile
+                          Goroutine: The profiler will be run by goroutine"
                         type: string
                     required:
                     - source
                     - type
                     type: object
                   java:
-                    description: Java specifies the action to perform for profiling a java program.
+                    description: Java specifies the action to perform for profiling
+                      a java program.
                     properties:
                       hprofFilePath:
-                        description: HPROFFilePath is the path of hprof file. It must be an absolute path on node.
+                        description: HPROFFilePath is the path of hprof file. It must
+                          be an absolute path on node.
                         type: string
                       type:
-                        description: "Type is the type of the java profiler. There are two possible type values: \n Arthas: The profiler will be run by arthas. MemoryAnalyzer: The profiler will be run by eclipse memory analyzer."
+                        description: "Type is the type of the java profiler. There
+                          are two possible type values: \n Arthas: The profiler will
+                          be run by arthas. MemoryAnalyzer: The profiler will be run
+                          by eclipse memory analyzer."
                         type: string
                     required:
                     - type
@@ -676,11 +848,16 @@ spec:
                     description: Name specifies the name of a profiler.
                     type: string
                   timeoutSeconds:
-                    description: Number of seconds after which the profiler times out. Defaults to 30 seconds. Minimum value is 1.
+                    description: Number of seconds after which the profiler times
+                      out. Defaults to 30 seconds. Minimum value is 1.
                     format: int32
                     type: integer
                   type:
-                    description: "Type is the type of the profiler. There are three possible type values: \n InformationCollector: The profiler will be run by information manager. Diagnoser: The profiler will be run by diagnoser chain. Recoverer: The profiler will be run by recoverer chain."
+                    description: "Type is the type of the profiler. There are three
+                      possible type values: \n InformationCollector: The profiler
+                      will be run by information manager. Diagnoser: The profiler
+                      will be run by diagnoser chain. Recoverer: The profiler will
+                      be run by recoverer chain."
                     type: string
                 required:
                 - name
@@ -688,71 +865,37 @@ spec:
                 type: object
               type: array
             sourceTemplate:
-              description: SourceTemplate is the template of diagnosis source. An diagnosis source generates diagnosis according to the template.
+              description: SourceTemplate is the template of diagnosis source. An
+                diagnosis source generates diagnosis according to the template.
               properties:
                 kubernetesEventTemplate:
-                  description: KubernetesEventTemplate specifies the template to create an diagnosis from a kubernetes event.
+                  description: KubernetesEventTemplate specifies the template to create
+                    an diagnosis from a kubernetes event.
                   properties:
                     regexp:
-                      description: Regexp is the regular expression for matching kubernetes event template.
+                      description: Regexp is the regular expression for matching kubernetes
+                        event template.
                       properties:
-                        action:
-                          description: Action is the regular expression for matching "Action" of kubernetes event.
-                          type: string
-                        count:
-                          description: Count is the regular expression for matching "Count" of kubernetes event.
-                          type: string
-                        firstTimestamp:
-                          description: FirstTimestamp is the regular expression for matching "FirstTimestamp" of kubernetes event.
-                          type: string
-                        involvedObject:
-                          description: InvolvedObject is the regular expression for matching "InvolvedObject" of kubernetes event. All fields of "InvolvedObject" are regular expressions.
-                          properties:
-                            apiVersion:
-                              description: API version of the referent.
-                              type: string
-                            fieldPath:
-                              description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
-                              type: string
-                            kind:
-                              description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                              type: string
-                            namespace:
-                              description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                              type: string
-                            resourceVersion:
-                              description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                              type: string
-                            uid:
-                              description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                              type: string
-                          type: object
-                        lastTimestamp:
-                          description: LastTimestamp is the regular expression for matching "LastTimestamp" of kubernetes event.
-                          type: string
                         message:
-                          description: Message is the regular expression for matching "Message" of kubernetes event.
+                          description: Message is the regular expression for matching
+                            "Message" of kubernetes event.
                           type: string
                         name:
-                          description: Name is the regular expression for matching "Name" of kubernetes event.
+                          description: Name is the regular expression for matching
+                            "Name" of kubernetes event.
                           type: string
                         namespace:
-                          description: Namespace is the regular expression for matching "Namespace" of kubernetes event.
+                          description: Namespace is the regular expression for matching
+                            "Namespace" of kubernetes event.
                           type: string
                         reason:
-                          description: Reason is the regular expression for matching "Reason" of kubernetes event.
-                          type: string
-                        reportingController:
-                          description: ReportingController is the regular expression for matching "ReportingController" of kubernetes event.
-                          type: string
-                        reportingInstance:
-                          description: ReportingInstance is the regular expression for matching "ReportingInstance" of kubernetes event.
+                          description: Reason is the regular expression for matching
+                            "Reason" of kubernetes event.
                           type: string
                         source:
-                          description: Source is the regular expression for matching "Source" of kubernetes event. All fields of "Source" are regular expressions.
+                          description: Source is the regular expression for matching
+                            "Source" of kubernetes event. All fields of "Source" are
+                            regular expressions.
                           properties:
                             component:
                               description: Component from which the event is generated.
@@ -761,56 +904,64 @@ spec:
                               description: Node name on which the event is generated.
                               type: string
                           type: object
-                        type:
-                          description: Type is the regular expression for matching "Type" of kubernetes event.
-                          type: string
                       type: object
                   required:
                   - regexp
                   type: object
                 prometheusAlertTemplate:
-                  description: One and only one of the following source should be specified. PrometheusAlertTemplate specifies the template to create an diagnosis from a prometheus alert.
+                  description: One and only one of the following source should be
+                    specified. PrometheusAlertTemplate specifies the template to create
+                    an diagnosis from a prometheus alert.
                   properties:
                     nodeNameReferenceLabel:
-                      description: NodeNameReferenceLabel specifies the label for setting NodeName of generated diagnosis.
+                      description: NodeNameReferenceLabel specifies the label for
+                        setting NodeName of generated diagnosis.
                       type: string
                     regexp:
-                      description: Regexp is the regular expression for matching prometheus alert template.
+                      description: Regexp is the regular expression for matching prometheus
+                        alert template.
                       properties:
                         alertName:
-                          description: AlertName is the regular expression for matching "AlertName" of prometheus alert.
+                          description: AlertName is the regular expression for matching
+                            "AlertName" of prometheus alert.
                           type: string
                         annotations:
                           additionalProperties:
-                            description: A LabelValue is an associated value for a LabelName.
+                            description: A LabelValue is an associated value for a
+                              LabelName.
                             type: string
-                          description: Annotations is the regular expression for matching "Annotations" of prometheus alert. Only annotation values are regular expressions while all annotation names must be identical to the prometheus alert annotation names.
+                          description: Annotations is the regular expression for matching
+                            "Annotations" of prometheus alert. Only annotation values
+                            are regular expressions while all annotation names must
+                            be identical to the prometheus alert annotation names.
                           type: object
                         endsAt:
-                          description: EndsAt is the regular expression for matching "EndsAt" of prometheus alert.
+                          description: EndsAt is the regular expression for matching
+                            "EndsAt" of prometheus alert.
                           type: string
                         generatorURL:
-                          description: GeneratorURL is the regular expression for matching "GeneratorURL" of prometheus alert.
+                          description: GeneratorURL is the regular expression for
+                            matching "GeneratorURL" of prometheus alert.
                           type: string
                         labels:
                           additionalProperties:
-                            description: A LabelValue is an associated value for a LabelName.
+                            description: A LabelValue is an associated value for a
+                              LabelName.
                             type: string
-                          description: Labels is the regular expression for matching "Labels" of prometheus alert. Only label values are regular expressions while all label names must be identical to the prometheus alert label names.
+                          description: Labels is the regular expression for matching
+                            "Labels" of prometheus alert. Only label values are regular
+                            expressions while all label names must be identical to
+                            the prometheus alert label names.
                           type: object
                         startsAt:
-                          description: StartsAt is the regular expression for matching "StartsAt" of prometheus alert.
+                          description: StartsAt is the regular expression for matching
+                            "StartsAt" of prometheus alert.
                           type: string
                       type: object
                   required:
                   - nodeNameReferenceLabel
                   - regexp
                   type: object
-                type:
-                  description: "Type is the type of the source template. There are two possible type values: \n PrometheusAlert: The diagnosis is generated from a prometheus alert. KubernetesEvent: The diagnosis is generated from a kubernetes event."
-                  type: string
-              required:
-              - type
               type: object
           required:
           - sourceTemplate
@@ -819,7 +970,8 @@ spec:
           description: DiagnosisSourceStatus defines the observed state of DiagnosisSource.
           properties:
             lastDiagnosis:
-              description: LastDiagnosis contains details about last diagnosis generated by the source.
+              description: LastDiagnosis contains details about last diagnosis generated
+                by the source.
               type: object
           type: object
       type: object
@@ -854,13 +1006,18 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: InformationCollector is the Schema for the informationcollectors API.
+      description: InformationCollector is the Schema for the informationcollectors
+        API.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -868,10 +1025,12 @@ spec:
           description: InformationCollectorSpec defines the desired state of InformationCollector.
           properties:
             externalIP:
-              description: ExternalIP is the external serving ip of the information collector.
+              description: ExternalIP is the external serving ip of the information
+                collector.
               type: string
             externalPort:
-              description: ExternalPort is the external serving port of the information collector.
+              description: ExternalPort is the external serving port of the information
+                collector.
               format: int32
               type: integer
             path:
@@ -881,9 +1040,231 @@ spec:
               description: Scheme is the serving scheme of information collector.
               type: string
             timeoutSeconds:
-              description: Number of seconds after which the information collector times out. Defaults to 30 seconds. Minimum value is 1.
+              description: Number of seconds after which the information collector
+                times out. Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: operations.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Operation
+    listKind: OperationList
+    plural: operations
+    singular: operation
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: Operation is the Schema for the operations API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: OperationSpec defines the desired state of Operation.
+          properties:
+            dependences:
+              description: Dependences is the list of all depended operations required
+                to be precedently executed.
+              items:
+                type: string
+              type: array
+            processor:
+              description: Processor describes how to register a operation processor
+                into kube diagnoser.
+              properties:
+                externalIP:
+                  description: ExternalIP is the external serving ip of the processor.
+                    Defaults to kube diagnoser agent advertised address if not specified.
+                  type: string
+                externalPort:
+                  description: ExternalPort is the external serving port of the processor.
+                    Defaults to kube diagnoser agent serving port if not specified.
+                  format: int32
+                  type: integer
+                path:
+                  description: Path is the serving http path of processor.
+                  type: string
+                scheme:
+                  description: Scheme is the serving scheme of processor.
+                  type: string
+                timeoutSeconds:
+                  description: Number of seconds after which the processor times out.
+                    Defaults to 30 seconds. Minimum value is 1.
+                  format: int32
+                  type: integer
+              type: object
+            storage:
+              description: Storage represents the type of storage for operation results.
+                Operation results will not be stored if nil.
+              properties:
+                hostPath:
+                  description: HostPath represents a directory on the host.
+                  properties:
+                    path:
+                      description: Path of the directory on the host. Defaults to
+                        kube diagnoser agent data root if not specified.
+                      type: string
+                  required:
+                  - path
+                  type: object
+              type: object
+          required:
+          - processor
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: operationsets.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: OperationSet
+    listKind: OperationSetList
+    plural: operationsets
+    singular: operationset
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: OperationSet is the Schema for the operationsets API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: OperationSetSpec defines the desired state of OperationSet.
+          properties:
+            edges:
+              description: Edges contains all edges in the directed acyclic graph
+                which represents operation paths on running a diagnosis.
+              items:
+                description: Edge is an edge in the directed acyclic graph. It represents
+                  an edge of the first operation in one operation path if from is
+                  nil.
+                properties:
+                  from:
+                    description: From is the from node of the edge. It represents
+                      the start of running a diagnosis if nil.
+                    properties:
+                      id:
+                        description: ID is the unique identifier of the node.
+                        type: integer
+                      operation:
+                        description: Operation is the name of operation running on
+                          the node.
+                        type: string
+                    required:
+                    - id
+                    - operation
+                    type: object
+                  to:
+                    description: To is the to node of the edge.
+                    properties:
+                      id:
+                        description: ID is the unique identifier of the node.
+                        type: integer
+                      operation:
+                        description: Operation is the name of operation running on
+                          the node.
+                        type: string
+                    required:
+                    - id
+                    - operation
+                    type: object
+                required:
+                - to
+                type: object
+              type: array
+          required:
+          - edges
+          type: object
+        status:
+          description: OperationSetStatus defines the observed state of OperationSet.
+          properties:
+            ready:
+              description: Specifies whether a valid directed acyclic graph can be
+                generated via provided edges.
+              type: boolean
+            topologicalSorts:
+              description: TopologicalSorts is the collection of all topological sorts
+                of the directed acyclic graph.
+              items:
+                description: TopologicalSort represents a linear ordering of nodes
+                  along the direction of every directed edge.
+                items:
+                  description: Node is a node in the directed acyclic graph. It contains
+                    id and operation name.
+                  properties:
+                    id:
+                      description: ID is the unique identifier of the node.
+                      type: integer
+                    operation:
+                      description: Operation is the name of operation running on the
+                        node.
+                      type: string
+                  required:
+                  - id
+                  - operation
+                  type: object
+                type: array
+              type: array
+          required:
+          - ready
+          - topologicalSorts
           type: object
       type: object
   version: v1
@@ -920,10 +1301,14 @@ spec:
       description: Recoverer is the Schema for the recoverers API.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -944,7 +1329,8 @@ spec:
               description: Scheme is the serving scheme of recoverer.
               type: string
             timeoutSeconds:
-              description: Number of seconds after which the recoverer times out. Defaults to 30 seconds. Minimum value is 1.
+              description: Number of seconds after which the recoverer times out.
+                Defaults to 30 seconds. Minimum value is 1.
               format: int32
               type: integer
           type: object
@@ -960,6 +1346,250 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: triggers.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Trigger
+    listKind: TriggerList
+    plural: triggers
+    singular: trigger
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: Trigger is the Schema for the triggers API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: TriggerSpec defines the desired state of Trigger.
+          properties:
+            operationSet:
+              description: OperationSet is the name of referenced operation set in
+                the generated diagnosis.
+              type: string
+            sourceTemplate:
+              description: SourceTemplate is the template of diagnosis source.
+              properties:
+                kubernetesEventTemplate:
+                  description: KubernetesEventTemplate specifies the template to create
+                    an diagnosis from a kubernetes event.
+                  properties:
+                    regexp:
+                      description: Regexp is the regular expression for matching kubernetes
+                        event template.
+                      properties:
+                        message:
+                          description: Message is the regular expression for matching
+                            "Message" of kubernetes event.
+                          type: string
+                        name:
+                          description: Name is the regular expression for matching
+                            "Name" of kubernetes event.
+                          type: string
+                        namespace:
+                          description: Namespace is the regular expression for matching
+                            "Namespace" of kubernetes event.
+                          type: string
+                        reason:
+                          description: Reason is the regular expression for matching
+                            "Reason" of kubernetes event.
+                          type: string
+                        source:
+                          description: Source is the regular expression for matching
+                            "Source" of kubernetes event. All fields of "Source" are
+                            regular expressions.
+                          properties:
+                            component:
+                              description: Component from which the event is generated.
+                              type: string
+                            host:
+                              description: Node name on which the event is generated.
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - regexp
+                  type: object
+                prometheusAlertTemplate:
+                  description: One and only one of the following source should be
+                    specified. PrometheusAlertTemplate specifies the template to create
+                    an diagnosis from a prometheus alert.
+                  properties:
+                    nodeNameReferenceLabel:
+                      description: NodeNameReferenceLabel specifies the label for
+                        setting NodeName of generated diagnosis.
+                      type: string
+                    regexp:
+                      description: Regexp is the regular expression for matching prometheus
+                        alert template.
+                      properties:
+                        alertName:
+                          description: AlertName is the regular expression for matching
+                            "AlertName" of prometheus alert.
+                          type: string
+                        annotations:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Annotations is the regular expression for matching
+                            "Annotations" of prometheus alert. Only annotation values
+                            are regular expressions while all annotation names must
+                            be identical to the prometheus alert annotation names.
+                          type: object
+                        endsAt:
+                          description: EndsAt is the regular expression for matching
+                            "EndsAt" of prometheus alert.
+                          type: string
+                        generatorURL:
+                          description: GeneratorURL is the regular expression for
+                            matching "GeneratorURL" of prometheus alert.
+                          type: string
+                        labels:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Labels is the regular expression for matching
+                            "Labels" of prometheus alert. Only label values are regular
+                            expressions while all label names must be identical to
+                            the prometheus alert label names.
+                          type: object
+                        startsAt:
+                          description: StartsAt is the regular expression for matching
+                            "StartsAt" of prometheus alert.
+                          type: string
+                      type: object
+                  required:
+                  - nodeNameReferenceLabel
+                  - regexp
+                  type: object
+              type: object
+          required:
+          - operationSet
+          - sourceTemplate
+          type: object
+        status:
+          description: TriggerStatus defines the observed state of Trigger.
+          properties:
+            ready:
+              description: Specifies whether the owner of referenced operation set
+                is updated with the trigger.
+              type: boolean
+          required:
+          - ready
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-diagnoser
+  failurePolicy: Fail
+  name: mdiagnoser.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - diagnosers
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-diagnosis
+  failurePolicy: Fail
+  name: mdiagnosis.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - diagnoses
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-informationcollector
+  failurePolicy: Fail
+  name: minformationcollector.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - informationcollectors
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-recoverer
+  failurePolicy: Fail
+  name: mrecoverer.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - recoverers
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -1028,36 +1658,24 @@ rules:
   resources:
   - daemonsets
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
   resources:
   - deployments
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
   resources:
   - statefulsets
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -1084,29 +1702,13 @@ rules:
   resources:
   - nodes
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
   resources:
   - pods
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
   verbs:
   - get
   - list
@@ -1194,6 +1796,30 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
+  - operations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operationsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
   - recoverers
   verbs:
   - create
@@ -1211,6 +1837,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - triggers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -1614,90 +2252,11 @@ spec:
       mode: master
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
-kind: MutatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
-  name: mutating-webhook-configuration
-webhooks:
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-diagnoser
-  failurePolicy: Fail
-  name: mdiagnoser.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - diagnosers
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-diagnosis
-  failurePolicy: Fail
-  name: mdiagnosis.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - diagnoses
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-informationcollector
-  failurePolicy: Fail
-  name: minformationcollector.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - informationcollectors
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-recoverer
-  failurePolicy: Fail
-  name: mrecoverer.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - recoverers
----
-apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
+  creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
 - clientConfig:

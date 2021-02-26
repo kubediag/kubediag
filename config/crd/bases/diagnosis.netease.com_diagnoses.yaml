@@ -358,9 +358,10 @@ spec:
                             type: object
                         type: object
                       type:
-                        description: 'Heap: The profiler will be run by heap Profile:
-                          The profiler will be run by cpu profile Goroutine: The profiler
-                          will be run by goroutine'
+                        description: "Type is the type of go profiler.There are three
+                          possible types values: \n Heap: The profiler will be run
+                          by heap Profile: The profiler will be run by cpu profile
+                          Goroutine: The profiler will be run by goroutine"
                         type: string
                     required:
                     - source

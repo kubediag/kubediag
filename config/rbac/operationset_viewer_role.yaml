@@ -1,0 +1,20 @@
+# permissions for end users to view operationsets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operationset-viewer-role
+rules:
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operationsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operationsets/status
+  verbs:
+  - get
