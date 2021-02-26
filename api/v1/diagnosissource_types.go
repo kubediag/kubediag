@@ -17,8 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/prometheus/common/model"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -54,109 +52,6 @@ type DiagnosisSourceSpec struct {
 	// predefined context.
 	// +optional
 	Context *runtime.RawExtension `json:"context,omitempty"`
-}
-
-// SourceTemplate describes the information to generate an diagnosis via an diagnosis source.
-type SourceTemplate struct {
-	// Type is the type of the source template. There are two possible type values:
-	//
-	// PrometheusAlert: The diagnosis is generated from a prometheus alert.
-	// KubernetesEvent: The diagnosis is generated from a kubernetes event.
-	Type DiagnosisSourceType `json:"type"`
-	// One and only one of the following source should be specified.
-	// PrometheusAlertTemplate specifies the template to create an diagnosis from a prometheus alert.
-	// +optional
-	PrometheusAlertTemplate *PrometheusAlertTemplate `json:"prometheusAlertTemplate,omitempty"`
-	// KubernetesEventTemplate specifies the template to create an diagnosis from a kubernetes event.
-	// +optional
-	KubernetesEventTemplate *KubernetesEventTemplate `json:"kubernetesEventTemplate,omitempty"`
-}
-
-// PrometheusAlertTemplate specifies the template to create an diagnosis from a prometheus alert.
-type PrometheusAlertTemplate struct {
-	// Regexp is the regular expression for matching prometheus alert template.
-	Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
-	// NodeNameReferenceLabel specifies the label for setting NodeName of generated diagnosis.
-	NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel"`
-}
-
-// PrometheusAlertTemplateRegexp is the regular expression for matching prometheus alert template.
-// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
-type PrometheusAlertTemplateRegexp struct {
-	// AlertName is the regular expression for matching "AlertName" of prometheus alert.
-	// +optional
-	AlertName string `json:"alertName,omitempty"`
-	// Labels is the regular expression for matching "Labels" of prometheus alert.
-	// Only label values are regular expressions while all label names must be identical to the
-	// prometheus alert label names.
-	// +optional
-	Labels model.LabelSet `json:"labels,omitempty"`
-	// Annotations is the regular expression for matching "Annotations" of prometheus alert.
-	// Only annotation values are regular expressions while all annotation names must be identical to the
-	// prometheus alert annotation names.
-	// +optional
-	Annotations model.LabelSet `json:"annotations,omitempty"`
-	// StartsAt is the regular expression for matching "StartsAt" of prometheus alert.
-	// +optional
-	StartsAt string `json:"startsAt,omitempty"`
-	// EndsAt is the regular expression for matching "EndsAt" of prometheus alert.
-	// +optional
-	EndsAt string `json:"endsAt,omitempty"`
-	// GeneratorURL is the regular expression for matching "GeneratorURL" of prometheus alert.
-	// +optional
-	GeneratorURL string `json:"generatorURL,omitempty"`
-}
-
-// KubernetesEventTemplate specifies the template to create an diagnosis from a kubernetes event.
-type KubernetesEventTemplate struct {
-	// Regexp is the regular expression for matching kubernetes event template.
-	Regexp KubernetesEventTemplateRegexp `json:"regexp"`
-}
-
-// KubernetesEventTemplateRegexp is the regular expression for matching kubernetes event template.
-// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
-type KubernetesEventTemplateRegexp struct {
-	// Name is the regular expression for matching "Name" of kubernetes event.
-	// +optional
-	Name string `json:"name,omitempty"`
-	// Namespace is the regular expression for matching "Namespace" of kubernetes event.
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
-	// InvolvedObject is the regular expression for matching "InvolvedObject" of kubernetes event.
-	// All fields of "InvolvedObject" are regular expressions.
-	// +optional
-	InvolvedObject corev1.ObjectReference `json:"involvedObject,omitempty"`
-	// Reason is the regular expression for matching "Reason" of kubernetes event.
-	// +optional
-	Reason string `json:"reason,omitempty"`
-	// Message is the regular expression for matching "Message" of kubernetes event.
-	// +optional
-	Message string `json:"message,omitempty"`
-	// Source is the regular expression for matching "Source" of kubernetes event.
-	// All fields of "Source" are regular expressions.
-	// +optional
-	Source corev1.EventSource `json:"source,omitempty"`
-	// FirstTimestamp is the regular expression for matching "FirstTimestamp" of kubernetes event.
-	// +optional
-	FirstTimestamp string `json:"firstTimestamp,omitempty"`
-	// LastTimestamp is the regular expression for matching "LastTimestamp" of kubernetes event.
-	// +optional
-	LastTimestamp string `json:"lastTimestamp,omitempty"`
-	// Count is the regular expression for matching "Count" of kubernetes event.
-	// +optional
-	Count string `json:"count,omitempty"`
-	// Type is the regular expression for matching "Type" of kubernetes event.
-	// +optional
-	Type string `json:"type,omitempty"`
-	// Action is the regular expression for matching "Action" of kubernetes event.
-	// +optional
-	Action string `json:"action,omitempty"`
-	// ReportingController is the regular expression for matching "ReportingController" of kubernetes event.
-	// +optional
-	ReportingController string `json:"reportingController,omitempty"`
-	// ReportingInstance is the regular expression for matching "ReportingInstance" of kubernetes event.
-	// +optional
-	ReportingInstance string `json:"reportingInstance,omitempty"`
 }
 
 // DiagnosisSourceStatus defines the observed state of DiagnosisSource.

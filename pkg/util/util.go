@@ -1440,62 +1440,6 @@ func MatchKubernetesEvent(kubernetesEventTemplate diagnosisv1.KubernetesEventTem
 		return false, nil
 	}
 
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.Kind)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.Kind) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.Namespace)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.Namespace) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.Name)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.Name) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(string(kubernetesEventTemplate.Regexp.InvolvedObject.UID))
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(string(diagnosis.Spec.KubernetesEvent.InvolvedObject.UID)) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.APIVersion)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.APIVersion) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.ResourceVersion)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.ResourceVersion) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.InvolvedObject.FieldPath)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.InvolvedObject.FieldPath) {
-		return false, nil
-	}
-
 	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Reason)
 	if err != nil {
 		return false, err
@@ -1525,62 +1469,6 @@ func MatchKubernetesEvent(kubernetesEventTemplate diagnosisv1.KubernetesEventTem
 		return false, err
 	}
 	if !re.MatchString(diagnosis.Spec.KubernetesEvent.Source.Host) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.FirstTimestamp)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.FirstTimestamp.String()) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.LastTimestamp)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.LastTimestamp.String()) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Count)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(strconv.Itoa(int(diagnosis.Spec.KubernetesEvent.Count))) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Type)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.Type) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Action)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.Action) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.ReportingController)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.ReportingController) {
-		return false, nil
-	}
-
-	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.ReportingInstance)
-	if err != nil {
-		return false, err
-	}
-	if !re.MatchString(diagnosis.Spec.KubernetesEvent.ReportingInstance) {
 		return false, nil
 	}
 
