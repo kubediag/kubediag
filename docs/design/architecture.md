@@ -1,6 +1,6 @@
-# Kubernetes 故障诊断恢复平台架构设计
+# Kube Diagnoser 设计与架构
 
-Kubernetes 是一个生产级的容器编排引擎，但是 Kubernetes 仍然存在系统复杂、故障诊断成本高等问题。Kubernetes 故障诊断恢复平台是基于 Kubernetes 云原生基础设施能力打造的框架，旨在解决云原生体系中故障诊断、运维恢复的自动化问题。主要包括以下几个维度：
+Kubernetes 是一个生产级的容器编排引擎，但是 Kubernetes 仍然存在系统复杂、故障诊断成本高等问题。Kube Diagnoser 是基于 Kubernetes 云原生基础设施能力打造的框架，旨在解决云原生体系中故障诊断、运维恢复的自动化问题。主要包括以下几个维度：
 
 * 由 Kubernetes 以及 Docker 的 Bug 引起的故障。
 * 内核 Bug 导致的故障。
@@ -10,226 +10,56 @@ Kubernetes 是一个生产级的容器编排引擎，但是 Kubernetes 仍然存
 
 ## 目标
 
-Kubernetes 故障诊断恢复平台的设计目标包括：
+Kube Diagnoser 的设计目标包括：
 
-* 通用性：平台依赖通用技术实现，平台组件可以在绝大部分的 Linux 系统下运行并且能够对 Linux 下运行遇到的故障进行诊断和运维。
-* 可扩展性：平台组件之间的交互为松耦合接口设计并且整个框架是可插拔式的。
-* 可维护性：框架逻辑简洁明了，维护成本与功能数量为线性关系，不同故障的分析和恢复逻辑具有独立性。
+* 可移植性：可以在部署 Kubernetes 的 Linux 标准环境下运行。
+* 可扩展性：用户可以集成自定义的诊断功能。模块之间通过松耦合接口交互并且各功能模块均是可插拔式的。
+* 自动化：极大降低问题诊断的人力成本。用户可以通过声明式 API 定义诊断工作流并且在问题发生时自动运行。
+* 易用性：内置常见问题诊断逻辑以提供开箱即用的体验。
 
 ## 架构
 
-故障诊断恢复平台 Master 组件可以监听 APIServer 或 Prometheus 获取集群故障信息。故障诊断恢复平台 Master 组件通过 Deployment 的方式部署在集群中：
+Kube Diagnoser 由管控面（Master）和代理（Agent）组成，并且从 APIServer 以及 Prometheus 等组件获取数据。
 
-```
-                                                             ----------------------
-                                               Watch         |                    |
-                                      ---------------------->|     API Server     |
-                                      |                      |                    |
-                                      |                      |--------------------|
-                                      |                      |                    |
------------------                 ----------                 |        Etcd        |
-|               |     Abnormal    |        |     Monitor     |                    |
-| Custom Source |---------------->| Master |---------------->|--------------------|
-|               |                 |        |                 |                    |
------------------                 ----------                 | Controller Manager |
-                                     /|\                     |                    |
-                                      |                      |--------------------|
-                                      |                      |                    |
-                                      |                      |      Scheduler     |
-                                      |                      |                    |
-                                      |                      ----------------------
-                                      |
-                                --------------
-                                |            |
-                                | Prometheus |
-                                |            |
-                                --------------
-```
+![Architecture](./images/kube-diagnoser-architecture.png)
 
-故障诊断恢复平台 Master 由下列部分组成：
+### 管控面
 
-* 故障管理器（SourceManager）：用于产生和获取故障事件。
-* 报警管理器（Alertmanager）：管理接收的 Prometheus 报警并创建 Abnormal 自定义资源。
-* 事件管理器（Eventer）：管理接收的 Kubernetes 事件并创建 Abnormal 自定义资源。
-* 集群健康评估器（ClusterHealthEvaluator）：对集群健康状况进行评估。
+Kube Diagnoser Master 负责管理 [Operation](./graph-based-pipeline.md#operation)、[OperationSet](./graph-based-pipeline.md#operationset)、[Trigger](./graph-based-pipeline.md#trigger) 和 [Diagnosis](./diagnosis.md) 对象。当 OperationSet 创建后，Kube Diagnoser Master 会进行合法性检查并基于用户定义生成有向无环图，所有的拓扑排序路径被更新至 OperationSet 的元数据中。如果 OperationSet 中某个 Operation 的前置依赖诊断操作不存在，则该 OperationSet 会被标记为异常。
 
-故障诊断恢复平台 Agent 组件可以监听 APIServer 获取 Abnormal 自定义资源，Abnormal 自定义资源是对故障状态机的抽象。故障诊断恢复平台 Agent 组件可以通过 Abnormal 自定义资源触发故障诊断恢复的流水线。故障诊断恢复平台 Agent 组件通过 DaemonSet 的方式部署在集群中：
+Kube Diagnoser Master 会校验 Diagnosis 的 PodReference 或 NodeName 是否存在，如果 Diagnosis 中只定义了 PodReference，则根据 PodReference 计算并更新 NodeName。Kube Diagnoser Master 会查询被 Diagnosis 引用的 OperationSet 状态，如果被引用的 OperationSet 异常，则标记 Diagnosis 失败。Diagnosis 可以由用户直接手动创建，也可以通过配置 Prometheus 报警模板或 Event 模板自动创建。
 
-```
------------------                 ---------                 --------------
-|               |     Abnormal    |       |      Watch      |            |
-| Custom Source |---------------->| Agent |---------------->| API Server |
-|               |                 |       |                 |            |
------------------                 ---------                 --------------
-                                      |
-                                      |
-                                      |
-                                      |
-                                      |
-                                      |
-                                     \|/
-                            ---------------------
-                            |                   |
-                            |      Kernel       |
-                            |      Docker       |
-                            |      Kubelet      |
-                            |      Cgroup       |
-                            |      ......       |
-                            |                   |
-                            ---------------------
-```
+Kube Diagnoser Master 由下列部分组成：
 
-故障诊断恢复平台 Agent 组件由下列部分组成：
+* 图构建器（GraphBuilder）
+* 报警管理器（Alertmanager）
+* 事件管理器（Eventer）
+* 集群健康评估器（ClusterHealthEvaluator）
 
-* 故障分析链（DiagnoserChain）
-* 信息管理器（InformationManager）
-* 故障恢复链（RecovererChain）
+#### 图构建器
 
-```
------------------             ----------------------             ------------------             ------------------
-|               |  Abnormal   |                    |  Abnormal   |                |  Abnormal   |                |
-| SourceManager |------------>| InformationManager |------------>| DiagnoserChain |------------>| RecovererChain |
-|               |             |                    |             |                |             |                |
------------------             ----------------------             ------------------             ------------------
-                                         |                                |                              |
-                                         |                                |                              |
-                                         |                                |                              |
-                                        \|/                              \|/                            \|/
-                            --------------------------             ---------------                ---------------
-                            |                        |             |             |                |             |
-                            | InformationCollector 1 |             | Diagnoser 1 |                | Recoverer 1 |
-                            |                        |             |             |                |             |
-                            --------------------------             ---------------                ---------------
-                                         |                                |                              |
-                                         |                                |                              |
-                                         |                                |                              |
-                                        \|/                              \|/                            \|/
-                            --------------------------             ---------------                ---------------
-                            |                        |             |             |                |             |
-                            | InformationCollector 2 |             | Diagnoser 2 |                | Recoverer 2 |
-                            |                        |             |             |                |             |
-                            --------------------------             ---------------                ---------------
-                                         |                                |                              |
-                                         |                                |                              |
-                                         |                                |                              |
-                                        \|/                              \|/                            \|/
-                                      .......                          .......                        .......
-```
+图构建器基于 OperationSet 对象生成诊断运行流程图。图构建器根据 OperationSet 中包含的边生成有向无环图并计算出所有的拓扑排序路径。
 
-### 功能
+#### 报警管理器
 
-故障诊断恢复平台 Master 组件功能如下：
+报警管理器接收 Prometheus 报警并创建 Diagnosis 对象。报警管理器可以接收 Prometheus 报警并与 Trigger 中定义的模板进行匹配，如果匹配成功则根据 Trigger 的元数据创建 Diagnosis 对象。
 
-* 监听 APIServer 获取集群故障信息。
-* 接收 Prometheus 报警触发故障诊断恢复的流水线。
-* 通过 Event 产生相对应的 Abnormal 自定义资源并送入故障诊断恢复的流水线，Abnormal 自定义资源是对故障状态机的抽象。
-* 对集群健康状况进行评估。
-* 验证 Abnormal、InformationCollector、Diagnoser、Recoverer 资源的合法性。
+#### 事件管理器
 
-故障诊断恢复平台 Agent 组件功能如下：
+事件管理器接收 Kubernetes Event 并创建 Diagnosis 对象。报警管理器可以接收 Kubernetes Event 并与 Trigger 中定义的模板进行匹配，如果匹配成功则根据 Trigger 的元数据创建 Diagnosis 对象。
 
-* 监听故障诊断 Abnormal 自定义资源并进行处理和状态同步。
-* 对本节点故障进行诊断和恢复。
-* 获取节点相关信息。
+#### 集群健康评估器
 
-### 状态迁移流程
+集群健康评估器对集群健康状况进行评估。通过定时获取集群监控数据来评估集群当前健康状况，并在出现问题时创建 Diagnosis 对象触发诊断工作流。
 
-故障诊断恢复平台中 Abnormal 的状态迁移流程如下：
+### 代理
 
-* 故障诊断恢复平台 Master 生成或用户自行创建 Abnormal 自定义资源。
-* 将 Abnormal 发送至信息管理器，标记 Abnormal 的状态为 InformationCollecting 并采集故障诊断恢复的信息。
-  * 如果信息能够被成功采集则记录 InformationCollected 状况并继续。
-  * 如果信息无法被成功采集则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。
-* 将 Abnormal 发送至故障分析链，标记 Abnormal 的状态为 Diagnosing 并对故障进行分析。
-  * 如果故障能够被成功识别则记录 Identified 状况并继续。
-  * 如果故障无法被成功识别则将 Abnormal 的状态标记为 Failed 并终止故障诊断恢复流程。
-* 将 Abnormal 发送至故障恢复链，标记 Abnormal 的状态为 Recovering 并对故障进行恢复。
-  * 如果故障能够被成功恢复则记录 Recovered 状况并标记 Abnormal 的状态为 Succeeded。
-  * 如果故障无法被成功恢复则标记 Abnormal 的状态为 Failed 并终止故障诊断恢复流程。
+Kube Diagnoser Agent 负责实际诊断工作的执行并内置多个常用诊断操作。当 Diagnosis 创建后，Kube Diagnoser Agent 会根据 Diagnosis 引用的 OperationSet 执行诊断工作流，诊断工作流是包括多个诊断操作的集合。
 
-故障诊断恢复平台中 Abnormal 的状态迁移图如下：
+Kube Diagnoser Agent 组件由下列部分组成：
 
-```
-                                                                                                                                             ----------
-                                                                                                                                             |        |
-                                          -------------------------------------------------------------------------------------------------->| Failed |
-                                         /|\                                    /|\                              /|\                         |        |
-                                          |                                      |                                |                          ----------
-                                   Failed |                               Failed |                         Failed |
-                                          |                                      |                                |
------------                   -------------------------                   --------------                   --------------                   -------------
-|         |                   |                       |                   |            |                   |            |                   |           |
-| Created |------------------>| InformationCollecting |------------------>| Diagnosing |------------------>| Recovering |------------------>| Succeeded |
-|         |                   |                       |       /|\         |            |       /|\         |            |       /|\         |           |
------------                   -------------------------        |          --------------        |          --------------        |          -------------
-                                          |                    |                 |              |                 |              |
-                             Successfully |                    |    Successfully |              |    Successfully |              |
-                                          |                    |                 |              |                 |              |
-                                         \|/                   |                \|/             |                \|/             |
-                               ------------------------        |          --------------        |           -------------        |
-                               |                      |        |          |            |        |           |           |        |
-                               | InformationCollected |---------          | Identified |---------           | Recovered |---------
-                               |                      |                   |            |                    |           |
-                               ------------------------                   --------------                    -------------
-```
+* 执行器（Executor）
 
-### Abnormal 自定义资源
+#### 执行器
 
-Abnormal 是故障诊断恢复平台中故障管理器、故障分析链、故障恢复链之间通信的接口。故障事件的详情记录在 Spec 中，故障管理器、故障分析链和故障恢复链对 Abnormal 进行处理并通过变更 Status 字段进行通信。详细信息参考 [Abnormal API 设计](../api/abnormal.md)。
-
-### InformationCollector 自定义资源
-
-InformationCollector 自定义资源用于注册信息采集器，信息采集器的元数据记录在 Spec 中，包括发现方式和监听地址。InformationCollector 的当前状态记录在 Status 字段。详细信息参考 [InformationCollector API 设计](../api/information-collector.md)。
-
-### Diagnoser 自定义资源
-
-Diagnoser 自定义资源用于注册故障分析器，故障分析器的元数据记录在 Spec 中，包括发现方式和监听地址。Diagnoser 的当前状态记录在 Status 字段。详细信息参考 [Diagnoser API 设计](../api/diagnoser.md)。
-
-### Recoverer 自定义资源
-
-Recoverer 自定义资源用于注册故障恢复器，故障恢复器的元数据记录在 Spec 中，包括发现方式和监听地址。Recoverer 的当前状态记录在 Status 字段。详细信息参考 [Recoverer API 设计](../api/recoverer.md)。
-
-### 故障管理器
-
-故障管理器用于产生和获取故障事件，大致可分为以下几类：
-
-* Prometheus 报警（PrometheusAlert）：基于 Prometheus 报警产生的故障。
-* Kubernetes 事件（KubernetesEvent）：基于 Kubernetes 事件产生的故障。
-* 自定义（Custom）：用于自定义故障，用户可以自定义进行扩展。
-
-故障管理器在消费 Prometheus 报警或 Kubernetes 事件后会生成 Abnormal 故障事件并发往信息管理器。用户也可以实现故障事件源并直接通过自定义资源来创建故障事件。详细信息参考 [Source Manager 设计](./source-manager.md)。
-
-### 信息管理器
-
-当故障分析或恢复流程较复杂时，需要从其他接口获取更多信息用于故障的诊断和确认。此时故障分析器或故障恢复器可以调用信息采集器获取更多信息。如果信息无法被任何信息采集器获取则报错并中止。信息采集器一般是一个 HTTP 服务器。常见的信息采集器功能包括：
-
-* Golang 剖析文件采集。
-* Java 虚拟机诊断。
-* eBPF 信息采集。
-* PSI 信息采集。
-
-### 故障分析链
-
-故障分析链是一个调用链框架，本身并不包含故障分析的逻辑，用户需要实现故障分析的具体逻辑并注册到故障分析链中。故障分析链从故障管理器接收故障事件并将故障事件逐一传入被注册的故障分析器中，当故障能够被某个故障分析器识别则中止调用并交由该逻辑进行处理。如果故障无法被任何故障分析器识别则报错并中止。故障分析器一般是一个 HTTP 服务器。常见的故障分析器功能包括：
-
-* Docker 问题分析。
-* Kubernetes 问题分析。
-* 内核日志分析。
-* Pod 磁盘空间使用量分析。
-
-故障分析器在无法识别 Abnormal 故障事件时返回错误，故障分析器在成功识别 Abnormal 故障事件后变更 Status 字段。故障分析链在某个故障分析器成功识别 Abnormal 故障事件后将 Abnormal 故障事件发往故障恢复链。故障分析器在执行诊断时可以通过调用信息采集器获取更多信息。
-
-### 故障恢复链
-
-故障恢复链是一个调用链框架，本身并不包含故障恢复的逻辑，用户需要实现故障恢复的具体逻辑并注册到故障恢复链中。故障恢复链从故障分析链接收故障事件并将故障事件逐一传入被注册的故障恢复器中，当故障能够被某个故障恢复器识别则中止调用并交由该逻辑进行处理。如果故障无法被任何故障恢复器恢复则报错并中止。故障恢复器一般是一个 HTTP 服务器。常见的故障恢复器功能包括：
-
-* 故障进程清理。
-* 残余日志文件清理。
-
-## 典型用例
-
-社区 [Issue 3529](https://github.com/containerd/containerd/pull/3529) 中记录的 Bug 会导致 Docker 18.06 及以下版本因为 Shim 的死锁而无法正常终止容器。当该故障出现时可以通过以下步骤实现该故障的诊断恢复：
-
-* 实现故障事件源：获取当前 Terminating 状态的 Pod，当该类 Pod 存在时创建表示该故障的 Abnormal，标记 `.spec.nodeName` 字段为该 Pod 所处节点。
-* 实现故障分析器：首先通过进程树查找到该容器对应的 Shim 进程。然后向该 Shim 进程发送 SIGUSR1 信号获取栈信息，在栈信息中查找 `reaper.go` 相关函数以确定问题原因。
-* 实现故障恢复器：杀死该容器对应的 Shim 进程进行恢复。
+执行器负责执行诊断工作流。Diagnosis 引用的 OperationSet 元数据中包含表示诊断工作流的有向无环图和所有的拓扑排序路径。拓扑排序路径表示诊断过程中的排查路径，通过执行某个拓扑排序路径中每个顶点的诊断操作可以对问题进行排查。如果某个拓扑排序路径的所有诊断操作均执行成功，则该次诊断被标记为成功。如果所有拓扑排序路径均执行失败，则该次诊断被标记为失败。
