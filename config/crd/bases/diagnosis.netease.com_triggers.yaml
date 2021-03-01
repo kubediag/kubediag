@@ -1,0 +1,164 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: triggers.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Trigger
+    listKind: TriggerList
+    plural: triggers
+    singular: trigger
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: Trigger is the Schema for the triggers API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: TriggerSpec defines the desired state of Trigger.
+          properties:
+            operationSet:
+              description: OperationSet is the name of referenced operation set in
+                the generated diagnosis.
+              type: string
+            sourceTemplate:
+              description: SourceTemplate is the template of diagnosis source.
+              properties:
+                kubernetesEventTemplate:
+                  description: KubernetesEventTemplate specifies the template to create
+                    an diagnosis from a kubernetes event.
+                  properties:
+                    regexp:
+                      description: Regexp is the regular expression for matching kubernetes
+                        event template.
+                      properties:
+                        message:
+                          description: Message is the regular expression for matching
+                            "Message" of kubernetes event.
+                          type: string
+                        name:
+                          description: Name is the regular expression for matching
+                            "Name" of kubernetes event.
+                          type: string
+                        namespace:
+                          description: Namespace is the regular expression for matching
+                            "Namespace" of kubernetes event.
+                          type: string
+                        reason:
+                          description: Reason is the regular expression for matching
+                            "Reason" of kubernetes event.
+                          type: string
+                        source:
+                          description: Source is the regular expression for matching
+                            "Source" of kubernetes event. All fields of "Source" are
+                            regular expressions.
+                          properties:
+                            component:
+                              description: Component from which the event is generated.
+                              type: string
+                            host:
+                              description: Node name on which the event is generated.
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - regexp
+                  type: object
+                prometheusAlertTemplate:
+                  description: One and only one of the following source should be
+                    specified. PrometheusAlertTemplate specifies the template to create
+                    an diagnosis from a prometheus alert.
+                  properties:
+                    nodeNameReferenceLabel:
+                      description: NodeNameReferenceLabel specifies the label for
+                        setting NodeName of generated diagnosis.
+                      type: string
+                    regexp:
+                      description: Regexp is the regular expression for matching prometheus
+                        alert template.
+                      properties:
+                        alertName:
+                          description: AlertName is the regular expression for matching
+                            "AlertName" of prometheus alert.
+                          type: string
+                        annotations:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Annotations is the regular expression for matching
+                            "Annotations" of prometheus alert. Only annotation values
+                            are regular expressions while all annotation names must
+                            be identical to the prometheus alert annotation names.
+                          type: object
+                        endsAt:
+                          description: EndsAt is the regular expression for matching
+                            "EndsAt" of prometheus alert.
+                          type: string
+                        generatorURL:
+                          description: GeneratorURL is the regular expression for
+                            matching "GeneratorURL" of prometheus alert.
+                          type: string
+                        labels:
+                          additionalProperties:
+                            description: A LabelValue is an associated value for a
+                              LabelName.
+                            type: string
+                          description: Labels is the regular expression for matching
+                            "Labels" of prometheus alert. Only label values are regular
+                            expressions while all label names must be identical to
+                            the prometheus alert label names.
+                          type: object
+                        startsAt:
+                          description: StartsAt is the regular expression for matching
+                            "StartsAt" of prometheus alert.
+                          type: string
+                      type: object
+                  required:
+                  - nodeNameReferenceLabel
+                  - regexp
+                  type: object
+              type: object
+          required:
+          - operationSet
+          - sourceTemplate
+          type: object
+        status:
+          description: TriggerStatus defines the observed state of Trigger.
+          properties:
+            ready:
+              description: Specifies whether the owner of referenced operation set
+                is updated with the trigger.
+              type: boolean
+          required:
+          - ready
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

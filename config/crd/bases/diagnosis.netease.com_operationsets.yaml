@@ -1,0 +1,126 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: operationsets.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: OperationSet
+    listKind: OperationSetList
+    plural: operationsets
+    singular: operationset
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: OperationSet is the Schema for the operationsets API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: OperationSetSpec defines the desired state of OperationSet.
+          properties:
+            edges:
+              description: Edges contains all edges in the directed acyclic graph
+                which represents operation paths on running a diagnosis.
+              items:
+                description: Edge is an edge in the directed acyclic graph. It represents
+                  an edge of the first operation in one operation path if from is
+                  nil.
+                properties:
+                  from:
+                    description: From is the from node of the edge. It represents
+                      the start of running a diagnosis if nil.
+                    properties:
+                      id:
+                        description: ID is the unique identifier of the node.
+                        type: integer
+                      operation:
+                        description: Operation is the name of operation running on
+                          the node.
+                        type: string
+                    required:
+                    - id
+                    - operation
+                    type: object
+                  to:
+                    description: To is the to node of the edge.
+                    properties:
+                      id:
+                        description: ID is the unique identifier of the node.
+                        type: integer
+                      operation:
+                        description: Operation is the name of operation running on
+                          the node.
+                        type: string
+                    required:
+                    - id
+                    - operation
+                    type: object
+                required:
+                - to
+                type: object
+              type: array
+          required:
+          - edges
+          type: object
+        status:
+          description: OperationSetStatus defines the observed state of OperationSet.
+          properties:
+            ready:
+              description: Specifies whether a valid directed acyclic graph can be
+                generated via provided edges.
+              type: boolean
+            topologicalSorts:
+              description: TopologicalSorts is the collection of all topological sorts
+                of the directed acyclic graph.
+              items:
+                description: TopologicalSort represents a linear ordering of nodes
+                  along the direction of every directed edge.
+                items:
+                  description: Node is a node in the directed acyclic graph. It contains
+                    id and operation name.
+                  properties:
+                    id:
+                      description: ID is the unique identifier of the node.
+                      type: integer
+                    operation:
+                      description: Operation is the name of operation running on the
+                        node.
+                      type: string
+                  required:
+                  - id
+                  - operation
+                  type: object
+                type: array
+              type: array
+          required:
+          - ready
+          - topologicalSorts
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

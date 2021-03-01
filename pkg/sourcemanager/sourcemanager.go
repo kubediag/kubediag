@@ -233,7 +233,7 @@ func (sm *sourceManager) listDiagnosisSources() ([]diagnosisv1.DiagnosisSource, 
 func (sm *sourceManager) createDiagnosisFromPrometheusAlert(diagnosisSources []diagnosisv1.DiagnosisSource, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
 	for _, diagnosisSource := range diagnosisSources {
 		sourceTemplate := diagnosisSource.Spec.SourceTemplate
-		if sourceTemplate.Type == diagnosisv1.PrometheusAlertSource && sourceTemplate.PrometheusAlertTemplate != nil {
+		if sourceTemplate.PrometheusAlertTemplate != nil {
 			// Set all fields of the diagnosis according to diagnosis source if the prometheus alert contains
 			// all match of the regular expression pattern defined in prometheus alert template.
 			matched, err := util.MatchPrometheusAlert(*sourceTemplate.PrometheusAlertTemplate, diagnosis)
@@ -278,7 +278,7 @@ func (sm *sourceManager) createDiagnosisFromPrometheusAlert(diagnosisSources []d
 func (sm *sourceManager) createDiagnosisFromKubernetesEvent(diagnosisSources []diagnosisv1.DiagnosisSource, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
 	for _, diagnosisSource := range diagnosisSources {
 		sourceTemplate := diagnosisSource.Spec.SourceTemplate
-		if sourceTemplate.Type == diagnosisv1.KubernetesEventSource && sourceTemplate.KubernetesEventTemplate != nil {
+		if sourceTemplate.KubernetesEventTemplate != nil {
 			// Set all fields of the diagnosis according to diagnosis source if the kubernetes event contains
 			// all match of the regular expression pattern defined in kubernetes event template.
 			matched, err := util.MatchKubernetesEvent(*sourceTemplate.KubernetesEventTemplate, diagnosis)

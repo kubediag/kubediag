@@ -1,0 +1,97 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: operations.diagnosis.netease.com
+spec:
+  group: diagnosis.netease.com
+  names:
+    kind: Operation
+    listKind: OperationList
+    plural: operations
+    singular: operation
+  scope: cluster
+  validation:
+    openAPIV3Schema:
+      description: Operation is the Schema for the operations API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: OperationSpec defines the desired state of Operation.
+          properties:
+            dependences:
+              description: Dependences is the list of all depended operations required
+                to be precedently executed.
+              items:
+                type: string
+              type: array
+            processor:
+              description: Processor describes how to register a operation processor
+                into kube diagnoser.
+              properties:
+                externalIP:
+                  description: ExternalIP is the external serving ip of the processor.
+                    Defaults to kube diagnoser agent advertised address if not specified.
+                  type: string
+                externalPort:
+                  description: ExternalPort is the external serving port of the processor.
+                    Defaults to kube diagnoser agent serving port if not specified.
+                  format: int32
+                  type: integer
+                path:
+                  description: Path is the serving http path of processor.
+                  type: string
+                scheme:
+                  description: Scheme is the serving scheme of processor.
+                  type: string
+                timeoutSeconds:
+                  description: Number of seconds after which the processor times out.
+                    Defaults to 30 seconds. Minimum value is 1.
+                  format: int32
+                  type: integer
+              type: object
+            storage:
+              description: Storage represents the type of storage for operation results.
+                Operation results will not be stored if nil.
+              properties:
+                hostPath:
+                  description: HostPath represents a directory on the host.
+                  properties:
+                    path:
+                      description: Path of the directory on the host. Defaults to
+                        kube diagnoser agent data root if not specified.
+                      type: string
+                  required:
+                  - path
+                  type: object
+              type: object
+          required:
+          - processor
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
