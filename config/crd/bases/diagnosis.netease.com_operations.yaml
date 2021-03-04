@@ -14,7 +14,7 @@ spec:
     listKind: OperationList
     plural: operations
     singular: operation
-  scope: cluster
+  scope: Cluster
   validation:
     openAPIV3Schema:
       description: Operation is the Schema for the operations API.

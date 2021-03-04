@@ -110,7 +110,7 @@ type TriggerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=cluster
+// +kubebuilder:resource:scope=Cluster
 
 // Trigger is the Schema for the triggers API.
 type Trigger struct {

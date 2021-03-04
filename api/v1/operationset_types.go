@@ -57,7 +57,7 @@ type OperationSetStatus struct {
 type TopologicalSort []Node
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=cluster
+// +kubebuilder:resource:scope=Cluster
 
 // OperationSet is the Schema for the operationsets API.
 type OperationSet struct {
