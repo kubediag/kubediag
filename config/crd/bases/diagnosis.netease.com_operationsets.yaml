@@ -14,7 +14,7 @@ spec:
     listKind: OperationSetList
     plural: operationsets
     singular: operationset
-  scope: cluster
+  scope: Cluster
   validation:
     openAPIV3Schema:
       description: OperationSet is the Schema for the operationsets API.

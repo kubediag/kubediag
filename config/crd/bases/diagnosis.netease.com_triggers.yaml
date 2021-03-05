@@ -14,7 +14,7 @@ spec:
     listKind: TriggerList
     plural: triggers
     singular: trigger
-  scope: cluster
+  scope: Cluster
   validation:
     openAPIV3Schema:
       description: Trigger is the Schema for the triggers API.

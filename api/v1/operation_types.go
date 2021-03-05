@@ -70,7 +70,7 @@ type HostPath struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=cluster
+// +kubebuilder:resource:scope=Cluster
 
 // Operation is the Schema for the operations API.
 type Operation struct {
