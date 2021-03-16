@@ -21,11 +21,11 @@ Kube Diagnoser 的设计目标包括：
 
 Kube Diagnoser 由管控面（Master）和代理（Agent）组成，并且从 APIServer 以及 Prometheus 等组件获取数据。
 
-![Architecture](./images/kube-diagnoser-architecture.png)
+![Architecture](../images/kube-diagnoser-architecture.png)
 
 ### 管控面
 
-Kube Diagnoser Master 负责管理 [Operation](./graph-based-pipeline.md#operation)、[OperationSet](./graph-based-pipeline.md#operationset)、[Trigger](./graph-based-pipeline.md#trigger) 和 [Diagnosis](./diagnosis.md) 对象。当 OperationSet 创建后，Kube Diagnoser Master 会进行合法性检查并基于用户定义生成有向无环图，所有的拓扑排序路径被更新至 OperationSet 的元数据中。如果 OperationSet 中某个 Operation 的前置依赖诊断操作不存在，则该 OperationSet 会被标记为异常。
+Kube Diagnoser Master 负责管理 [Operation](./graph-based-pipeline.md#operation)、[OperationSet](./graph-based-pipeline.md#operationset)、[Trigger](./graph-based-pipeline.md#trigger) 和 [Diagnosis](./diagnosis.md) 对象。当 OperationSet 创建后，Kube Diagnoser Master 会进行合法性检查并基于用户定义生成有向无环图，所有的诊断路径被更新至 OperationSet 的元数据中。如果 OperationSet 中某个 Operation 的前置依赖诊断操作不存在，则该 OperationSet 会被标记为异常。
 
 Kube Diagnoser Master 会校验 Diagnosis 的 PodReference 或 NodeName 是否存在，如果 Diagnosis 中只定义了 PodReference，则根据 PodReference 计算并更新 NodeName。Kube Diagnoser Master 会查询被 Diagnosis 引用的 OperationSet 状态，如果被引用的 OperationSet 异常，则标记 Diagnosis 失败。Diagnosis 可以由用户直接手动创建，也可以通过配置 Prometheus 报警模板或 Event 模板自动创建。
 
@@ -38,7 +38,7 @@ Kube Diagnoser Master 由下列部分组成：
 
 #### 图构建器
 
-图构建器基于 OperationSet 对象生成诊断运行流程图。图构建器根据 OperationSet 中包含的边生成有向无环图并计算出所有的拓扑排序路径。
+图构建器基于 OperationSet 对象生成诊断运行流程图。图构建器根据 OperationSet 中包含的边生成有向无环图并计算出所有的诊断路径。
 
 #### 报警管理器
 
@@ -62,4 +62,4 @@ Kube Diagnoser Agent 组件由下列部分组成：
 
 #### 执行器
 
-执行器负责执行诊断工作流。Diagnosis 引用的 OperationSet 元数据中包含表示诊断工作流的有向无环图和所有的拓扑排序路径。拓扑排序路径表示诊断过程中的排查路径，通过执行某个拓扑排序路径中每个顶点的诊断操作可以对问题进行排查。如果某个拓扑排序路径的所有诊断操作均执行成功，则该次诊断被标记为成功。如果所有拓扑排序路径均执行失败，则该次诊断被标记为失败。
+执行器负责执行诊断工作流。Diagnosis 引用的 OperationSet 元数据中包含表示诊断工作流的有向无环图和所有的诊断路径。诊断路径表示诊断过程中的排查路径，通过执行某个诊断路径中每个顶点的诊断操作可以对问题进行排查。如果某个诊断路径的所有诊断操作均执行成功，则该次诊断被标记为成功。如果所有诊断路径均执行失败，则该次诊断被标记为失败。
