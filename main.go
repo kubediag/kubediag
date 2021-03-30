@@ -250,6 +250,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			eventer.Run(stopCh)
 		}(stopCh)
 
+		// Create alertmanager for evaluating cluster health.
 		clusterHealthEvaluator := clusterhealthevaluator.NewClusterHealthEvaluator(
 			context.Background(),
 			ctrl.Log.WithName("clusterhealthevaluator"),

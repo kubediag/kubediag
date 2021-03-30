@@ -344,37 +344,15 @@ func (ce *clusterHealthEvaluator) generateTerminatingPodDiagnosis(pods []corev1.
 						continue
 					}
 
-					// Create an diagnosis if the abormal on the terminating pod does not exist.
+					// Create an diagnosis if a diagnosis on the terminating pod does not exist.
 					diagnosis = diagnosisv1.Diagnosis{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      name,
 							Namespace: namespace,
 						},
+						// TODO: OperationSet must be designated.
 						Spec: diagnosisv1.DiagnosisSpec{
-							Source:   diagnosisv1.CustomSource,
 							NodeName: pod.Spec.NodeName,
-							AssignedInformationCollectors: []diagnosisv1.NamespacedName{
-								{
-									Name:      util.DefautlPodCollector,
-									Namespace: util.DefautlNamespace,
-								},
-								{
-									Name:      util.DefautlProcessCollector,
-									Namespace: util.DefautlNamespace,
-								},
-							},
-							AssignedDiagnosers: []diagnosisv1.NamespacedName{
-								{
-									Name:      util.DefautlTerminatingPodDiagnoser,
-									Namespace: util.DefautlNamespace,
-								},
-							},
-							AssignedRecoverers: []diagnosisv1.NamespacedName{
-								{
-									Name:      util.DefautlSignalRecoverer,
-									Namespace: util.DefautlNamespace,
-								},
-							},
 						},
 					}
 
