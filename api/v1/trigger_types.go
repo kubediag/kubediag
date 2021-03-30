@@ -26,7 +26,7 @@ import (
 type TriggerSpec struct {
 	// OperationSet is the name of referenced operation set in the generated diagnosis.
 	OperationSet string `json:"operationSet"`
-	// SourceTemplate is the template of diagnosis source.
+	// SourceTemplate is the template of trigger.
 	SourceTemplate SourceTemplate `json:"sourceTemplate"`
 }
 
@@ -105,11 +105,13 @@ type KubernetesEventTemplateRegexp struct {
 
 // TriggerStatus defines the observed state of Trigger.
 type TriggerStatus struct {
-	// Specifies whether the owner of referenced operation set is updated with the trigger.
-	Ready bool `json:"ready"`
+	// Specifies whether the finalizers of referenced operation set is updated with the trigger.
+	// +optional
+	Ready bool `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
 // Trigger is the Schema for the triggers API.

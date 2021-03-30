@@ -17,9 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"path/filepath"
-	"strings"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -50,27 +47,6 @@ func (r *Diagnosis) Default() {
 		Name:      r.Name,
 		Namespace: r.Namespace,
 	})
-
-	if r.Spec.Source == "" {
-		r.Spec.Source = CustomSource
-	}
-	if r.Spec.CommandExecutors != nil {
-		for i, commandExecutor := range r.Spec.CommandExecutors {
-			if commandExecutor.TimeoutSeconds == 0 {
-				r.Spec.CommandExecutors[i].TimeoutSeconds = 30
-			}
-		}
-	}
-	if r.Spec.Profilers != nil {
-		for i, profiler := range r.Spec.Profilers {
-			if profiler.TimeoutSeconds == 0 {
-				r.Spec.Profilers[i].TimeoutSeconds = 30
-			}
-			if profiler.ExpirationSeconds == 0 {
-				r.Spec.Profilers[i].ExpirationSeconds = 7200
-			}
-		}
-	}
 }
 
 // +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-diagnosis,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=diagnoses,versions=v1,name=vdiagnosis.kb.io
@@ -114,87 +90,6 @@ func (r *Diagnosis) validateDiagnosis() error {
 	if r.Spec.NodeName == "" && r.Spec.PodReference == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("nodeName"),
 			r.Spec.NodeName, "must not be empty if podReference is empty"))
-	}
-	if r.Spec.CommandExecutors != nil {
-		for i, commandExecutor := range r.Spec.CommandExecutors {
-			if commandExecutor.Type != InformationCollectorType &&
-				commandExecutor.Type != DiagnoserType &&
-				commandExecutor.Type != RecovererType {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("commandExecutors").Index(i).Child("type"),
-					r.Spec.CommandExecutors[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
-			}
-			if commandExecutor.TimeoutSeconds <= 0 {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("commandExecutors").Index(i).Child("timeoutSeconds"),
-					r.Spec.CommandExecutors[i].TimeoutSeconds, "must be more than 0"))
-			}
-		}
-	}
-	if r.Spec.Profilers != nil {
-		for i, profilerSpec := range r.Spec.Profilers {
-			if profilerSpec.Go == nil && profilerSpec.Java == nil ||
-				profilerSpec.Go != nil && profilerSpec.Java != nil {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i),
-					r.Spec.Profilers[i], "must specify one and only one of the programming languages"))
-			}
-			if profilerSpec.Type != InformationCollectorType &&
-				profilerSpec.Type != DiagnoserType &&
-				profilerSpec.Type != RecovererType {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("type"),
-					r.Spec.Profilers[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
-			}
-			if profilerSpec.Java != nil {
-				if profilerSpec.Java.Type != ArthasJavaProfilerType &&
-					profilerSpec.Java.Type != MemoryAnalyzerJavaProfilerType {
-					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("java").Child("type"),
-						r.Spec.Profilers[i].Java.Type, "must be Arthas or MemoryAnalyzer"))
-				}
-				if profilerSpec.Java.Type == MemoryAnalyzerJavaProfilerType {
-					if !filepath.IsAbs(profilerSpec.Java.HPROFFilePath) {
-						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("java").Child("hprofFilePath"),
-							r.Spec.Profilers[i].Java.HPROFFilePath, "must be an absolute path"))
-					}
-				}
-			}
-			if profilerSpec.Go != nil {
-				if profilerSpec.Go.Type != CPUGoProfilerType &&
-					profilerSpec.Go.Type != HeapGoProfilerType &&
-					profilerSpec.Go.Type != GoroutineGoProfilerType {
-					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("go").Child("type"),
-						r.Spec.Profilers[i].Go.Type, "must be Profile, Heap or Goroutine"))
-				}
-
-				if strings.HasPrefix(profilerSpec.Go.Source, "https") {
-					if profilerSpec.Go.TLS.SecretReference.Name == "" {
-						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("go").Child("tls").Child("secretReference"),
-							r.Spec.Profilers[i].Go.TLS.SecretReference, "must specify secretReference name"))
-					}
-				}
-			}
-			if profilerSpec.TimeoutSeconds <= 0 {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("profilers").Index(i).Child("timeoutSeconds"),
-					r.Spec.Profilers[i].TimeoutSeconds, "must be more than 0"))
-			}
-		}
-	}
-	if r.Status.CommandExecutors != nil {
-		for i, commandExecutor := range r.Status.CommandExecutors {
-			if commandExecutor.Type != InformationCollectorType &&
-				commandExecutor.Type != DiagnoserType &&
-				commandExecutor.Type != RecovererType {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("commandExecutors").Index(i).Child("type"),
-					r.Status.CommandExecutors[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
-			}
-		}
-	}
-	if r.Status.Profilers != nil {
-		for i, profilerStatus := range r.Status.Profilers {
-			if profilerStatus.Type != InformationCollectorType &&
-				profilerStatus.Type != DiagnoserType &&
-				profilerStatus.Type != RecovererType {
-				allErrs = append(allErrs, field.Invalid(field.NewPath("status").Child("profilers").Index(i).Child("type"),
-					r.Status.Profilers[i].Type, "must be InformationCollector, Diagnoser or Recoverer"))
-			}
-		}
 	}
 	if len(allErrs) == 0 {
 		return nil
