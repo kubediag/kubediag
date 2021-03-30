@@ -305,31 +305,19 @@ func (opts *KubeDiagnoserOptions) Run() error {
 				return fmt.Errorf("unable to create controller for Event: %v", err)
 			}
 		}
-		if err = (controllers.NewDiagnosisSourceReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("DiagnosisSource"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "DiagnosisSource")
-			return fmt.Errorf("unable to create controller for DiagnosisSource: %v", err)
-		}
 
-		// Setup webhooks for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		// Setup webhooks for Diagnosis, Trigger and Operation.
 		if err = (&diagnosisv1.Diagnosis{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnosis")
 			return fmt.Errorf("unable to create webhook for Diagnosis: %v", err)
 		}
-		if err = (&diagnosisv1.Diagnoser{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnoser")
-			return fmt.Errorf("unable to create webhook for Diagnoser: %v", err)
+		if err = (&diagnosisv1.Trigger{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Trigger")
+			return fmt.Errorf("unable to create webhook for Trigger: %v", err)
 		}
-		if err = (&diagnosisv1.InformationCollector{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "InformationCollector")
-			return fmt.Errorf("unable to create webhook for InformationCollector: %v", err)
-		}
-		if err = (&diagnosisv1.Recoverer{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Recoverer")
-			return fmt.Errorf("unable to create webhook for Recoverer: %v", err)
+		if err = (&diagnosisv1.Operation{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Operation")
+			return fmt.Errorf("unable to create webhook for Operation: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 
@@ -426,69 +414,37 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			diagnosisReaper.Run(stopCh)
 		}(stopCh)
 
-		// Setup information collectors, diagnosers and recoverers.
-		podCollector := informationcollector.NewPodCollector(
+		// Setup operation processors.
+		podCollector := processors.NewPodCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/podcollector"),
+			ctrl.Log.WithName("processor/podcollector"),
 			mgr.GetCache(),
 			opts.NodeName,
 			featureGate.Enabled(features.PodCollector),
 		)
-		containerCollector, err := informationcollector.NewContainerCollector(
+		containerCollector, err := processors.NewContainerCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/containercollector"),
+			ctrl.Log.WithName("processor/containercollector"),
 			opts.DockerEndpoint,
 			featureGate.Enabled(features.ContainerCollector),
 		)
 		if err != nil {
-			setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
-			return fmt.Errorf("unable to create information collector: %v", err)
+			setupLog.Error(err, "unable to create processor", "processors", "containercollector")
+			return fmt.Errorf("unable to create processor: %v", err)
 		}
-		processCollector := informationcollector.NewProcessCollector(
+		processCollector := processors.NewProcessCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/processcollector"),
+			ctrl.Log.WithName("processor/processcollector"),
 			featureGate.Enabled(features.ProcessCollector),
-		)
-		fileStatusCollector := informationcollector.NewFileStatusCollector(
-			context.Background(),
-			ctrl.Log.WithName("informationmanager/filestatuscollector"),
-			featureGate.Enabled(features.FileStatusCollector),
-		)
-		systemdCollector := informationcollector.NewSystemdCollector(
-			context.Background(),
-			ctrl.Log.WithName("informationmanager/systemdcollector"),
-			featureGate.Enabled(features.SystemdCollector),
-		)
-		podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
-			featureGate.Enabled(features.PodDiskUsageDiagnoser),
-		)
-		terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
-			featureGate.Enabled(features.TerminatingPodDiagnoser),
-		)
-		signalRecoverer := recoverer.NewSignalRecoverer(
-			context.Background(),
-			ctrl.Log.WithName("recovererchain/signalrecoverer"),
-			featureGate.Enabled(features.SignalRecoverer),
 		)
 
 		// Start http server.
 		go func(stopCh chan struct{}) {
+			// TODO: Implement a registry for managing processor registrations.
 			r := mux.NewRouter()
-			r.HandleFunc("/informationcollector", informationManager.Handler)
-			r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
-			r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
-			r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
-			r.HandleFunc("/informationcollector/filestatuscollector", fileStatusCollector.Handler)
-			r.HandleFunc("/informationcollector/systemdcollector", systemdCollector.Handler)
-			r.HandleFunc("/diagnoser", diagnoserChain.Handler)
-			r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
-			r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
-			r.HandleFunc("/recoverer", recovererChain.Handler)
-			r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
+			r.HandleFunc("/processor/podcollector", podCollector.Handler)
+			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
+			r.HandleFunc("/processor/processcollector", processCollector.Handler)
 			r.HandleFunc("/healthz", HealthCheckHandler)
 
 			// Start pprof server.
