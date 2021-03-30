@@ -31,17 +31,14 @@ type DiagnosisSpec struct {
     NodeName string `json:"nodeName,omitempty"`
     // PodReference 包含目标 Pod 的详细信息。
     PodReference *PodReference `json:"podReference,omitempty"`
-    // Context 是有关诊断目标状态的信息，用于对诊断过程中的状态进行扩展。
+    // Parameters 包含诊断过程中需要传入的参数。
     // 通常该字段的键为 OperationSet 中顶点的序号，值为执行该顶点诊断操作需要的参数。
-    Context map[int]runtime.RawExtension `json:"context,omitempty"`
+    Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 // PodReference 包含目标 Pod 的详细信息。
 type PodReference struct {
-    // Namespace 是 Pod 命名空间。
-    Namespace string `json:"namespace"`
-    // Name 是 Pod 名。
-    Name string `json:"name"`
+    NamespacedName `json:",inline"`
     // Container 是目标容器名。
     Container string `json:"container,omitempty"`
 }
@@ -50,11 +47,9 @@ type PodReference struct {
 type NamespacedName struct {
     // Namespace 是 Kubernetes API 对象命名空间。
     Namespace string `json:"namespace"`
-    // Name specifies the name of a kubernetes api resource.
     // Namespace 是 Kubernetes API 对象名。
     Name string `json:"name"`
 }
-
 
 // DiagnosisStatus 定义了 Diagnosis 的实际状态。
 type DiagnosisStatus struct {
@@ -71,15 +66,15 @@ type DiagnosisStatus struct {
     Conditions []DiagnosisCondition `json:"conditions,omitempty"`
     // StartTime 是对象被系统接收的 RFC 3339 日期和时间。
     StartTime metav1.Time `json:"startTime,omitempty"`
-    // Context 是有关诊断实际状态的信息，用于记录诊断过程中产生的状态。该字段通常包括某个诊断操作的结果。
-    Context *runtime.RawExtension `json:"context,omitempty"`
-    // FailedPath 包含诊断流水线中所有运行失败的路径。路径的最后一个顶点是操作执行失败的顶点。
-    FailedPath []TopologicalSort `json:"failedPath,omitempty"`
+    // FailedPaths 包含诊断流水线中所有运行失败的路径。路径的最后一个顶点是操作执行失败的顶点。
+    FailedPaths []TopologicalSort `json:"failedPath,omitempty"`
     // SucceededPath 是诊断流水线中运行成功的路径。
-    SucceededPath *TopologicalSort `json:"succeededPath,omitempty"`
+    SucceededPath TopologicalSort `json:"succeededPath,omitempty"`
     // OperationResults 包含诊断运行过程中操作的结果。
-    // 通常该字段的键为 Operation 名，值为该 Operation 输出的详细信息。
+    // 通常该字段的键为 OperationSet 中顶点的序号，值为该 Operation 输出的详细信息。
     OperationResults map[string]OperationResult `json:"operationResults,omitempty"`
+    // Checkpoint 是恢复未完成诊断的检查点。
+    Checkpoint *Checkpoint `json:"checkpoint,omitempty"`
 }
 
 // DiagnosisCondition 包含 Diagnosis 当前的服务状态。
@@ -99,10 +94,18 @@ type DiagnosisCondition struct {
 
 // OperationResult 包含一次诊断操作的结果。
 type OperationResult struct {
-    // ID 是诊断操作顶点的序号。
-    ID int `json:"id"`
-    // Result 是诊断操作运行的结果。
-    Result runtime.RawExtension `json:"result"`
+    // Operation 是操作名。
+    Operation string `json:"operation"`
+    // Result 包含诊断操作运行结果的信息。
+    Result *string `json:"result,omitempty"`
+}
+
+// Checkpoint 是恢复未完成诊断的检查点。
+type Checkpoint struct {
+    // PathIndex 是当前路径在 OperationSet 状态中的序号。
+    PathIndex int `json:"pathIndex"`
+    // NodeIndex 是当前顶点在路径中的序号。
+    NodeIndex int `json:"nodeIndex"`
 }
 
 // DiagnosisPhase 是描述当前 Diagnosis 状况的标签。
@@ -125,9 +128,9 @@ type Diagnosis struct {
 
 诊断实际上是一个有状态的任务，在诊断的生命周期中其状态可能发生多次迁移，管理诊断状态迁移的能力在很多场景中是必不可少的。
 
-某个操作可能依赖特定格式的输入。Diagnosis 中的 `.spec.context` 字段用于对诊断过程中的状态进行扩展。该字段是一个键值对，通常其键为 OperationSet 中顶点的序号，值为执行该顶点诊断操作需要的参数。当执行的操作依赖特定格式的输入时，用户可以在该字段中定义操作执行时需要输入的参数，操作处理器在获取参数后执行诊断操作。
+某个操作可能依赖特定格式的输入。Diagnosis 中的 `.spec.parameters` 字段用于指定诊断过程中需要传入的参数。该字段是一个键值对，通常其键为 OperationSet 中顶点的序号，值为执行该顶点诊断操作需要的参数。当执行的操作依赖特定格式的输入时，用户可以在该字段中定义操作执行时需要输入的参数，操作处理器在获取参数后执行诊断操作。
 
-某个操作可能依赖某个之前操作的输出。Diagnosis 中的 `.status.operationResults` 字段用于记录诊断运行过程中操作的结果。该字段是一个键值对，通常其键为 Operation 名，值为该 Operation 输出的详细信息。当前操作执行的结果会被更新到该字段中，如果后续操作的执行依赖当前操作的输出，那么后续操作处理器可以从该字段中获取当前操作的结果。值得注意的是，如果在排查路径中有两个相同的操作，那么后执行操作的结果会覆盖先执行操作的结果。
+某个操作可能依赖某个之前操作的输出。Diagnosis 中的 `.status.operationResults` 字段用于记录诊断运行过程中操作的结果。该字段是一个键值对，通常该字段的键为 OperationSet 中顶点的序号，值为该 Operation 输出的详细信息。当前操作执行的结果会被更新到该字段中，如果后续操作的执行依赖当前操作的输出，那么后续操作处理器可以从该字段中获取当前操作的结果。值得注意的是，如果在排查路径中有两个相同的操作，那么后执行操作的结果会覆盖先执行操作的结果。
 
 用户需要分析排查路径中某个操作的结果并进行优化。Diagnosis 中的 `.status.failedPath` 字段和 `.status.succeededPath` 字段分别记录了所有运行失败的路径和成功的路径。每条路径由一个数组表示，数组的元素中包含顶点的序号和操作名。通过遍历路径可以还原操作执行的顺序，每个操作结果的访问信息被记录在 [Operation](./graph-based-pipeline.md) 中的 `.spec.storage` 字段。
 

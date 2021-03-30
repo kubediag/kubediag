@@ -86,36 +86,37 @@ type Operation struct {
 type OperationSetSpec struct {
     // Edges 包含有向无环图中所有表示诊断操作路径的边。
     Edges []Edge `json:"edges"`
-}
-
-// Edge 是有向无环图中的一个边。
-// 如果 From 为空，那么他表示诊断操作路径中的第一个操作。
-type Edge struct {
-    // From 是一条边上的源顶点。
-    // 如果 From 为空，那么他表示诊断的开始。
-    From *Node `json:"from,omitempty"`
-    // To 是一条边上的目标顶点。
-    To Node `json:"to"`
+    // AdjacencyList 包含有向无环图中所有表示诊断操作的顶点。
+    // 数组的第一个顶点表示诊断的开始而不是某个特定的诊断操作。
+    AdjacencyList []Node `json:"adjacencyList"`
 }
 
 // Node 是有向无环图中的一个顶点。它包含序号和操作名。
 type Node struct {
     // ID 是该顶点的唯一标识符。
     ID int `json:"id"`
+    // To 是从该顶点能够直接到达的节点序号列表。
+    To NodeSet `json:"to,omitempty"`
     // Operation 是在该顶点运行的操作名。
     Operation string `json:"operation"`
+    // Dependences 是所有被依赖且必须预先执行的诊断操作 ID 列表。
+    // 被依赖节点的诊断结果会作为该节点的输入。
+    Dependences []int `json:"dependences,omitempty"`
 }
+
+// NodeSet 是一组节点序号。
+type NodeSet []int
 
 // OperationSetStatus 定义了 OperationSet 的实际状态。
 type OperationSetStatus struct {
-    // TopologicalSorts 是有向无环图所有拓扑排序的集合。
-    TopologicalSorts []TopologicalSort `json:"topologicalSorts"`
+    // Paths 是有向无环图中所有诊断路径的集合。
+    Paths []Path `json:"paths,omitempty"`
     // 表示定义中提供的边是否能生成合法的有向无环图。
-    Ready bool `json:"ready"`
+    Ready bool `json:"ready,omitempty"`
 }
 
-// TopologicalSort 表示与所有边方向一致的顶点线性顺序。
-type TopologicalSort []Node
+// Path 表示与所有边方向一致的顶点线性顺序。
+type Path []Node
 
 // OperationSet 的 API 对象。
 type OperationSet struct {
@@ -202,7 +203,7 @@ type KubernetesEventTemplateRegexp struct {
 
 // TriggerStatus 定义了 Trigger 的实际状态。
 type TriggerStatus struct {
-    // 表示 Trigger 是否已被成功更新至被引用 OperationSet 的 OwnerReferences 列表。
+    // 表示 Trigger 是否已被成功更新至被引用 OperationSet 的 Finalizers 列表。
     Ready bool `json:"ready"`
 }
 
@@ -227,7 +228,9 @@ type Trigger struct {
 1. 用户创建 OperationSet 资源并定义有向无环图中所有的边。
 1. 根据 OperationSet 的定义构建有向无环图。
 1. 如果无法构建合法的有向无环图，则将注册失败的状态和失败原因更新到 OperationSet 中。
-1. 枚举 OperationSet 中所有的拓扑排序路径并更新到 OperationSet 中。
+1. 枚举 OperationSet 中所有的诊断路径并更新到 OperationSet 中。
+
+表示诊断流水线的有向无环图必须只包含一个源顶点（Source Node），该顶点用于表示诊断的开始状态且不包含任何诊断操作。诊断路径是任何从源顶点到任意阱顶点（Sink Node）的路径。诊断路径不包括表示诊断的开始状态的源顶点。图构建器通过搜索出有向无环图中所有的诊断路径并更新至 OperationSet 的 `.status.paths` 字段。
 
 ### 触发诊断
 
@@ -237,25 +240,31 @@ Diagnosis 对象的元数据中包含了需要执行的 OperationSet。触发诊
 
 Diagnosis 对象的元数据中记录了诊断流水线的运行状态。诊断流水线的运行逻辑如下：
 
-1. 获取被 Diagnosis 引用的 OperationSet 中所有的拓扑排序路径。
-1. 按照拓扑排序执行路径中 Operation 定义的诊断操作，将 Operation 运行的结果更新到 Diagnosis 中并持久化到 Operation 中相应的存储类型。
-1. 如果路径中定义的某个诊断操作执行失败，则执行下一条拓扑排序路径。
+1. 获取被 Diagnosis 引用的 OperationSet 中所有的诊断路径。
+1. 按照诊断执行路径中 Operation 定义的诊断操作，将 Operation 运行的结果更新到 Diagnosis 中并持久化到 Operation 中相应的存储类型。
+1. 如果路径中定义的某个诊断操作执行失败，则执行下一条诊断路径。
 1. 如果路径中定义的所有诊断操作均执行成功，则该次诊断成功。
 1. 如果所有路径均无法成功，则该次诊断失败。
 
-![Graph](./images/graph.png)
+![Graph](../images/graph.png)
 
-上列为一个表示诊断流水线的有向无环图，该图的拓扑排序路径表示多个可执行的排查路径：
+上列为一个表示诊断流水线的有向无环图，该图的诊断路径表示多个可执行的排查路径：
 
-* Diagnosis 生成、数据收集 1、数据分析 1、恢复 1
-* Diagnosis 生成、数据收集 1、数据分析 1、恢复 2
-* Diagnosis 生成、数据收集 2、数据分析 2、恢复 2
-* Diagnosis 生成、数据收集 3、数据收集 4
+* 数据收集 1、数据分析 1、恢复 1
+* 数据收集 1、数据分析 1、恢复 2
+* 数据收集 2、数据分析 2、恢复 2
+* 数据收集 3、数据收集 4
 
-### 附属关系
+### 延迟被引用资源的删除
 
-通过设置对象的 OwnerReferences 列表可以表示上列对象之间的附属关系：
+Diagnosis、Trigger、OperationSet、Operation 之间包含以下引用关系：
 
-* Diagnosis 可以由 Trigger 自动创建。Diagnosis 创建后被更新至 Trigger 的 OwnerReferences 列表。
-* Trigger 通过引用 OperationSet 来定义被自动创建的 Diagnosis。Trigger 创建后被更新至 OperationSet 的 OwnerReferences 列表。
-* OperationSet 通过引用 Operation 来定义每个顶点上需要执行的诊断操作。OperationSet 创建后被更新至 Operation 的 OwnerReferences 列表。
+* Diagnosis 通过引用 OperationSet 来定义需要执行的诊断流水线。删除某个 OperationSet 前必须先删除引用该 OperationSet 的 Diagnosis。
+* Trigger 通过引用 OperationSet 来定义被自动创建的 Diagnosis。删除某个 OperationSet 前必须先删除引用该 OperationSet 的 Trigger。
+* OperationSet 通过引用 Operation 来定义每个顶点上需要执行的诊断操作。删除某个 Operation 前必须先删除引用该 Operation 的 OperationSet。
+
+通过设置对象的 Finalizers 列表可以表示上列对象之间的关系并延迟被引用资源的删除：
+
+* 在创建 Diagnosis 时，Diagnosis 被更新至 OperationSet 的 Finalizers 列表。
+* 在创建 Trigger 时，Trigger 被更新至 OperationSet 的 Finalizers 列表。
+* 在创建 OperationSet 时，OperationSet 被更新至 Operation 的 Finalizers 列表。
