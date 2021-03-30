@@ -69,26 +69,6 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - diagnosers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - diagnosers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
   - diagnoses
   verbs:
   - create
@@ -102,46 +82,6 @@ rules:
   - diagnosis.netease.com
   resources:
   - diagnoses/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - diagnosissources
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - diagnosissources/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - informationcollectors
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - informationcollectors/status
   verbs:
   - get
   - patch
@@ -173,19 +113,7 @@ rules:
 - apiGroups:
   - diagnosis.netease.com
   resources:
-  - recoverers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - recoverers/status
+  - operationsets/status
   verbs:
   - get
   - patch
@@ -202,3 +130,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - triggers/status
+  verbs:
+  - get
+  - patch
+  - update

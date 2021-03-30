@@ -3,10 +3,6 @@
 # It should be run by config/default
 resources:
 - bases/diagnosis.netease.com_diagnoses.yaml
-- bases/diagnosis.netease.com_diagnosers.yaml
-- bases/diagnosis.netease.com_informationcollectors.yaml
-- bases/diagnosis.netease.com_recoverers.yaml
-- bases/diagnosis.netease.com_diagnosissources.yaml
 - bases/diagnosis.netease.com_operations.yaml
 - bases/diagnosis.netease.com_operationsets.yaml
 - bases/diagnosis.netease.com_triggers.yaml
@@ -16,10 +12,6 @@ patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #- patches/webhook_in_diagnoses.yaml
-#- patches/webhook_in_diagnosers.yaml
-#- patches/webhook_in_informationcollectors.yaml
-#- patches/webhook_in_recoverers.yaml
-#- patches/webhook_in_diagnosissources.yaml
 #- patches/webhook_in_operations.yaml
 #- patches/webhook_in_operationsets.yaml
 #- patches/webhook_in_triggers.yaml
@@ -28,10 +20,6 @@ patchesStrategicMerge:
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
 #- patches/cainjection_in_diagnoses.yaml
-#- patches/cainjection_in_diagnosers.yaml
-#- patches/cainjection_in_informationcollectors.yaml
-#- patches/cainjection_in_recoverers.yaml
-#- patches/cainjection_in_diagnosissources.yaml
 #- patches/cainjection_in_operations.yaml
 #- patches/cainjection_in_operationsets.yaml
 #- patches/cainjection_in_triggers.yaml

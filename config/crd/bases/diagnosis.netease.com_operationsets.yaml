@@ -15,6 +15,8 @@ spec:
     plural: operationsets
     singular: operationset
   scope: Cluster
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: OperationSet is the Schema for the operationsets API.
@@ -34,83 +36,78 @@ spec:
         spec:
           description: OperationSetSpec defines the desired state of OperationSet.
           properties:
-            edges:
-              description: Edges contains all edges in the directed acyclic graph
-                which represents operation paths on running a diagnosis.
+            adjacencyList:
+              description: AdjacencyList contains all nodes in the directed acyclic
+                graph. The first node in the list represents the start of a diagnosis.
               items:
-                description: Edge is an edge in the directed acyclic graph. It represents
-                  an edge of the first operation in one operation path if from is
-                  nil.
+                description: Node is a node in the directed acyclic graph. It contains
+                  details of the operation.
                 properties:
-                  from:
-                    description: From is the from node of the edge. It represents
-                      the start of running a diagnosis if nil.
-                    properties:
-                      id:
-                        description: ID is the unique identifier of the node.
-                        type: integer
-                      operation:
-                        description: Operation is the name of operation running on
-                          the node.
-                        type: string
-                    required:
-                    - id
-                    - operation
-                    type: object
+                  dependences:
+                    description: Dependences is the list of depended node ids. Operation
+                      results of depended nodes are used as input.
+                    items:
+                      type: integer
+                    type: array
+                  id:
+                    description: ID is the unique identifier of the node. It is identical
+                      to node index in adjacency list and set by admission webhook
+                      server.
+                    type: integer
+                  operation:
+                    description: Operation is the name of operation running on the
+                      node. It is empty if the node is the first in the list.
+                    type: string
                   to:
-                    description: To is the to node of the edge.
-                    properties:
-                      id:
-                        description: ID is the unique identifier of the node.
-                        type: integer
-                      operation:
-                        description: Operation is the name of operation running on
-                          the node.
-                        type: string
-                    required:
-                    - id
-                    - operation
-                    type: object
-                required:
-                - to
+                    description: To is the list of node ids this node links to.
+                    items:
+                      type: integer
+                    type: array
                 type: object
               type: array
           required:
-          - edges
+          - adjacencyList
           type: object
         status:
           description: OperationSetStatus defines the observed state of OperationSet.
           properties:
+            paths:
+              description: Paths is the collection of all directed paths of the directed
+                acyclic graph.
+              items:
+                description: Path represents a linear ordering of nodes along the
+                  direction of every directed edge.
+                items:
+                  description: Node is a node in the directed acyclic graph. It contains
+                    details of the operation.
+                  properties:
+                    dependences:
+                      description: Dependences is the list of depended node ids. Operation
+                        results of depended nodes are used as input.
+                      items:
+                        type: integer
+                      type: array
+                    id:
+                      description: ID is the unique identifier of the node. It is
+                        identical to node index in adjacency list and set by admission
+                        webhook server.
+                      type: integer
+                    operation:
+                      description: Operation is the name of operation running on the
+                        node. It is empty if the node is the first in the list.
+                      type: string
+                    to:
+                      description: To is the list of node ids this node links to.
+                      items:
+                        type: integer
+                      type: array
+                  type: object
+                type: array
+              type: array
             ready:
               description: Specifies whether a valid directed acyclic graph can be
                 generated via provided edges.
               type: boolean
-            topologicalSorts:
-              description: TopologicalSorts is the collection of all topological sorts
-                of the directed acyclic graph.
-              items:
-                description: TopologicalSort represents a linear ordering of nodes
-                  along the direction of every directed edge.
-                items:
-                  description: Node is a node in the directed acyclic graph. It contains
-                    id and operation name.
-                  properties:
-                    id:
-                      description: ID is the unique identifier of the node.
-                      type: integer
-                    operation:
-                      description: Operation is the name of operation running on the
-                        node.
-                      type: string
-                  required:
-                  - id
-                  - operation
-                  type: object
-                type: array
-              type: array
-          required:
-          - ready
-          - topologicalSorts
           type: object
       type: object
   version: v1

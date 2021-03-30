@@ -1,9 +1,0 @@
-apiVersion: diagnosis.netease.com/v1
-kind: InformationCollector
-metadata:
-  name: systemd-collector
-  namespace: kube-diagnoser
-spec:
-  path: /informationcollector/systemdcollector
-  scheme: http
-  timeoutSeconds: 60

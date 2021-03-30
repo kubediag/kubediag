@@ -11,24 +11,6 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-diagnosis-netease-com-v1-diagnoser
-  failurePolicy: Fail
-  name: mdiagnoser.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - diagnosers
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
       path: /mutate-diagnosis-netease-com-v1-diagnosis
   failurePolicy: Fail
   name: mdiagnosis.kb.io
@@ -42,42 +24,6 @@ webhooks:
     - UPDATE
     resources:
     - diagnoses
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutate-diagnosis-netease-com-v1-informationcollector
-  failurePolicy: Fail
-  name: minformationcollector.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - informationcollectors
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutate-diagnosis-netease-com-v1-recoverer
-  failurePolicy: Fail
-  name: mrecoverer.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - recoverers
 
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
@@ -86,24 +32,6 @@ metadata:
   creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-diagnosis-netease-com-v1-diagnoser
-  failurePolicy: Fail
-  name: vdiagnoser.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - diagnosers
 - clientConfig:
     caBundle: Cg==
     service:
@@ -122,39 +50,3 @@ webhooks:
     - UPDATE
     resources:
     - diagnoses
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-diagnosis-netease-com-v1-informationcollector
-  failurePolicy: Fail
-  name: vinformationcollector.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - informationcollectors
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-diagnosis-netease-com-v1-recoverer
-  failurePolicy: Fail
-  name: vrecoverer.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - recoverers
