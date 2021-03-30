@@ -1,9 +1,0 @@
-apiVersion: diagnosis.netease.com/v1
-kind: InformationCollector
-metadata:
-  name: file-status-collector
-  namespace: kube-diagnoser
-spec:
-  path: /informationcollector/filestatuscollector
-  scheme: http
-  timeoutSeconds: 300

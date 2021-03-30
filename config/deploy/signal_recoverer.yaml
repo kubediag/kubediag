@@ -1,9 +1,0 @@
-apiVersion: diagnosis.netease.com/v1
-kind: Recoverer
-metadata:
-  name: signal-recoverer
-  namespace: kube-diagnoser
-spec:
-  path: /recoverer/signalrecoverer
-  scheme: http
-  timeoutSeconds: 60

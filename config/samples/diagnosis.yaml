@@ -1,0 +1,7 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: information-collection
+spec:
+  operationSet: information-collection
+  nodeName: my-node

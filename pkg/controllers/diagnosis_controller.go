@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,11 +37,9 @@ type DiagnosisReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	mode                 string
-	sourceManagerCh      chan diagnosisv1.Diagnosis
-	informationManagerCh chan diagnosisv1.Diagnosis
-	diagnoserChainCh     chan diagnosisv1.Diagnosis
-	recovererChainCh     chan diagnosisv1.Diagnosis
+	mode       string
+	nodeName   string
+	executorCh chan diagnosisv1.Diagnosis
 }
 
 // NewDiagnosisReconciler creates a new DiagnosisReconciler.
@@ -49,28 +48,22 @@ func NewDiagnosisReconciler(
 	log logr.Logger,
 	scheme *runtime.Scheme,
 	mode string,
-	sourceManagerCh chan diagnosisv1.Diagnosis,
-	informationManagerCh chan diagnosisv1.Diagnosis,
-	diagnoserChainCh chan diagnosisv1.Diagnosis,
-	recovererChainCh chan diagnosisv1.Diagnosis,
+	nodeName string,
+	executorCh chan diagnosisv1.Diagnosis,
 ) *DiagnosisReconciler {
 	return &DiagnosisReconciler{
-		Client:               cli,
-		Log:                  log,
-		Scheme:               scheme,
-		mode:                 mode,
-		sourceManagerCh:      sourceManagerCh,
-		informationManagerCh: informationManagerCh,
-		diagnoserChainCh:     diagnoserChainCh,
-		recovererChainCh:     recovererChainCh,
+		Client:     cli,
+		Log:        log,
+		Scheme:     scheme,
+		mode:       mode,
+		nodeName:   nodeName,
+		executorCh: executorCh,
 	}
 }
 
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operationsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=triggers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
@@ -88,21 +81,52 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var diagnosis diagnosisv1.Diagnosis
 	if err := r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
 		log.Error(err, "unable to fetch Diagnosis")
+
+		// Remove finalizers of referenced OperationSet with reconciled diagnosis.
+		var operationset diagnosisv1.OperationSet
+		if err := r.Get(ctx, client.ObjectKey{
+			Name: req.Name,
+		}, &operationset); err != nil {
+			log.Error(err, "unable to fetch OperationSet")
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+		finalizers := util.RemoveFinalizer(operationset.GetFinalizers(), req.NamespacedName.String())
+		operationset.SetFinalizers(finalizers)
+		if err := r.Update(ctx, &operationset); err != nil {
+			log.Error(err, "unable to update OperationSet")
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// The master will process an diagnosis which has not been accept yet, while the agent will process
-	// an diagnosis in InformationCollecting, Diagnosing, Recovering phases.
+	// an diagnosis in Pending and Running phases.
 	if r.mode == "master" {
 		switch diagnosis.Status.Phase {
 		case "":
-			// Set diagnosis NodeName if NodeName is empty and PodReference is not nil.
-			if diagnosis.Spec.NodeName == "" {
-				if diagnosis.Spec.PodReference == nil {
-					log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Diagnosis")
-					return ctrl.Result{}, nil
-				}
+			// Set finalizers of referenced OperationSet with reconciled diagnosis.
+			var operationset diagnosisv1.OperationSet
+			if err := r.Get(ctx, client.ObjectKey{
+				Name: diagnosis.Spec.OperationSet,
+			}, &operationset); err != nil {
+				log.Error(err, "unable to fetch OperationSet")
+				return ctrl.Result{}, err
+			}
+			finalizers := operationset.GetFinalizers()
+			finalizers = append(finalizers, req.NamespacedName.String())
+			operationset.SetFinalizers(finalizers)
+			if err := r.Update(ctx, &operationset); err != nil {
+				log.Error(err, "unable to update OperationSet")
+				return ctrl.Result{}, err
+			}
 
+			if diagnosis.Spec.NodeName == "" && diagnosis.Spec.PodReference == nil {
+				// Ignore diagnosis if nodeName and podReference are both empty.
+				log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Diagnosis")
+				return ctrl.Result{}, nil
+			} else if diagnosis.Spec.NodeName == "" {
+				// Set diagnosis NodeName if NodeName is empty and PodReference is not nil.
 				var pod corev1.Pod
 				if err := r.Get(ctx, client.ObjectKey{
 					Name:      diagnosis.Spec.PodReference.Name,
@@ -117,34 +141,52 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					log.Error(err, "unable to update Diagnosis")
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
-			}
+			} else {
+				log.Info("diagnosis accepted by kube diagnoser master", "diagnosis", client.ObjectKey{
+					Name:      diagnosis.Name,
+					Namespace: diagnosis.Namespace,
+				})
 
-			err := util.QueueDiagnosis(ctx, r.sourceManagerCh, diagnosis)
-			if err != nil {
-				log.Error(err, "failed to send diagnosis to source manager queue")
+				diagnosis.Status.StartTime = metav1.Now()
+				diagnosis.Status.Phase = diagnosisv1.DiagnosisPending
+				if err := r.Status().Update(ctx, &diagnosis); err != nil {
+					log.Error(err, "unable to update Diagnosis")
+					return ctrl.Result{}, client.IgnoreNotFound(err)
+				}
 			}
 		}
 	} else if r.mode == "agent" {
+		if !util.IsDiagnosisNodeNameMatched(diagnosis, r.nodeName) {
+			return ctrl.Result{}, nil
+		}
+
 		switch diagnosis.Status.Phase {
-		case diagnosisv1.InformationCollecting:
-			_, condition := util.GetDiagnosisCondition(&diagnosis.Status, diagnosisv1.InformationCollected)
-			if condition != nil {
-				log.Info("ignoring Diagnosis in phase InformationCollecting with condition InformationCollected")
-			} else {
-				err := util.QueueDiagnosis(ctx, r.informationManagerCh, diagnosis)
-				if err != nil {
-					log.Error(err, "failed to send diagnosis to information manager queue")
-				}
+		case diagnosisv1.DiagnosisPending:
+			log.Info("diagnosis accepted by kube diagnoser agent", "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			})
+
+			diagnosis.Status.Phase = diagnosisv1.DiagnosisRunning
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.DiagnosisAccepted,
+				Status:  corev1.ConditionTrue,
+				Reason:  "DiagnosisAccepted",
+				Message: fmt.Sprintf("Diagnosis is accepted by agent on node %s", diagnosis.Spec.NodeName),
+			})
+			if err := r.Status().Update(ctx, &diagnosis); err != nil {
+				log.Error(err, "unable to update Diagnosis")
+				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
-		case diagnosisv1.DiagnosisDiagnosing:
-			err := util.QueueDiagnosis(ctx, r.diagnoserChainCh, diagnosis)
+
+			err := util.QueueDiagnosis(ctx, r.executorCh, diagnosis)
 			if err != nil {
-				log.Error(err, "failed to send diagnosis to diagnoser chain queue")
+				log.Error(err, "failed to send diagnosis to executor queue")
 			}
-		case diagnosisv1.DiagnosisRecovering:
-			err := util.QueueDiagnosis(ctx, r.recovererChainCh, diagnosis)
+		case diagnosisv1.DiagnosisRunning:
+			err := util.QueueDiagnosis(ctx, r.executorCh, diagnosis)
 			if err != nil {
-				log.Error(err, "failed to send diagnosis to recoverer chain queue")
+				log.Error(err, "failed to send diagnosis to executor queue")
 			}
 		case diagnosisv1.DiagnosisSucceeded:
 			log.Info("ignoring Diagnosis in phase Succeeded")

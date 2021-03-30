@@ -43,16 +43,12 @@ import (
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/alertmanager"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/clusterhealthevaluator"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/controllers"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain/diagnoser"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnosisreaper"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/eventer"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager/informationcollector"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain/recoverer"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/sourcemanager"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/graphbuilder"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -202,33 +198,33 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
 
+		// Channel for queuing kubernetes events and operation sets.
+		eventChainCh := make(chan corev1.Event, 1000)
+		graphBuilderCh := make(chan diagnosisv1.OperationSet, 1000)
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
-		sourceManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
-		eventChainCh := make(chan corev1.Event, 1000)
-
-		// Run source manager.
-		sourceManager := sourcemanager.NewSourceManager(
+		// Create graph builder for generating graph from operation set.
+		graphbuilder := graphbuilder.NewGraphBuilder(
 			context.Background(),
-			ctrl.Log.WithName("sourcemanager"),
+			ctrl.Log.WithName("graphbuilder"),
 			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
+			mgr.GetEventRecorderFor("kube-diagnoser/graphbuilder"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
-			opts.NodeName,
-			sourceManagerCh,
+			graphBuilderCh,
 		)
 		go func(stopCh chan struct{}) {
-			sourceManager.Run(stopCh)
+			graphbuilder.Run(stopCh)
 		}(stopCh)
 
 		// Create alertmanager for managing prometheus alerts.
 		alertmanager := alertmanager.NewAlertmanager(
 			context.Background(),
 			ctrl.Log.WithName("alertmanager"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			opts.NodeName,
 			opts.AlertmanagerRepeatInterval,
-			sourceManagerCh,
 			featureGate.Enabled(features.Alertmanager),
 		)
 
@@ -236,14 +232,17 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		eventer := eventer.NewEventer(
 			context.Background(),
 			ctrl.Log.WithName("eventer"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			opts.NodeName,
 			eventChainCh,
-			sourceManagerCh,
 			featureGate.Enabled(features.Eventer),
 		)
 		go func(stopCh chan struct{}) {
 			eventer.Run(stopCh)
 		}(stopCh)
 
+		// Create alertmanager for evaluating cluster health.
 		clusterHealthEvaluator := clusterhealthevaluator.NewClusterHealthEvaluator(
 			context.Background(),
 			ctrl.Log.WithName("clusterhealthevaluator"),
@@ -273,19 +272,34 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis and DiagnosisSource.
+		// Setup reconcilers for Diagnosis, Trigger, OperationSet and Event.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
-			sourceManagerCh,
-			nil,
-			nil,
+			opts.NodeName,
 			nil,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
+		}
+		if err = (controllers.NewTriggerReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Trigger"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Trigger")
+			return fmt.Errorf("unable to create controller for Trigger: %v", err)
+		}
+		if err = (controllers.NewOperationSetReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("OperationSet"),
+			mgr.GetScheme(),
+			graphBuilderCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "OperationSet")
+			return fmt.Errorf("unable to create controller for OperationSet: %v", err)
 		}
 		if featureGate.Enabled(features.Eventer) {
 			if err = (controllers.NewEventReconciler(
@@ -298,31 +312,19 @@ func (opts *KubeDiagnoserOptions) Run() error {
 				return fmt.Errorf("unable to create controller for Event: %v", err)
 			}
 		}
-		if err = (controllers.NewDiagnosisSourceReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("DiagnosisSource"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "DiagnosisSource")
-			return fmt.Errorf("unable to create controller for DiagnosisSource: %v", err)
-		}
 
-		// Setup webhooks for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		// Setup webhooks for Diagnosis, Trigger and Operation.
 		if err = (&diagnosisv1.Diagnosis{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnosis")
 			return fmt.Errorf("unable to create webhook for Diagnosis: %v", err)
 		}
-		if err = (&diagnosisv1.Diagnoser{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Diagnoser")
-			return fmt.Errorf("unable to create webhook for Diagnoser: %v", err)
+		if err = (&diagnosisv1.Trigger{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Trigger")
+			return fmt.Errorf("unable to create webhook for Trigger: %v", err)
 		}
-		if err = (&diagnosisv1.InformationCollector{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "InformationCollector")
-			return fmt.Errorf("unable to create webhook for InformationCollector: %v", err)
-		}
-		if err = (&diagnosisv1.Recoverer{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Recoverer")
-			return fmt.Errorf("unable to create webhook for Recoverer: %v", err)
+		if err = (&diagnosisv1.Operation{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Operation")
+			return fmt.Errorf("unable to create webhook for Operation: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 
@@ -345,15 +347,12 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
 
+		// Channel for queuing Diagnoses to pipeline for executing operations.
+		executorCh := make(chan diagnosisv1.Diagnosis, 1000)
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
-		informationManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
-		diagnoserChainCh := make(chan diagnosisv1.Diagnosis, 1000)
-		recovererChainCh := make(chan diagnosisv1.Diagnosis, 1000)
-
-		// Run information manager, diagnoser chain and recoverer chain.
-		informationManager := informationmanager.NewInformationManager(
+		// Run executor.
+		executor := executor.NewExecutor(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager"),
 			mgr.GetClient(),
@@ -364,42 +363,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.BindAddress,
 			opts.Port,
 			opts.DataRoot,
-			informationManagerCh,
+			executorCh,
 		)
 		go func(stopCh chan struct{}) {
-			informationManager.Run(stopCh)
-		}(stopCh)
-		diagnoserChain := diagnoserchain.NewDiagnoserChain(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/diagnoserchain"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.NodeName,
-			opts.BindAddress,
-			opts.Port,
-			opts.DataRoot,
-			diagnoserChainCh,
-		)
-		go func(stopCh chan struct{}) {
-			diagnoserChain.Run(stopCh)
-		}(stopCh)
-		recovererChain := recovererchain.NewRecovererChain(
-			context.Background(),
-			ctrl.Log.WithName("recovererchain"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/recovererchain"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.NodeName,
-			opts.BindAddress,
-			opts.Port,
-			opts.DataRoot,
-			recovererChainCh,
-		)
-		go func(stopCh chan struct{}) {
-			recovererChain.Run(stopCh)
+			executor.Run(stopCh)
 		}(stopCh)
 
 		// Run diagnosis reaper for garbage collection.
@@ -419,69 +386,37 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			diagnosisReaper.Run(stopCh)
 		}(stopCh)
 
-		// Setup information collectors, diagnosers and recoverers.
-		podCollector := informationcollector.NewPodCollector(
+		// Setup operation processors.
+		podCollector := processors.NewPodCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/podcollector"),
+			ctrl.Log.WithName("processor/podcollector"),
 			mgr.GetCache(),
 			opts.NodeName,
 			featureGate.Enabled(features.PodCollector),
 		)
-		containerCollector, err := informationcollector.NewContainerCollector(
+		containerCollector, err := processors.NewContainerCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/containercollector"),
+			ctrl.Log.WithName("processor/containercollector"),
 			opts.DockerEndpoint,
 			featureGate.Enabled(features.ContainerCollector),
 		)
 		if err != nil {
-			setupLog.Error(err, "unable to create information collector", "informationcollector", "containercollector")
-			return fmt.Errorf("unable to create information collector: %v", err)
+			setupLog.Error(err, "unable to create processor", "processors", "containercollector")
+			return fmt.Errorf("unable to create processor: %v", err)
 		}
-		processCollector := informationcollector.NewProcessCollector(
+		processCollector := processors.NewProcessCollector(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager/processcollector"),
+			ctrl.Log.WithName("processor/processcollector"),
 			featureGate.Enabled(features.ProcessCollector),
-		)
-		fileStatusCollector := informationcollector.NewFileStatusCollector(
-			context.Background(),
-			ctrl.Log.WithName("informationmanager/filestatuscollector"),
-			featureGate.Enabled(features.FileStatusCollector),
-		)
-		systemdCollector := informationcollector.NewSystemdCollector(
-			context.Background(),
-			ctrl.Log.WithName("informationmanager/systemdcollector"),
-			featureGate.Enabled(features.SystemdCollector),
-		)
-		podDiskUsageDiagnoser := diagnoser.NewPodDiskUsageDiagnoser(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain/poddiskusagediagnoser"),
-			featureGate.Enabled(features.PodDiskUsageDiagnoser),
-		)
-		terminatingPodDiagnoser := diagnoser.NewTerminatingPodDiagnoser(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain/terminatingpoddiagnoser"),
-			featureGate.Enabled(features.TerminatingPodDiagnoser),
-		)
-		signalRecoverer := recoverer.NewSignalRecoverer(
-			context.Background(),
-			ctrl.Log.WithName("recovererchain/signalrecoverer"),
-			featureGate.Enabled(features.SignalRecoverer),
 		)
 
 		// Start http server.
 		go func(stopCh chan struct{}) {
+			// TODO: Implement a registry for managing processor registrations.
 			r := mux.NewRouter()
-			r.HandleFunc("/informationcollector", informationManager.Handler)
-			r.HandleFunc("/informationcollector/podcollector", podCollector.Handler)
-			r.HandleFunc("/informationcollector/containercollector", containerCollector.Handler)
-			r.HandleFunc("/informationcollector/processcollector", processCollector.Handler)
-			r.HandleFunc("/informationcollector/filestatuscollector", fileStatusCollector.Handler)
-			r.HandleFunc("/informationcollector/systemdcollector", systemdCollector.Handler)
-			r.HandleFunc("/diagnoser", diagnoserChain.Handler)
-			r.HandleFunc("/diagnoser/poddiskusagediagnoser", podDiskUsageDiagnoser.Handler)
-			r.HandleFunc("/diagnoser/terminatingpoddiagnoser", terminatingPodDiagnoser.Handler)
-			r.HandleFunc("/recoverer", recovererChain.Handler)
-			r.HandleFunc("/recoverer/signalrecoverer", signalRecoverer.Handler)
+			r.HandleFunc("/processor/podcollector", podCollector.Handler)
+			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
+			r.HandleFunc("/processor/processcollector", processCollector.Handler)
 			r.HandleFunc("/healthz", HealthCheckHandler)
 
 			// Start pprof server.
@@ -492,43 +427,17 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		// Setup reconcilers for Diagnosis.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
-			nil,
-			informationManagerCh,
-			diagnoserChainCh,
-			recovererChainCh,
+			opts.NodeName,
+			executorCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
-		}
-		if err = (controllers.NewInformationCollectorReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("InformationCollector"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
-			return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
-		}
-		if err = (controllers.NewDiagnoserReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Diagnoser"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
-			return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
-		}
-		if err = (controllers.NewRecovererReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Recoverer"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
-			return fmt.Errorf("unable to create controller for Recoverer: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 

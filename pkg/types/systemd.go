@@ -18,8 +18,11 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 // Unit represents an unit, a job or the manager itself.
@@ -39,6 +42,33 @@ type Property struct {
 	Name string `json:"name"`
 	// Value is the value of a property.
 	Value string `json:"value"`
+}
+
+// SystemdUnitProperties returns a slice which contains all properties of specified systemd unit.
+// See systemctl(1) linux manual page for more details:
+//
+// https://www.man7.org/linux/man-pages/man1/systemctl.1.html
+func SystemdUnitProperties(name string) ([]Property, error) {
+	command := make([]string, 0)
+	// Get properties of the manager itself if systemd unit name is empty.
+	if name == "" {
+		command = []string{"nsenter", "-t", "1", "-m", "-p", "-n", "-i", "-u", "systemctl", "show", "--no-page"}
+	} else {
+		command = []string{"nsenter", "-t", "1", "-m", "-p", "-n", "-i", "-u", "systemctl", "show", "--no-page", name}
+	}
+
+	out, err := util.BlockingRunCommandWithTimeout(command, 10)
+	if err != nil {
+		return nil, fmt.Errorf("execute command systemctl on unit %s with error %v", name, err)
+	}
+
+	buf := bytes.NewBuffer(out)
+	properties, err := ParseProperties(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return properties, nil
 }
 
 // ParseProperties parses a "systemctl show" output to a property slice.

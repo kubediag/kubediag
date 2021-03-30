@@ -22,13 +22,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/model"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -70,13 +74,17 @@ type alertmanager struct {
 	// Logger represents the ability to log messages.
 	logr.Logger
 
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
 	// repeatInterval specifies how long to wait before sending a notification again if it has already
 	// been sent successfully for an alert.
 	repeatInterval time.Duration
 	// firingAlertSet contains all alerts fired by alertmanager.
 	firingAlertSet map[uint64]time.Time
-	// sourceManagerCh is a channel for queuing Diagnoses to be processed by source manager.
-	sourceManagerCh chan diagnosisv1.Diagnosis
 	// alertmanagerEnabled indicates whether alertmanager is enabled.
 	alertmanagerEnabled bool
 }
@@ -85,8 +93,10 @@ type alertmanager struct {
 func NewAlertmanager(
 	ctx context.Context,
 	logger logr.Logger,
+	cli client.Client,
+	cache cache.Cache,
+	nodeName string,
 	repeatInterval time.Duration,
-	sourceManagerCh chan diagnosisv1.Diagnosis,
 	alertmanagerEnabled bool,
 ) Alertmanager {
 	metrics.Registry.MustRegister(
@@ -100,9 +110,11 @@ func NewAlertmanager(
 	return &alertmanager{
 		Context:             ctx,
 		Logger:              logger,
+		client:              cli,
+		cache:               cache,
+		nodeName:            nodeName,
 		repeatInterval:      repeatInterval,
 		firingAlertSet:      firingAlertSet,
-		sourceManagerCh:     sourceManagerCh,
 		alertmanagerEnabled: alertmanagerEnabled,
 	}
 }
@@ -150,40 +162,21 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Create diagnosis according to the prometheus alert.
-			name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
-			namespace := util.DefautlNamespace
-			prometheusAlert := diagnosisv1.PrometheusAlert{
-				Labels:      alert.Labels,
-				Annotations: alert.Annotations,
-				StartsAt: metav1.Time{
-					Time: alert.StartsAt,
-				},
-				EndsAt: metav1.Time{
-					Time: alert.EndsAt,
-				},
-				GeneratorURL: alert.GeneratorURL,
-			}
-			diagnosis := diagnosisv1.Diagnosis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-				},
-				Spec: diagnosisv1.DiagnosisSpec{
-					Source:          diagnosisv1.PrometheusAlertSource,
-					PrometheusAlert: &prometheusAlert,
-				},
+			triggers, err := am.listTriggers()
+			if err != nil {
+				am.Error(err, "failed to list Triggers")
+				return
 			}
 
-			// Add diagnosis to the queue processed by source manager.
-			err := util.QueueDiagnosis(am, am.sourceManagerCh, diagnosis)
+			diagnosis, err := am.createDiagnosisFromPrometheusAlert(triggers, alert)
 			if err != nil {
-				alertmanagerDiagnosisGenerationErrorCount.Inc()
-				am.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
-					Name:      diagnosis.Name,
-					Namespace: diagnosis.Namespace,
-				})
+				return
 			}
+
+			am.Info("creating Diagnosis from prometheus alert successfully", "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			})
 
 			// Update alert fired time if the diagnosis is created successfully.
 			am.firingAlertSet[uint64(fingerprint)] = now
@@ -196,4 +189,134 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}
+}
+
+// listTriggers lists Triggers from cache.
+func (am *alertmanager) listTriggers() ([]diagnosisv1.Trigger, error) {
+	var triggersList diagnosisv1.TriggerList
+	if err := am.cache.List(am, &triggersList); err != nil {
+		return nil, err
+	}
+
+	return triggersList.Items, nil
+}
+
+// createDiagnosisFromPrometheusAlert creates an Diagnosis from prometheus alert and triggers.
+func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv1.Trigger, alert *types.Alert) (diagnosisv1.Diagnosis, error) {
+	for _, trigger := range triggers {
+		sourceTemplate := trigger.Spec.SourceTemplate
+		if sourceTemplate.PrometheusAlertTemplate != nil {
+			// Set all fields of the diagnosis according to trigger if the prometheus alert contains
+			// all match of the regular expression pattern defined in prometheus alert template.
+			matched, err := matchPrometheusAlert(*sourceTemplate.PrometheusAlertTemplate, alert)
+			if err != nil {
+				am.Error(err, "failed to compare trigger template and prometheus alert")
+				continue
+			}
+
+			if matched {
+				am.Info("creating Diagnosis from prometheus alert", "alert", alert.String())
+
+				// Create diagnosis according to the prometheus alert.
+				name := fmt.Sprintf("%s.%s.%s", util.PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
+				namespace := util.DefautlNamespace
+				annotations := make(map[string]string)
+				annotations[util.PrometheusAlertAnnotation] = string(alert.String())
+				diagnosis := diagnosisv1.Diagnosis{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        name,
+						Namespace:   namespace,
+						Annotations: annotations,
+					},
+					Spec: diagnosisv1.DiagnosisSpec{
+						OperationSet: trigger.Spec.OperationSet,
+						NodeName:     string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel]),
+					},
+				}
+
+				if err := am.client.Create(am, &diagnosis); err != nil {
+					if !apierrors.IsAlreadyExists(err) {
+						am.Error(err, "unable to create Diagnosis")
+						return diagnosis, err
+					}
+				}
+
+				return diagnosis, nil
+			}
+		}
+	}
+
+	return diagnosisv1.Diagnosis{}, nil
+}
+
+// matchPrometheusAlert reports whether the diagnosis contains all match of the regular expression pattern
+// defined in prometheus alert template.
+func matchPrometheusAlert(prometheusAlertTemplate diagnosisv1.PrometheusAlertTemplate, alert *types.Alert) (bool, error) {
+	re, err := regexp.Compile(prometheusAlertTemplate.Regexp.AlertName)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(string(alert.Labels[model.AlertNameLabel])) {
+		return false, nil
+	}
+
+	// Template label key must be identical to the prometheus alert label key.
+	// Template label value should be a regular expression.
+	for templateKey, templateValue := range prometheusAlertTemplate.Regexp.Labels {
+		value, ok := alert.Labels[templateKey]
+		if !ok {
+			return false, nil
+		}
+
+		re, err := regexp.Compile(string(templateValue))
+		if err != nil {
+			return false, err
+		}
+		if !re.MatchString(string(value)) {
+			return false, nil
+		}
+	}
+
+	// Template annotation key must be identical to the prometheus alert annotation key.
+	// Template annotation value should be a regular expression.
+	for templateKey, templateValue := range prometheusAlertTemplate.Regexp.Annotations {
+		value, ok := alert.Annotations[templateKey]
+		if !ok {
+			return false, nil
+		}
+
+		re, err := regexp.Compile(string(templateValue))
+		if err != nil {
+			return false, err
+		}
+		if !re.MatchString(string(value)) {
+			return false, nil
+		}
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.StartsAt)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(alert.StartsAt.String()) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.EndsAt)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(alert.EndsAt.String()) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.GeneratorURL)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(alert.GeneratorURL) {
+		return false, nil
+	}
+
+	return true, nil
 }

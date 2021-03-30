@@ -1,9 +1,9 @@
 apiVersion: diagnosis.netease.com/v1
-kind: InformationCollector
+kind: Operation
 metadata:
   name: container-collector
-  namespace: kube-diagnoser
 spec:
-  path: /informationcollector/containercollector
-  scheme: http
-  timeoutSeconds: 60
+  processor:
+    path: /processor/containercollector
+    scheme: http
+    timeoutSeconds: 60

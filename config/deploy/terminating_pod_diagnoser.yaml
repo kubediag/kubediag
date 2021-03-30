@@ -1,9 +1,0 @@
-apiVersion: diagnosis.netease.com/v1
-kind: Diagnoser
-metadata:
-  name: terminating-pod-diagnoser
-  namespace: kube-diagnoser
-spec:
-  path: /diagnoser/terminatingpoddiagnoser
-  scheme: http
-  timeoutSeconds: 60

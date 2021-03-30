@@ -22,41 +22,47 @@ import (
 
 // OperationSetSpec defines the desired state of OperationSet.
 type OperationSetSpec struct {
-	// Edges contains all edges in the directed acyclic graph which represents operation paths on running a diagnosis.
-	Edges []Edge `json:"edges"`
+	// AdjacencyList contains all nodes in the directed acyclic graph. The first node in the list represents the
+	// start of a diagnosis.
+	AdjacencyList []Node `json:"adjacencyList"`
 }
 
-// Edge is an edge in the directed acyclic graph.
-// It represents an edge of the first operation in one operation path if from is nil.
-type Edge struct {
-	// From is the from node of the edge.
-	// It represents the start of running a diagnosis if nil.
-	// +optional
-	From *Node `json:"from,omitempty"`
-	// To is the to node of the edge.
-	To Node `json:"to"`
-}
-
-// Node is a node in the directed acyclic graph. It contains id and operation name.
+// Node is a node in the directed acyclic graph. It contains details of the operation.
 type Node struct {
 	// ID is the unique identifier of the node.
-	ID int `json:"id"`
+	// It is identical to node index in adjacency list and set by admission webhook server.
+	// +optional
+	ID int `json:"id,omitempty"`
+	// To is the list of node ids this node links to.
+	// +optional
+	To NodeSet `json:"to,omitempty"`
 	// Operation is the name of operation running on the node.
-	Operation string `json:"operation"`
+	// It is empty if the node is the first in the list.
+	// +optional
+	Operation string `json:"operation,omitempty"`
+	// Dependences is the list of depended node ids. Operation results of depended nodes are used as input.
+	// +optional
+	Dependences []int `json:"dependences,omitempty"`
 }
+
+// NodeSet is the set of node ids.
+type NodeSet []int
 
 // OperationSetStatus defines the observed state of OperationSet.
 type OperationSetStatus struct {
-	// TopologicalSorts is the collection of all topological sorts of the directed acyclic graph.
-	TopologicalSorts []TopologicalSort `json:"topologicalSorts"`
+	// Paths is the collection of all directed paths of the directed acyclic graph.
+	// +optional
+	Paths []Path `json:"paths,omitempty"`
 	// Specifies whether a valid directed acyclic graph can be generated via provided edges.
-	Ready bool `json:"ready"`
+	// +optional
+	Ready bool `json:"ready,omitempty"`
 }
 
-// TopologicalSort represents a linear ordering of nodes along the direction of every directed edge.
-type TopologicalSort []Node
+// Path represents a linear ordering of nodes along the direction of every directed edge.
+type Path []Node
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
 // OperationSet is the Schema for the operationsets API.
