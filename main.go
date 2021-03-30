@@ -200,25 +200,21 @@ func (opts *KubeDiagnoserOptions) Run() error {
 
 		// Channel for queuing kubernetes events and operation sets.
 		eventChainCh := make(chan corev1.Event, 1000)
+		graphBuilderCh := make(chan diagnosisv1.OperationSet, 1000)
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
-		sourceManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
-		eventChainCh := make(chan corev1.Event, 1000)
-
-		// Run source manager.
-		sourceManager := sourcemanager.NewSourceManager(
+		// Create graph builder for generating graph from operation set.
+		graphbuilder := graphbuilder.NewGraphBuilder(
 			context.Background(),
-			ctrl.Log.WithName("sourcemanager"),
+			ctrl.Log.WithName("graphbuilder"),
 			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/sourcemanager"),
+			mgr.GetEventRecorderFor("kube-diagnoser/graphbuilder"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
-			opts.NodeName,
-			sourceManagerCh,
+			graphBuilderCh,
 		)
 		go func(stopCh chan struct{}) {
-			sourceManager.Run(stopCh)
+			graphbuilder.Run(stopCh)
 		}(stopCh)
 
 		// Create alertmanager for managing prometheus alerts.
@@ -276,19 +272,34 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis and DiagnosisSource.
+		// Setup reconcilers for Diagnosis, Trigger, OperationSet and Event.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
-			sourceManagerCh,
-			nil,
-			nil,
+			opts.NodeName,
 			nil,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
+		}
+		if err = (controllers.NewTriggerReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Trigger"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Trigger")
+			return fmt.Errorf("unable to create controller for Trigger: %v", err)
+		}
+		if err = (controllers.NewOperationSetReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("OperationSet"),
+			mgr.GetScheme(),
+			graphBuilderCh,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "OperationSet")
+			return fmt.Errorf("unable to create controller for OperationSet: %v", err)
 		}
 		if featureGate.Enabled(features.Eventer) {
 			if err = (controllers.NewEventReconciler(
