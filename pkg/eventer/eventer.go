@@ -19,11 +19,14 @@ package eventer
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -65,10 +68,14 @@ type eventer struct {
 	// Logger represents the ability to log messages.
 	logr.Logger
 
+	// client knows how to perform CRUD operations on Kubernetes objects.
+	client client.Client
+	// cache knows how to load Kubernetes objects.
+	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
 	// eventChainCh is a channel for queuing Events to be processed by eventer.
 	eventChainCh chan corev1.Event
-	// sourceManagerCh is a channel for queuing Diagnoses to be processed by source manager.
-	sourceManagerCh chan diagnosisv1.Diagnosis
 	// eventerEnabled indicates whether eventer is enabled.
 	eventerEnabled bool
 }
@@ -77,8 +84,10 @@ type eventer struct {
 func NewEventer(
 	ctx context.Context,
 	logger logr.Logger,
+	cli client.Client,
+	cache cache.Cache,
+	nodeName string,
 	eventChainCh chan corev1.Event,
-	sourceManagerCh chan diagnosisv1.Diagnosis,
 	eventerEnabled bool,
 ) Eventer {
 	metrics.Registry.MustRegister(
@@ -88,11 +97,10 @@ func NewEventer(
 	)
 
 	return &eventer{
-		Context:         ctx,
-		Logger:          logger,
-		eventChainCh:    eventChainCh,
-		sourceManagerCh: sourceManagerCh,
-		eventerEnabled:  eventerEnabled,
+		Context:        ctx,
+		Logger:         logger,
+		eventChainCh:   eventChainCh,
+		eventerEnabled: eventerEnabled,
 	}
 }
 
@@ -108,29 +116,22 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 		case event := <-ev.eventChainCh:
 			eventReceivedCount.Inc()
 
-			// Create diagnosis according to the kubernetes event.
-			name := fmt.Sprintf("%s.%s.%s", util.KubernetesEventGeneratedDiagnosisPrefix, event.Namespace, event.Name)
-			namespace := util.DefautlNamespace
-			diagnosis := diagnosisv1.Diagnosis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-				},
-				Spec: diagnosisv1.DiagnosisSpec{
-					Source:          diagnosisv1.KubernetesEventSource,
-					KubernetesEvent: &event,
-				},
+			triggers, err := ev.listTriggers()
+			if err != nil {
+				ev.Error(err, "failed to list Triggers")
+				return
 			}
 
-			// Add diagnosis to the queue processed by source manager.
-			err := util.QueueDiagnosis(ev, ev.sourceManagerCh, diagnosis)
+			diagnosis, err := ev.createDiagnosisFromKubernetesEvent(triggers, event)
 			if err != nil {
+				// Increment counter of erroneous diagnosis generations by eventer.
 				eventerDiagnosisGenerationErrorCount.Inc()
-				ev.Error(err, "failed to send diagnosis to source manager queue", "diagnosis", client.ObjectKey{
-					Name:      diagnosis.Name,
-					Namespace: diagnosis.Namespace,
-				})
 			}
+
+			ev.Info("creating Diagnosis from kubernetes event successfully", "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			})
 
 			// Increment counter of successful diagnosis generations by eventer.
 			eventerDiagnosisGenerationSuccessCount.Inc()
@@ -139,4 +140,119 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 			return
 		}
 	}
+}
+
+// listTriggers lists Triggers from cache.
+func (ev *eventer) listTriggers() ([]diagnosisv1.Trigger, error) {
+	var triggersList diagnosisv1.TriggerList
+	if err := ev.cache.List(ev, &triggersList); err != nil {
+		return nil, err
+	}
+
+	return triggersList.Items, nil
+}
+
+// createDiagnosisFromKubernetesEvent creates an Diagnosis from kubernetes event and triggers.
+func (ev *eventer) createDiagnosisFromKubernetesEvent(triggers []diagnosisv1.Trigger, event corev1.Event) (diagnosisv1.Diagnosis, error) {
+	for _, trigger := range triggers {
+		sourceTemplate := trigger.Spec.SourceTemplate
+		if sourceTemplate.KubernetesEventTemplate != nil {
+			// Set all fields of the diagnosis according to trigger if the kubernetes event contains
+			// all match of the regular expression pattern defined in kubernetes event template.
+			matched, err := matchKubernetesEvent(*sourceTemplate.KubernetesEventTemplate, event)
+			if err != nil {
+				ev.Error(err, "failed to compare trigger template and kubernetes event")
+				continue
+			}
+
+			if matched {
+				ev.Info("creating Diagnosis from kubernetes event", "event", client.ObjectKey{
+					Name:      event.Name,
+					Namespace: event.Namespace,
+				})
+
+				// Create diagnosis according to the kubernetes event.
+				name := fmt.Sprintf("%s.%s.%s", util.KubernetesEventGeneratedDiagnosisPrefix, event.Namespace, event.Name)
+				namespace := util.DefautlNamespace
+				annotations := make(map[string]string)
+				annotations[util.KubernetesEventAnnotation] = event.String()
+				diagnosis := diagnosisv1.Diagnosis{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        name,
+						Namespace:   namespace,
+						Annotations: annotations,
+					},
+					Spec: diagnosisv1.DiagnosisSpec{
+						OperationSet: trigger.Spec.OperationSet,
+						NodeName:     event.Source.Host,
+					},
+				}
+
+				if err := ev.client.Create(ev, &diagnosis); err != nil {
+					if !apierrors.IsAlreadyExists(err) {
+						ev.Error(err, "unable to create Diagnosis")
+						return diagnosis, err
+					}
+				}
+
+				return diagnosis, nil
+			}
+		}
+	}
+
+	return diagnosisv1.Diagnosis{}, nil
+}
+
+// matchKubernetesEvent reports whether the diagnosis contains all match of the regular expression pattern
+// defined in kubernetes event template.
+func matchKubernetesEvent(kubernetesEventTemplate diagnosisv1.KubernetesEventTemplate, event corev1.Event) (bool, error) {
+	re, err := regexp.Compile(kubernetesEventTemplate.Regexp.Name)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Name) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Namespace)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Namespace) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Reason)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Reason) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Message)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Message) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Source.Component)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Source.Component) {
+		return false, nil
+	}
+
+	re, err = regexp.Compile(kubernetesEventTemplate.Regexp.Source.Host)
+	if err != nil {
+		return false, err
+	}
+	if !re.MatchString(event.Source.Host) {
+		return false, nil
+	}
+
+	return true, nil
 }

@@ -202,6 +202,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
 
+		// Channel for queuing kubernetes events and operation sets.
+		eventChainCh := make(chan corev1.Event, 1000)
 		stopCh := SetupSignalHandler()
 
 		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
@@ -236,8 +238,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		eventer := eventer.NewEventer(
 			context.Background(),
 			ctrl.Log.WithName("eventer"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			opts.NodeName,
 			eventChainCh,
-			sourceManagerCh,
 			featureGate.Enabled(features.Eventer),
 		)
 		go func(stopCh chan struct{}) {
