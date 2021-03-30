@@ -43,16 +43,12 @@ import (
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/alertmanager"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/clusterhealthevaluator"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/controllers"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnoserchain/diagnoser"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnosisreaper"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/eventer"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/informationmanager/informationcollector"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/recovererchain/recoverer"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/sourcemanager"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/graphbuilder"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -340,15 +336,12 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
 
+		// Channel for queuing Diagnoses to pipeline for executing operations.
+		executorCh := make(chan diagnosisv1.Diagnosis, 1000)
 		stopCh := SetupSignalHandler()
 
-		// Channels for queuing Diagnoses along the pipeline of information collection, diagnosis, recovery.
-		informationManagerCh := make(chan diagnosisv1.Diagnosis, 1000)
-		diagnoserChainCh := make(chan diagnosisv1.Diagnosis, 1000)
-		recovererChainCh := make(chan diagnosisv1.Diagnosis, 1000)
-
-		// Run information manager, diagnoser chain and recoverer chain.
-		informationManager := informationmanager.NewInformationManager(
+		// Run executor.
+		executor := executor.NewExecutor(
 			context.Background(),
 			ctrl.Log.WithName("informationmanager"),
 			mgr.GetClient(),
@@ -359,42 +352,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.BindAddress,
 			opts.Port,
 			opts.DataRoot,
-			informationManagerCh,
+			executorCh,
 		)
 		go func(stopCh chan struct{}) {
-			informationManager.Run(stopCh)
-		}(stopCh)
-		diagnoserChain := diagnoserchain.NewDiagnoserChain(
-			context.Background(),
-			ctrl.Log.WithName("diagnoserchain"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/diagnoserchain"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.NodeName,
-			opts.BindAddress,
-			opts.Port,
-			opts.DataRoot,
-			diagnoserChainCh,
-		)
-		go func(stopCh chan struct{}) {
-			diagnoserChain.Run(stopCh)
-		}(stopCh)
-		recovererChain := recovererchain.NewRecovererChain(
-			context.Background(),
-			ctrl.Log.WithName("recovererchain"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/recovererchain"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.NodeName,
-			opts.BindAddress,
-			opts.Port,
-			opts.DataRoot,
-			recovererChainCh,
-		)
-		go func(stopCh chan struct{}) {
-			recovererChain.Run(stopCh)
+			executor.Run(stopCh)
 		}(stopCh)
 
 		// Run diagnosis reaper for garbage collection.
@@ -455,43 +416,17 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis, InformationCollector, Diagnoser and Recoverer.
+		// Setup reconcilers for Diagnosis.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
 			opts.Mode,
-			nil,
-			informationManagerCh,
-			diagnoserChainCh,
-			recovererChainCh,
+			opts.NodeName,
+			executorCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
-		}
-		if err = (controllers.NewInformationCollectorReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("InformationCollector"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "InformationCollector")
-			return fmt.Errorf("unable to create controller for InformationCollector: %v", err)
-		}
-		if err = (controllers.NewDiagnoserReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Diagnoser"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Diagnoser")
-			return fmt.Errorf("unable to create controller for Diagnoser: %v", err)
-		}
-		if err = (controllers.NewRecovererReconciler(
-			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Recoverer"),
-			mgr.GetScheme(),
-		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Recoverer")
-			return fmt.Errorf("unable to create controller for Recoverer: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 
