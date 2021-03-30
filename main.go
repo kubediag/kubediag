@@ -229,8 +229,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		alertmanager := alertmanager.NewAlertmanager(
 			context.Background(),
 			ctrl.Log.WithName("alertmanager"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			opts.NodeName,
 			opts.AlertmanagerRepeatInterval,
-			sourceManagerCh,
 			featureGate.Enabled(features.Alertmanager),
 		)
 
