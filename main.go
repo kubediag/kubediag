@@ -415,14 +415,30 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			featureGate.Enabled(features.CommandExecutor),
 		)
 
+		coreFileProfiler, err := processors.NewCoreFileProfiler(
+			context.Background(),
+			ctrl.Log.WithName("processor/corefileprofiler"),
+			opts.DockerEndpoint,
+			featureGate.Enabled(features.CorefileProfiler),
+			opts.DataRoot)
+		if err != nil {
+			setupLog.Error(err, "unable to create processor", "processors", "corefileprofiler")
+			return fmt.Errorf("unable to create processor: %v", err)
+		}
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			// TODO: Implement a registry for managing processor registrations.
 			r := mux.NewRouter()
+			// handle information collectors
 			r.HandleFunc("/processor/podcollector", podCollector.Handler)
 			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
 			r.HandleFunc("/processor/processcollector", processCollector.Handler)
+			// handle executors
 			r.HandleFunc("/processor/commandexecutor", commandexecutor.Handler)
+			// handle profilers
+			r.HandleFunc("/processor/corefileprofiler", coreFileProfiler.Handler)
+
 			r.HandleFunc("/healthz", HealthCheckHandler)
 
 			// Start pprof server.

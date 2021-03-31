@@ -18,6 +18,10 @@ package processors
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
 )
 
 // DecodeOperationContext unmarshals json encoding into a map[string][]byte, which is the format of operation context.
@@ -29,4 +33,33 @@ func DecodeOperationContext(body []byte) (map[string][]byte, error) {
 	}
 
 	return data, nil
+}
+
+func ExtractParametersFromHTTPContext(r *http.Request) (map[string]string, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read request body: %v", err)
+	}
+	data := make(map[string]string)
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal body: %v", err)
+	}
+	return data, nil
+}
+
+// GetAvailablePort returns a free open port that is ready to use.
+func GetAvailablePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
