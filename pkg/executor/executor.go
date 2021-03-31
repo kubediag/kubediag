@@ -49,6 +49,22 @@ const (
 	MaxDataSize = 1024 * 1024 * 2
 	// HTTPRequestBodyParameterKey is the key of parameter to be passed to opreation.
 	HTTPRequestBodyParameterKey = "parameter"
+
+	// TraceDiagnosisUUID is uid of diagnosis object, with uuid in http header, we could build a diagnosis flow
+	TraceDiagnosisUUID      = "diagnosis-uuid"
+	// TraceDiagnosisNamespace is namespace of diagnosis object
+	TraceDiagnosisNamespace = "diagnosis-namespace"
+	// TraceDiagnosisName is name of diagnosis object
+	TraceDiagnosisName      = "diagnosis-name"
+	// TracePodNamespace is namespace of pod which diagnosis concern to
+	TracePodNamespace       = "pod-namespace"
+	// TracePodName is name of pod which diagnosis concern to
+	TracePodName            = "pod-name"
+	// TracePodContainerName is name of container in pod which diagnosis concern to
+	TracePodContainerName   = "pod-container-name"
+	// TraceNodeName is name of node which diagnosis concern to
+	TraceNodeName           = "node-name"
+
 )
 
 var (
@@ -322,8 +338,11 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		Namespace: diagnosis.Namespace,
 	}, "node", node, "operationset", operationset.Name, "path", path)
 
+	// Build diagnosis trace info, which will be frequently quoted to get some global information.
+	traceInfo := buildDiagnosisTraceInfo(diagnosis)
+
 	// Execute the operation by sending http request to the processor.
-	succeeded, body, err := ex.doHTTPRequestWithContext(operation, data)
+	succeeded, body, err := ex.doHTTPRequestWithContext(operation, data, traceInfo)
 	if err != nil {
 		return diagnosis, err
 	}
@@ -413,7 +432,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.
 // It returns a bool, a response body and an error as results.
-func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, []byte, error) {
+func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data, traceInfo map[string]string) (bool, []byte, error) {
 	// Set http request contexts and construct http client. Use kube diagnoser agent bind address as the processor
 	// address if external ip and external port not specified.
 	var host string
@@ -445,6 +464,11 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(body))
 	if err != nil {
 		return false, nil, err
+	}
+
+	// insert trace info into http request's header
+	for key, value := range traceInfo {
+		req.Header.Set(key, value)
 	}
 
 	// Send the http request to operation processor.
@@ -482,3 +506,20 @@ func (ex *executor) addDiagnosisToExecutorQueue(diagnosis diagnosisv1.Diagnosis)
 		})
 	}
 }
+
+// buildDiagnosisTraceInfo build a map with all trace info of a diagnosis object.
+func buildDiagnosisTraceInfo(diagnosis diagnosisv1.Diagnosis) map[string]string {
+	traceInfo := map[string]string{
+		TraceDiagnosisNamespace: diagnosis.Namespace,
+		TraceDiagnosisName:      diagnosis.Name,
+		TraceDiagnosisUUID:      string(diagnosis.UID),
+		TraceNodeName:           diagnosis.Spec.NodeName,
+	}
+	if diagnosis.Spec.PodReference != nil {
+		traceInfo[TracePodNamespace] = diagnosis.Spec.PodReference.Namespace
+		traceInfo[TracePodName] = diagnosis.Spec.PodReference.Name
+		traceInfo[TracePodContainerName] = diagnosis.Spec.PodReference.Container
+	}
+	return traceInfo
+}
+
