@@ -51,20 +51,19 @@ const (
 	HTTPRequestBodyParameterKey = "parameter"
 
 	// TraceDiagnosisUUID is uid of diagnosis object, with uuid in http header, we could build a diagnosis flow
-	TraceDiagnosisUUID      = "diagnosis-uuid"
+	TraceDiagnosisUUID = "diagnosis-uuid"
 	// TraceDiagnosisNamespace is namespace of diagnosis object
 	TraceDiagnosisNamespace = "diagnosis-namespace"
 	// TraceDiagnosisName is name of diagnosis object
-	TraceDiagnosisName      = "diagnosis-name"
+	TraceDiagnosisName = "diagnosis-name"
 	// TracePodNamespace is namespace of pod which diagnosis concern to
-	TracePodNamespace       = "pod-namespace"
+	TracePodNamespace = "pod-namespace"
 	// TracePodName is name of pod which diagnosis concern to
-	TracePodName            = "pod-name"
+	TracePodName = "pod-name"
 	// TracePodContainerName is name of container in pod which diagnosis concern to
-	TracePodContainerName   = "pod-container-name"
+	TracePodContainerName = "pod-container-name"
 	// TraceNodeName is name of node which diagnosis concern to
-	TraceNodeName           = "node-name"
-
+	TraceNodeName = "node-name"
 )
 
 var (
@@ -489,7 +488,7 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 	}
 
 	if res.StatusCode != http.StatusOK {
-		ex.Info("http response with 200 status", "status", res.Status)
+		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
 		return false, body, nil
 	}
 
@@ -522,4 +521,3 @@ func buildDiagnosisTraceInfo(diagnosis diagnosisv1.Diagnosis) map[string]string 
 	}
 	return traceInfo
 }
-
