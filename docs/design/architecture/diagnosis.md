@@ -67,9 +67,9 @@ type DiagnosisStatus struct {
     // StartTime 是对象被系统接收的 RFC 3339 日期和时间。
     StartTime metav1.Time `json:"startTime,omitempty"`
     // FailedPaths 包含诊断流水线中所有运行失败的路径。路径的最后一个顶点是操作执行失败的顶点。
-    FailedPaths []TopologicalSort `json:"failedPath,omitempty"`
+    FailedPaths []Path `json:"failedPath,omitempty"`
     // SucceededPath 是诊断流水线中运行成功的路径。
-    SucceededPath TopologicalSort `json:"succeededPath,omitempty"`
+    SucceededPath Path `json:"succeededPath,omitempty"`
     // OperationResults 包含诊断运行过程中操作的结果。
     // 通常该字段的键为 OperationSet 中顶点的序号，值为该 Operation 输出的详细信息。
     OperationResults map[string]OperationResult `json:"operationResults,omitempty"`

@@ -1,0 +1,58 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: command-executor
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+    - 2
+    - 4
+  - id: 1
+    operation: command-executor
+  - id: 2
+    to:
+    - 3
+    operation: command-executor
+  - id: 3
+    operation: command-executor
+  - id: 4
+    operation: command-executor
+---
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: command-executor
+spec:
+  parameters:
+    1: |
+      {
+        "command": "du",
+        "args": [
+          "-sh",
+          "/"
+        ],
+        "timeoutSeconds": 10
+      }
+    2: |
+      {
+        "command": "ps",
+        "args": [
+          "aux"
+        ]
+      }
+    3: |
+      {
+        "command": "pwd"
+      }
+    4: |
+      {
+        "command": "kill",
+        "args": [
+          "-10",
+          "10000"
+        ]
+      }
+  operationSet: command-executor
+  nodeName: my-node

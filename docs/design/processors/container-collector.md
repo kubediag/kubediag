@@ -58,7 +58,7 @@ JSON 返回体格式为 Array，数组中单个元素如下：
 
 1. Kube Diagnoser Agent 向 Container Collector 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
 1. Container Collector 接收到请求后在节点上调用 Docker 客户端获取节点上所有容器信息。
-1. Container Collector 完成采集并向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
+1. 如果 Container Collector 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
 
    ```json
    [
@@ -111,4 +111,10 @@ JSON 返回体格式为 Array，数组中单个元素如下：
        },
        // ......
    ]
+   ```
+
+1. 如果 Container Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码，返回体中包含描述错误的字符串：
+
+   ```string
+   Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
    ```

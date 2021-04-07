@@ -1,0 +1,19 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: process-collector
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: process-collector
+---
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: process-collector
+spec: 
+  operationSet: process-collector
+  nodeName: my-node
