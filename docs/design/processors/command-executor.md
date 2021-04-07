@@ -67,7 +67,6 @@ JSON 返回体格式为 Object，参数如下：
 |-|-|-|
 | stdout | string | 命令执行的标准输出，如果命令无标准输出该字段则为空。 |
 | stderr | string | 命令执行的标准错误，如果命令无标准错误该字段则为空。 |
-| error | string | 命令执行的错误，如果命令执行成功该字段则为空。 |
 
 ### 举例说明
 
@@ -87,10 +86,16 @@ JSON 返回体格式为 Object，参数如下：
    ```
 
 1. Command Executor 接收到请求后解析请求体中的 JSON 数据，在节点上执行命令 `du -sh /`，默认超时时间为 10 秒。
-1. Command Executor 命令执行超时并向 Kube Diagnoser Agent 返回 500 状态码，返回体中包含如下 JSON 数据：
+1. 如果 Command Executor 命令执行成功则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
 
    ```json
    {
-       "error": "command [du -sh /] timed out"
+       "stdout": "60G    /"
    }
+   ```
+
+1. 如果 Command Executor 命令执行失败则向 Kube Diagnoser Agent 返回 500 状态码，返回体中包含描述错误的字符串：
+
+   ```string
+   command du timed out
    ```

@@ -1,0 +1,19 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: container-collector
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: container-collector
+---
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: container-collector
+spec: 
+  operationSet: container-collector
+  nodeName: my-node

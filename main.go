@@ -354,9 +354,9 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		// Run executor.
 		executor := executor.NewExecutor(
 			context.Background(),
-			ctrl.Log.WithName("informationmanager"),
+			ctrl.Log.WithName("executor"),
 			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/informationmanager"),
+			mgr.GetEventRecorderFor("kube-diagnoser/executor"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
@@ -409,6 +409,11 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("processor/processcollector"),
 			featureGate.Enabled(features.ProcessCollector),
 		)
+		commandexecutor := processors.NewCommandExecutor(
+			context.Background(),
+			ctrl.Log.WithName("processor/commandexecutor"),
+			featureGate.Enabled(features.CommandExecutor),
+		)
 
 		// Start http server.
 		go func(stopCh chan struct{}) {
@@ -417,6 +422,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			r.HandleFunc("/processor/podcollector", podCollector.Handler)
 			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
 			r.HandleFunc("/processor/processcollector", processCollector.Handler)
+			r.HandleFunc("/processor/commandexecutor", commandexecutor.Handler)
 			r.HandleFunc("/healthz", HealthCheckHandler)
 
 			// Start pprof server.

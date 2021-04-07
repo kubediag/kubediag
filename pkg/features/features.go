@@ -63,6 +63,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	ProcessCollector featuregate.Feature = "ProcessCollector"
+	// CommandExecutor handles request for running specified command and respond with command result.
+	//
+	// Mode: agent
+	// Owner: @huangjiuyuan
+	// Alpha: 0.1.6
+	CommandExecutor featuregate.Feature = "CommandExecutor"
 	// FileStatusCollector manages information that finding status of files.
 	//
 	// Mode: agent
@@ -102,6 +108,7 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	PodCollector:            {Default: true, PreRelease: featuregate.Alpha},
 	ContainerCollector:      {Default: true, PreRelease: featuregate.Alpha},
 	ProcessCollector:        {Default: true, PreRelease: featuregate.Alpha},
+	CommandExecutor:         {Default: true, PreRelease: featuregate.Alpha},
 	FileStatusCollector:     {Default: true, PreRelease: featuregate.Alpha},
 	SystemdCollector:        {Default: true, PreRelease: featuregate.Alpha},
 	PodDiskUsageDiagnoser:   {Default: true, PreRelease: featuregate.Alpha},
