@@ -12,6 +12,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gorilla/mux v1.7.4
+	github.com/joewalnes/websocketd v0.4.1
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect

@@ -314,6 +314,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		// Set request data if context id is the same as current node id.
 		if id == node.ID {
 			data[HTTPRequestBodyParameterKey] = parameter
+			break
 		}
 	}
 	for idStr, operationResult := range diagnosis.Status.OperationResults {
