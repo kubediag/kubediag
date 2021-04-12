@@ -15,6 +15,14 @@ endif
 
 all: kube-diagnoser
 
+# Run e2e tests
+e2e-test: 
+	go test ./test/e2e/... -coverprofile cover.out
+
+# Run unit tests
+unit-test: generate fmt vet manifests
+	go test ./pkg/... -coverprofile cover.out
+
 # Run tests
 test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
@@ -60,7 +68,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build: unit-test
 	docker build . -t ${IMG}:${TAG}
 
 # Push the docker image
