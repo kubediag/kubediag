@@ -420,6 +420,13 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 	// Execute the operation by sending http request to the processor.
 	succeeded, result, err := ex.doHTTPRequestWithContext(operation, data)
 	if err != nil {
+		if diagnosis.Status.SucceededPath != nil {
+			if diagnosis.Status.FailedPaths == nil {
+				diagnosis.Status.FailedPaths = make([]diagnosisv1.Path, 0, 1)
+			}
+			diagnosis.Status.FailedPaths = append(diagnosis.Status.FailedPaths, diagnosis.Status.SucceededPath)
+			diagnosis.Status.SucceededPath = nil
+		}
 		return diagnosis, err
 	}
 
@@ -480,7 +487,18 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		if diagnosis.Status.FailedPaths == nil {
 			diagnosis.Status.FailedPaths = make([]diagnosisv1.Path, 0, len(paths))
 		}
-		diagnosis.Status.FailedPaths = append(diagnosis.Status.FailedPaths, path)
+
+		failedPath := diagnosisv1.Path{}
+		for i, curNode := range path {
+			failed := i >= checkpoint.NodeIndex
+			curNode.Failed = &failed
+			failedPath = append(failedPath, curNode)
+			if failed {
+				break
+			}
+		}
+
+		diagnosis.Status.FailedPaths = append(diagnosis.Status.FailedPaths, failedPath)
 		diagnosis.Status.SucceededPath = nil
 
 		// Set phase to failed if all paths are failed.
@@ -565,7 +583,7 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 	var result map[string]string
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		ex.Error(err, "failed to marshal response body", "response", string(body))
+		ex.Error(err, "failed to unmarshal response body", "response", string(body))
 		return false, nil, err
 	}
 

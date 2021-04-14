@@ -43,6 +43,10 @@ type Node struct {
 	// Dependences is the list of depended node ids. Operation results of depended nodes are used as input.
 	// +optional
 	Dependences []int `json:"dependences,omitempty"`
+	// Failed defines the state of node.
+	// It is only meaningful in DiagnosisStatus.
+	// +optional
+	Failed *bool `json:"status,omitempty"`
 }
 
 // NodeSet is the set of node ids.

@@ -60,14 +60,14 @@ type DiagnosisStatus struct {
     // Pending：Diagnosis 已被系统接受，但诊断执行前的准备工作还未完成。
     // Running：Diagnosis 已经绑定到了某个节点，至少有一个诊断操作正处于运行状态。
     // Succeeded：诊断流水线中某个路径中的所有诊断操作均执行成功。
-    // Failed：诊断流水线中的所有路径失败。也就是说，所有路径中最后一个执行的诊断操作返回码非 200。
+    // Failed：诊断流水线中的所有路径失败。也就是说，所有路径中都有一个诊断操作返回码非 200。
     // Unknown：因为某些原因无法取得 Diagnosis 的状态。这种情况通常是因为与 Diagnosis 所在主机通信失败。
     Phase DiagnosisPhase `json:"phase,omitempty"`
     // Conditions 包含 Diagnosis 当前的服务状态。
     Conditions []DiagnosisCondition `json:"conditions,omitempty"`
     // StartTime 是对象被系统接收的 RFC 3339 日期和时间。
     StartTime metav1.Time `json:"startTime,omitempty"`
-    // FailedPaths 包含诊断流水线中所有运行失败的路径。路径的最后一个顶点是操作执行失败的顶点。
+    // FailedPaths 包含诊断流水线中所有运行失败的路径。
     FailedPaths []Path `json:"failedPath,omitempty"`
     // SucceededPath 是诊断流水线中运行成功的路径。
     SucceededPath Path `json:"succeededPath,omitempty"`

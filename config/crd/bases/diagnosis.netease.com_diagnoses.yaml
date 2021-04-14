@@ -166,6 +166,15 @@ spec:
                       description: Operation is the name of operation running on the
                         node. It is empty if the node is the first in the list.
                       type: string
+                    status:
+                      description: Status defines the state of node. It is only meaningful
+                        in DiagnosisStatus.
+                      properties:
+                        passed:
+                          description: Passed specifies whether the node is finished
+                            successfully.
+                          type: boolean
+                      type: object
                     to:
                       description: To is the list of node ids this node links to.
                       items:
@@ -222,6 +231,15 @@ spec:
                     description: Operation is the name of operation running on the
                       node. It is empty if the node is the first in the list.
                     type: string
+                  status:
+                    description: Status defines the state of node. It is only meaningful
+                      in DiagnosisStatus.
+                    properties:
+                      passed:
+                        description: Passed specifies whether the node is finished
+                          successfully.
+                        type: boolean
+                    type: object
                   to:
                     description: To is the list of node ids this node links to.
                     items:

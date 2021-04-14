@@ -102,6 +102,8 @@ type Node struct {
     // Dependences 是所有被依赖且必须预先执行的诊断操作 ID 列表。
     // 被依赖节点的诊断结果会作为该节点的输入。
     Dependences []int `json:"dependences,omitempty"`
+    // Passed 表示这个 Node 是否运行成功。
+    Failed *bool `json:"failed,omitempty"`
 }
 
 // NodeSet 是一组节点序号。
