@@ -301,6 +301,14 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "unable to create controller", "controller", "OperationSet")
 			return fmt.Errorf("unable to create controller for OperationSet: %v", err)
 		}
+		if err = (controllers.NewOperationReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Operation"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Operation")
+			return fmt.Errorf("unable to create controller for Operation: %v", err)
+		}
 		if featureGate.Enabled(features.Eventer) {
 			if err = (controllers.NewEventReconciler(
 				mgr.GetClient(),

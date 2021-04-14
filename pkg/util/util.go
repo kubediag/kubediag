@@ -451,6 +451,26 @@ func RemoveFinalizer(finalizers []string, toRemove string) []string {
 	return result
 }
 
+// AppendFinalizerIfNotExist will append target finalizer into finalizers if finalizers does not contain target finalizer
+func AppendFinalizerIfNotExist(finalizers []string, target string) (bool, []string) {
+	for _, finalizer := range finalizers {
+		if finalizer == target {
+			return false, finalizers
+		}
+	}
+	return true, append(finalizers, target)
+}
+
+// HasFinalizer will return whether finalizers contains target finalizer or not.
+func HasFinalizer(finalizers []string, target string) bool {
+	for _, finalizer := range finalizers {
+		if finalizer == target {
+			return true
+		}
+	}
+	return false
+}
+
 // StringToNamespacedName converts a string to NamespacedName.
 func StringToNamespacedName(s string) (types.NamespacedName, error) {
 	ss := strings.Split(s, string(types.Separator))

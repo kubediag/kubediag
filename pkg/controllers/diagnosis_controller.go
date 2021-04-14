@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -79,24 +80,15 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("reconciling Diagnosis")
 
 	var diagnosis diagnosisv1.Diagnosis
-	if err := r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
+	var err error
+	if err = r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
 		log.Error(err, "unable to fetch Diagnosis")
-
-		// Remove finalizers of referenced OperationSet with reconciled diagnosis.
-		var operationset diagnosisv1.OperationSet
-		if err := r.Get(ctx, client.ObjectKey{
-			Name: req.Name,
-		}, &operationset); err != nil {
-			log.Error(err, "unable to fetch OperationSet")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-		finalizers := util.RemoveFinalizer(operationset.GetFinalizers(), req.NamespacedName.String())
-		operationset.SetFinalizers(finalizers)
-		if err := r.Update(ctx, &operationset); err != nil {
-			log.Error(err, "unable to update OperationSet")
+		// Handle of case 'NotFound': clean finalizers in OperationSet with this Diagnosis.
+		if errors.IsNotFound(err) {
+			log.Info("clean finalizers in OperationSet with this Diagnosis", "Diagnosis", req.NamespacedName)
+			err = r.cleanFinalizerWithDiagnosis(ctx, req.NamespacedName.String())
 			return ctrl.Result{}, err
 		}
-
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -105,20 +97,17 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if r.mode == "master" {
 		switch diagnosis.Status.Phase {
 		case "":
-			// Set finalizers of referenced OperationSet with reconciled diagnosis.
-			var operationset diagnosisv1.OperationSet
-			if err := r.Get(ctx, client.ObjectKey{
-				Name: diagnosis.Spec.OperationSet,
-			}, &operationset); err != nil {
-				log.Error(err, "unable to fetch OperationSet")
+			// Handle of other cases:
+			// reconcile related OperationSet's finalizer, if abnormal, this Diagnosis can not work.
+			dependentOperationSetAbnormal, err := r.reconcileOperationSet(ctx, req.NamespacedName.String(), diagnosis.Spec.OperationSet, log)
+			if err != nil {
 				return ctrl.Result{}, err
 			}
-			finalizers := operationset.GetFinalizers()
-			finalizers = append(finalizers, req.NamespacedName.String())
-			operationset.SetFinalizers(finalizers)
-			if err := r.Update(ctx, &operationset); err != nil {
-				log.Error(err, "unable to update OperationSet")
-				return ctrl.Result{}, err
+			if dependentOperationSetAbnormal {
+				log.Info("Diagnosis use an inactive or no-exist OperationSet", "Diagnosis", req.NamespacedName, "OperationSet", diagnosis.Spec.OperationSet)
+				diagnosis.Status.StartTime = metav1.Now()
+				diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+				return ctrl.Result{}, r.Status().Update(ctx, &diagnosis, &client.UpdateOptions{})
 			}
 
 			if diagnosis.Spec.NodeName == "" && diagnosis.Spec.PodReference == nil {
@@ -205,4 +194,49 @@ func (r *DiagnosisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.Diagnosis{}).
 		Complete(r)
+}
+
+// reconcileOperationSet check and update related OperationSet's finalizer.
+// If OperationSet object is terminating or not found, return a 'true' means abnormal.
+func (r *DiagnosisReconciler) reconcileOperationSet(ctx context.Context, diagnosisName, operationSetName string, log logr.Logger) (bool, error) {
+	var operationSet diagnosisv1.OperationSet
+	if err := r.Get(ctx, client.ObjectKey{Name: operationSetName}, &operationSet); err != nil {
+		if !errors.IsNotFound(err) {
+			return false, err
+		}
+		return true, nil
+	}
+	if !operationSet.DeletionTimestamp.IsZero() || !operationSet.Status.Ready {
+		return true, nil
+	}
+	append, completedFinalizers := util.AppendFinalizerIfNotExist(operationSet.GetFinalizers(), diagnosisName)
+	if append {
+		operationSet.SetFinalizers(completedFinalizers)
+		if err := r.Update(ctx, &operationSet); err != nil {
+			log.Error(err, "unable to update OperationSet", "OperationSet", operationSetName)
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+// cleanFinalizerWithDiagnosis clean finalizers point to this Diagnosis object in all OperationSets.
+func (r *DiagnosisReconciler) cleanFinalizerWithDiagnosis(ctx context.Context, diagnosisName string) error {
+	operationSetList := diagnosisv1.OperationSetList{}
+	err := r.List(ctx, &operationSetList, &client.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for index := range operationSetList.Items {
+		os := operationSetList.Items[index]
+		if util.HasFinalizer(os.GetFinalizers(), diagnosisName) {
+			cleanedUpFinalizers := util.RemoveFinalizer(os.GetFinalizers(), diagnosisName)
+			os.SetFinalizers(cleanedUpFinalizers)
+			err = r.Update(ctx, &os, &client.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
