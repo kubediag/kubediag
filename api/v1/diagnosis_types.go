@@ -167,6 +167,7 @@ type DiagnosisConditionType string
 // +kubebuilder:printcolumn:JSONPath=".spec.podReference.name",name=PodName,type=string
 // +kubebuilder:printcolumn:JSONPath=".spec.podReference.container",name=PodContainer,type=string
 // +kubebuilder:printcolumn:JSONPath=".status.phase",name=Phase,type=string
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Diagnosis is the Schema for the diagnoses API.
 type Diagnosis struct {

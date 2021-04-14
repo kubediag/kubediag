@@ -114,6 +114,7 @@ type TriggerStatus struct {
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:JSONPath=".spec.operationSet",name=OperationSet,type=string
 // +kubebuilder:printcolumn:JSONPath=".status.ready",name=Ready,type=boolean
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Trigger is the Schema for the triggers API.
 type Trigger struct {

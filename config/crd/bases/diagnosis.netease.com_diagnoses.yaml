@@ -27,6 +27,9 @@ spec:
   - JSONPath: .status.phase
     name: Phase
     type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: diagnosis.netease.com
   names:
     kind: Diagnosis
