@@ -161,6 +161,12 @@ type DiagnosisConditionType string
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=".spec.operationSet",name=OperationSet,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.nodeName",name=NodeName,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.podReference.namespace",name=PodNamespace,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.podReference.name",name=PodName,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.podReference.container",name=PodContainer,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.phase",name=Phase,type=string
 
 // Diagnosis is the Schema for the diagnoses API.
 type Diagnosis struct {

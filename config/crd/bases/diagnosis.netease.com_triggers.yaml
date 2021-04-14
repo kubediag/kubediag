@@ -8,6 +8,13 @@ metadata:
   creationTimestamp: null
   name: triggers.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.operationSet
+    name: OperationSet
+    type: string
+  - JSONPath: .status.ready
+    name: Ready
+    type: boolean
   group: diagnosis.netease.com
   names:
     kind: Trigger
@@ -149,6 +156,8 @@ spec:
               description: Specifies whether the finalizers of referenced operation
                 set is updated with the trigger.
               type: boolean
+          required:
+          - ready
           type: object
       type: object
   version: v1
