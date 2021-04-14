@@ -8,6 +8,25 @@ metadata:
   creationTimestamp: null
   name: diagnoses.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.operationSet
+    name: OperationSet
+    type: string
+  - JSONPath: .spec.nodeName
+    name: NodeName
+    type: string
+  - JSONPath: .spec.podReference.namespace
+    name: PodNamespace
+    type: string
+  - JSONPath: .spec.podReference.name
+    name: PodName
+    type: string
+  - JSONPath: .spec.podReference.container
+    name: PodContainer
+    type: string
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
   group: diagnosis.netease.com
   names:
     kind: Diagnosis

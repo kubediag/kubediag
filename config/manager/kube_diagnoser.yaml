@@ -148,6 +148,8 @@ spec:
           name: kubelet-data
         - mountPath: /var/lib/kube-diagnoser
           name: kube-diagnoser-data
+        - mountPath: /usr/local/bin/
+          name: usr-local-bin
         terminationMessagePolicy: FallbackToLogsOnError
       volumes:
       - name: docker-sock
@@ -165,6 +167,10 @@ spec:
       - name: kube-diagnoser-data
         hostPath:
           path: /var/lib/kube-diagnoser
+          type: DirectoryOrCreate
+      - name: usr-local-bin
+        hostPath:
+          path: /usr/local/bin
           type: DirectoryOrCreate
       hostNetwork: true
       hostPID: true

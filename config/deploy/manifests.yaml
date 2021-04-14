@@ -6,6 +6,25 @@ metadata:
   creationTimestamp: null
   name: diagnoses.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.operationSet
+    name: OperationSet
+    type: string
+  - JSONPath: .spec.nodeName
+    name: NodeName
+    type: string
+  - JSONPath: .spec.podReference.namespace
+    name: PodNamespace
+    type: string
+  - JSONPath: .spec.podReference.name
+    name: PodName
+    type: string
+  - JSONPath: .spec.podReference.container
+    name: PodContainer
+    type: string
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
   group: diagnosis.netease.com
   names:
     kind: Diagnosis
@@ -334,6 +353,10 @@ metadata:
   creationTimestamp: null
   name: operationsets.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.ready
+    name: Ready
+    type: boolean
   group: diagnosis.netease.com
   names:
     kind: OperationSet
@@ -434,6 +457,8 @@ spec:
               description: Specifies whether a valid directed acyclic graph can be
                 generated via provided edges.
               type: boolean
+          required:
+          - ready
           type: object
       type: object
   version: v1
@@ -456,6 +481,13 @@ metadata:
   creationTimestamp: null
   name: triggers.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.operationSet
+    name: OperationSet
+    type: string
+  - JSONPath: .status.ready
+    name: Ready
+    type: boolean
   group: diagnosis.netease.com
   names:
     kind: Trigger
@@ -597,6 +629,8 @@ spec:
               description: Specifies whether the finalizers of referenced operation
                 set is updated with the trigger.
               type: boolean
+          required:
+          - ready
           type: object
       type: object
   version: v1
@@ -765,6 +799,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - diagnosis.netease.com
+  resources:
+  - operations/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - diagnosis.netease.com
   resources:
@@ -1114,6 +1156,8 @@ spec:
           name: kubelet-data
         - mountPath: /var/lib/kube-diagnoser
           name: kube-diagnoser-data
+        - mountPath: /usr/local/bin/
+          name: usr-local-bin
       hostNetwork: true
       hostPID: true
       securityContext:
@@ -1140,6 +1184,10 @@ spec:
           path: /var/lib/kube-diagnoser
           type: DirectoryOrCreate
         name: kube-diagnoser-data
+      - hostPath:
+          path: /usr/local/bin
+          type: DirectoryOrCreate
+        name: usr-local-bin
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 5

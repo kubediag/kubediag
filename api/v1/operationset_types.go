@@ -54,8 +54,7 @@ type OperationSetStatus struct {
 	// +optional
 	Paths []Path `json:"paths,omitempty"`
 	// Specifies whether a valid directed acyclic graph can be generated via provided edges.
-	// +optional
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 }
 
 // Path represents a linear ordering of nodes along the direction of every directed edge.
@@ -64,6 +63,7 @@ type Path []Node
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:JSONPath=".status.ready",name=Ready,type=boolean
 
 // OperationSet is the Schema for the operationsets API.
 type OperationSet struct {

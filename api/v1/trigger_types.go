@@ -106,13 +106,14 @@ type KubernetesEventTemplateRegexp struct {
 // TriggerStatus defines the observed state of Trigger.
 type TriggerStatus struct {
 	// Specifies whether the finalizers of referenced operation set is updated with the trigger.
-	// +optional
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:JSONPath=".spec.operationSet",name=OperationSet,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.ready",name=Ready,type=boolean
 
 // Trigger is the Schema for the triggers API.
 type Trigger struct {

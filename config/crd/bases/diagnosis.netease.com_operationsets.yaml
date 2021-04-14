@@ -8,6 +8,10 @@ metadata:
   creationTimestamp: null
   name: operationsets.diagnosis.netease.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.ready
+    name: Ready
+    type: boolean
   group: diagnosis.netease.com
   names:
     kind: OperationSet
@@ -108,6 +112,8 @@ spec:
               description: Specifies whether a valid directed acyclic graph can be
                 generated via provided edges.
               type: boolean
+          required:
+          - ready
           type: object
       type: object
   version: v1
