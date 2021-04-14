@@ -611,33 +611,6 @@ status:
   conditions: []
   storedVersions: []
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
-kind: MutatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
-  creationTimestamp: null
-  name: mutating-webhook-configuration
-webhooks:
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-diagnosis
-  failurePolicy: Fail
-  name: mdiagnosis.kb.io
-  rules:
-  - apiGroups:
-    - diagnosis.netease.com
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - diagnoses
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1141,8 +1114,6 @@ spec:
           name: kubelet-data
         - mountPath: /var/lib/kube-diagnoser
           name: kube-diagnoser-data
-        - mountPath: /usr/local/bin/
-          name: usr-local-bin
       hostNetwork: true
       hostPID: true
       securityContext:
@@ -1169,10 +1140,6 @@ spec:
           path: /var/lib/kube-diagnoser
           type: DirectoryOrCreate
         name: kube-diagnoser-data
-      - hostPath:
-          path: /usr/local/bin/
-          type: Directory
-        name: usr-local-bin
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 5
@@ -1241,11 +1208,36 @@ spec:
       mode: master
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
+  name: mutating-webhook-configuration
+webhooks:
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-diagnosis
+  failurePolicy: Fail
+  name: mdiagnosis.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - diagnoses
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
-  creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
 - clientConfig:

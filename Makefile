@@ -6,6 +6,11 @@ TAG ?= $(shell git rev-parse --short HEAD)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
+# Use local kustomize (version v4.0.5)
+MKFILE_PATH = $(abspath $(lastword $(MAKEFILE_LIST)))
+MKFILE_DIR = $(dir $(MKFILE_PATH))
+KUSTOMIZE = "$(MKFILE_DIR)tools/kustomize"
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -30,22 +35,22 @@ run: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kustomize build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kustomize build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
-	kustomize build config/default > config/deploy/manifests.yaml
+	cd config/manager && $(KUSTOMIZE) edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
+	$(KUSTOMIZE) build config/default > config/deploy/manifests.yaml
 	kubectl apply -f config/deploy
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=kube-diagnoser-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	kustomize build config/default > config/deploy/manifests.yaml
+	$(KUSTOMIZE) build config/default > config/deploy/manifests.yaml
 
 # Run go fmt against code
 fmt:
