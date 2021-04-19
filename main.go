@@ -414,6 +414,14 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("processor/commandexecutor"),
 			featureGate.Enabled(features.CommandExecutor),
 		)
+		goProfiler := processors.NewGoProfiler(
+			context.Background(),
+			ctrl.Log.WithName("processor/goprofiler"),
+			mgr.GetCache(),
+			opts.DataRoot,
+			opts.BindAddress,
+			featureGate.Enabled(features.GoProfiler),
+		)
 
 		coreFileProfiler, err := processors.NewCoreFileProfiler(
 			context.Background(),
@@ -438,6 +446,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			r.HandleFunc("/processor/commandexecutor", commandexecutor.Handler)
 			// handle profilers
 			r.HandleFunc("/processor/corefileprofiler", coreFileProfiler.Handler)
+			r.HandleFunc("/processor/goprofiler", goProfiler.Handler)
 
 			r.HandleFunc("/healthz", HealthCheckHandler)
 

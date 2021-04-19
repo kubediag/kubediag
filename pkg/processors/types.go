@@ -26,6 +26,9 @@ import (
 const (
 	// DefaultTimeoutSeconds is the default number of time out seconds.
 	DefaultTimeoutSeconds = 30
+
+	// DefaultExpirationSeconds is the default seconds of profiler endpoint expires.
+	DefaultExpirationSeconds = 7200
 )
 
 // Processor manages http requests for processing diagnoses.

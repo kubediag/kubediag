@@ -105,6 +105,12 @@ const (
 	// Owner: @fzu-huang
 	// Alpha: 0.2.0
 	CorefileProfiler featuregate.Feature = "CorefileProfiler"
+	// GoProfiler manages go profiler.
+	//
+	// Mode: agent
+	// Owner: @April-Q
+	// Alpha: 0.2.0
+	GoProfiler featuregate.Feature = "GoProfiler"
 )
 
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -121,6 +127,7 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	TerminatingPodDiagnoser: {Default: true, PreRelease: featuregate.Alpha},
 	SignalRecoverer:         {Default: true, PreRelease: featuregate.Alpha},
 	CorefileProfiler:        {Default: false, PreRelease: featuregate.Alpha},
+	GoProfiler:              {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagnoserFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

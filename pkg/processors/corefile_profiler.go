@@ -440,14 +440,3 @@ func buildGDBWebsocketHandler(commandArgs []string) *libwebsocketd.WebsocketdSer
 	webSocketHandler := libwebsocketd.NewWebsocketdServer(wsConfig, libwebsocketd.RootLogScope(0, emptyLogFunc), 6)
 	return webSocketHandler
 }
-
-// getPodInfoFromHeader will get pod info from http request header.
-func getPodInfoFromHeader(r *http.Request) v1.PodReference {
-	return v1.PodReference{
-		NamespacedName: v1.NamespacedName{
-			Namespace: r.Header.Get(executor.TracePodNamespace),
-			Name:      r.Header.Get(executor.TracePodName),
-		},
-		Container: r.Header.Get(executor.TracePodContainerName),
-	}
-}
