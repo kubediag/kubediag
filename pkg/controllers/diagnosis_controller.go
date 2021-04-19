@@ -19,9 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,44 +81,24 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var diagnosis diagnosisv1.Diagnosis
 	if err := r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
 		log.Error(err, "unable to fetch Diagnosis")
-
-		// Remove finalizers of referenced OperationSet with reconciled diagnosis.
-		var operationset diagnosisv1.OperationSet
-		if err := r.Get(ctx, client.ObjectKey{
-			Name: req.Name,
-		}, &operationset); err != nil {
-			log.Error(err, "unable to fetch OperationSet")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-		finalizers := util.RemoveFinalizer(operationset.GetFinalizers(), req.NamespacedName.String())
-		operationset.SetFinalizers(finalizers)
-		if err := r.Update(ctx, &operationset); err != nil {
-			log.Error(err, "unable to update OperationSet")
-			return ctrl.Result{}, err
-		}
-
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// The master will process an diagnosis which has not been accept yet, while the agent will process
+	// The master will process an diagnosis which is not found or completed, or has not been accept yet, while the agent will process
 	// an diagnosis in Pending and Running phases.
 	if r.mode == "master" {
 		switch diagnosis.Status.Phase {
 		case "":
-			// Set finalizers of referenced OperationSet with reconciled diagnosis.
-			var operationset diagnosisv1.OperationSet
-			if err := r.Get(ctx, client.ObjectKey{
-				Name: diagnosis.Spec.OperationSet,
-			}, &operationset); err != nil {
-				log.Error(err, "unable to fetch OperationSet")
+			_, notFound, terminating, notReady, err := r.getOperationSetWithStatus(ctx, diagnosis.Spec.OperationSet)
+			if err != nil {
 				return ctrl.Result{}, err
 			}
-			finalizers := operationset.GetFinalizers()
-			finalizers = append(finalizers, req.NamespacedName.String())
-			operationset.SetFinalizers(finalizers)
-			if err := r.Update(ctx, &operationset); err != nil {
-				log.Error(err, "unable to update OperationSet")
-				return ctrl.Result{}, err
+			if notFound || terminating || notReady {
+				log.Error(fmt.Errorf("OperationSet is abnormal: not-found: %v, terminating: %v, not-ready: %v", notFound, terminating, notReady),
+					"Diagnosis can not start with an abnormal OperationSet")
+				diagnosis.Status.StartTime = metav1.Now()
+				diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+				return ctrl.Result{}, r.Status().Update(ctx, &diagnosis, &client.UpdateOptions{})
 			}
 
 			if diagnosis.Spec.NodeName == "" && diagnosis.Spec.PodReference == nil {
@@ -205,4 +185,23 @@ func (r *DiagnosisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.Diagnosis{}).
 		Complete(r)
+}
+
+// getOperationSetWithStatus get a OperationSet and analysis result, it will return:
+// 1. object [OperationSet]
+// 2. object is not found [bool]
+// 3. object is terminating [bool]
+// 4. object is not ready [bool]
+// 5. Get error [error]
+func (r *DiagnosisReconciler) getOperationSetWithStatus(ctx context.Context, name string) (
+	diagnosisv1.OperationSet, bool, bool, bool, error) {
+	operationSet := diagnosisv1.OperationSet{}
+	err := r.Get(ctx, client.ObjectKey{Name: name}, &operationSet)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return operationSet, false, false, false, err
+		}
+		return operationSet, true, false, false, nil
+	}
+	return operationSet, false, !operationSet.DeletionTimestamp.IsZero(), !operationSet.Status.Ready, nil
 }

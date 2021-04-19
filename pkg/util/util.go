@@ -269,6 +269,11 @@ func QueueEvent(ctx context.Context, channel chan corev1.Event, event corev1.Eve
 	}
 }
 
+// IsDiagnosisCompleted return true if Diagnosis is failed or succeed
+func IsDiagnosisCompleted(diagnosis diagnosisv1.Diagnosis) bool {
+	return diagnosis.Status.Phase == diagnosisv1.DiagnosisSucceeded || diagnosis.Status.Phase == diagnosisv1.DiagnosisFailed
+}
+
 // IsDiagnosisNodeNameMatched checks if the diagnosis is on the specific node.
 // It returns true if node name of the diagnosis is empty or matches provided node name, otherwise false.
 func IsDiagnosisNodeNameMatched(diagnosis diagnosisv1.Diagnosis, nodeName string) bool {
@@ -437,18 +442,6 @@ func GetAvailablePort() (int, error) {
 	defer l.Close()
 
 	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// RemoveFinalizer removes the finalizer if presents.
-func RemoveFinalizer(finalizers []string, toRemove string) []string {
-	result := make([]string, 0)
-	for _, finalizer := range finalizers {
-		if finalizer != toRemove {
-			result = append(result, finalizer)
-		}
-	}
-
-	return result
 }
 
 // StringToNamespacedName converts a string to NamespacedName.

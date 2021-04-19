@@ -18,9 +18,7 @@ package controllers
 
 import (
 	"context"
-
 	"github.com/go-logr/logr"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,50 +56,21 @@ func NewOperationSetReconciler(
 // Reconcile synchronizes a OperationSet object.
 func (r *OperationSetReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("operationset", req.NamespacedName)
+	log := r.Log.WithValues("operationSet", req.NamespacedName)
 
 	log.Info("reconciling OperationSet")
 
-	var operationset diagnosisv1.OperationSet
-	if err := r.Get(ctx, req.NamespacedName, &operationset); err != nil {
+	var operationSet diagnosisv1.OperationSet
+	if err := r.Get(ctx, req.NamespacedName, &operationSet); err != nil {
 		log.Error(err, "unable to fetch OperationSet")
-
-		// TODO: Remove finalizers of referenced Operations.
-
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Remove finalizers of deleted diagnoses.
-	finalizers := operationset.GetFinalizers()
-	if operationset.DeletionTimestamp != nil && len(finalizers) != 0 {
-		for _, finalizer := range finalizers {
-			namespacedName, err := util.StringToNamespacedName(finalizer)
-			if err != nil {
-				finalizers := util.RemoveFinalizer(operationset.GetFinalizers(), finalizer)
-				operationset.SetFinalizers(finalizers)
-				continue
-			}
-
-			var diagnosis diagnosisv1.Diagnosis
-			if err := r.Get(ctx, namespacedName, &diagnosis); apierrors.IsNotFound(err) {
-				finalizers := util.RemoveFinalizer(operationset.GetFinalizers(), finalizer)
-				operationset.SetFinalizers(finalizers)
-			}
-		}
-
-		if err := r.Update(ctx, &operationset); err != nil {
-			log.Error(err, "unable to update OperationSet")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		return ctrl.Result{}, nil
-	}
-
 	// TODO: Update OperationSet on specification change.
-	if !operationset.Status.Ready {
-		err := util.QueueOperationSet(ctx, r.graphBuilderCh, operationset)
+	if !operationSet.Status.Ready {
+		err := util.QueueOperationSet(ctx, r.graphBuilderCh, operationSet)
 		if err != nil {
-			log.Error(err, "failed to send operationset to graph builder queue")
+			log.Error(err, "failed to send operationSet to graph builder queue")
 		}
 	}
 
