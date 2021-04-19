@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: go-profiler
+spec:
+  processor:
+    path: /processor/goprofiler
+    scheme: http
+    timeoutSeconds: 60
