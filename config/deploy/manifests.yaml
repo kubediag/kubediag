@@ -25,6 +25,9 @@ spec:
   - JSONPath: .status.phase
     name: Phase
     type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: diagnosis.netease.com
   names:
     kind: Diagnosis
@@ -357,6 +360,9 @@ spec:
   - JSONPath: .status.ready
     name: Ready
     type: boolean
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: diagnosis.netease.com
   names:
     kind: OperationSet
@@ -488,6 +494,9 @@ spec:
   - JSONPath: .status.ready
     name: Ready
     type: boolean
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: diagnosis.netease.com
   names:
     kind: Trigger
@@ -799,14 +808,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - diagnosis.netease.com
-  resources:
-  - operations/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - diagnosis.netease.com
   resources:

@@ -64,6 +64,7 @@ type Path []Node
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:JSONPath=".status.ready",name=Ready,type=boolean
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // OperationSet is the Schema for the operationsets API.
 type OperationSet struct {

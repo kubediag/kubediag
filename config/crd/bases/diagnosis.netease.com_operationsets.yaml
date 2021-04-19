@@ -12,6 +12,9 @@ spec:
   - JSONPath: .status.ready
     name: Ready
     type: boolean
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: diagnosis.netease.com
   names:
     kind: OperationSet
