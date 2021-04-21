@@ -17,6 +17,7 @@ github.com/cespare/xxhash/v2
 ## explicit
 github.com/containerd/containerd/errdefs
 # github.com/davecgh/go-spew v1.1.1
+## explicit
 github.com/davecgh/go-spew/spew
 # github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 ## explicit
