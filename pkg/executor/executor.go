@@ -270,7 +270,87 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		Name: diagnosis.Spec.OperationSet,
 	}, &operationset)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			ex.Info("operation set is not found", "operationset", diagnosis.Spec.OperationSet, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			})
+
+			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set is not found", diagnosis.Namespace, diagnosis.Name)
+			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.OperationSetNotFound,
+				Status:  corev1.ConditionTrue,
+				Reason:  "OperationSetNotFound",
+				Message: fmt.Sprintf("OperationSet %s is not found", diagnosis.Spec.OperationSet),
+			})
+			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+			}
+			executorSyncFailCount.Inc()
+			return diagnosis, nil
+		}
+
 		return diagnosis, err
+	}
+
+	// Validate the operation set is ready.
+	if !operationset.Status.Ready {
+		ex.Info("the graph has not been updated according to the latest specification")
+
+		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set is not ready", diagnosis.Namespace, diagnosis.Name)
+		diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			Type:    diagnosisv1.OperationSetNotReady,
+			Status:  corev1.ConditionTrue,
+			Reason:  "OperationSetNotReady",
+			Message: fmt.Sprintf("OperationSet is not ready because the graph has not been updated according to the latest specification"),
+		})
+		if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+		}
+		executorSyncFailCount.Inc()
+		return diagnosis, nil
+	}
+
+	// Update hash value calculated from adjacency list of operation set.
+	diagnosisLabels := diagnosis.GetLabels()
+	if diagnosisLabels == nil {
+		diagnosisLabels = make(map[string]string)
+	}
+	diagnosisAdjacencyListHash, ok := diagnosisLabels[util.OperationSetUniqueLabelKey]
+	if !ok {
+		diagnosisLabels[util.OperationSetUniqueLabelKey] = util.ComputeHash(operationset.Spec.AdjacencyList)
+		diagnosis.SetLabels(diagnosisLabels)
+		if err := ex.client.Update(ex, &diagnosis); err != nil {
+			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+		}
+
+		return diagnosis, fmt.Errorf("hash value of adjacency list calculated")
+	}
+
+	// Validate the graph defined by operation set is not changed.
+	operationSetLabels := operationset.GetLabels()
+	if operationSetLabels == nil {
+		operationSetLabels = make(map[string]string)
+	}
+	operationSetAdjacencyListHash := operationSetLabels[util.OperationSetUniqueLabelKey]
+	if operationSetAdjacencyListHash != diagnosisAdjacencyListHash {
+		ex.Info("hash value caculated from adjacency list has been changed", "new", operationSetAdjacencyListHash, "old", diagnosisAdjacencyListHash)
+
+		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set has been changed during execution", diagnosis.Namespace, diagnosis.Name)
+		diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			Type:    diagnosisv1.OperationSetChanged,
+			Status:  corev1.ConditionTrue,
+			Reason:  "OperationSetChanged",
+			Message: fmt.Sprintf("OperationSet specification has been changed during diagnosis execution"),
+		})
+		if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+		}
+		executorSyncFailCount.Inc()
+		return diagnosis, nil
 	}
 
 	// Set initial checkpoint before operation execution.
@@ -299,6 +379,27 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		Name: node.Operation,
 	}, &operation)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			ex.Info("operation is not found", "operation", node.Operation, "operationset", diagnosis.Spec.OperationSet, "diagnosis", client.ObjectKey{
+				Name:      diagnosis.Name,
+				Namespace: diagnosis.Namespace,
+			})
+
+			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation is not found", diagnosis.Namespace, diagnosis.Name)
+			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+				Type:    diagnosisv1.OperationNotFound,
+				Status:  corev1.ConditionTrue,
+				Reason:  "OperationNotFound",
+				Message: fmt.Sprintf("Operation %s is not found", node.Operation),
+			})
+			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+			}
+			executorSyncFailCount.Inc()
+			return diagnosis, nil
+		}
+
 		return diagnosis, err
 	}
 
@@ -373,7 +474,6 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		diagnosis.Status.SucceededPath = append(diagnosis.Status.SucceededPath, node)
 
 		// Set phase to succeeded if current path has been finished and all operations are succeeded.
-		// Increment node index if path has remaining operations to executed.
 		if checkpoint.NodeIndex == len(path)-1 {
 			ex.Info("running diagnosis successfully", "diagnosis", client.ObjectKey{
 				Name:      diagnosis.Name,
@@ -388,9 +488,15 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 				Message: fmt.Sprintf("Diagnosis is completed"),
 			})
 			diagnosis.Status.Phase = diagnosisv1.DiagnosisSucceeded
-		} else {
-			checkpoint.NodeIndex++
+			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+			}
+			executorSyncSuccessCount.Inc()
+			return diagnosis, nil
 		}
+
+		// Increment node index if path has remaining operations to executed.
+		checkpoint.NodeIndex++
 	} else {
 		ex.Info("failed to execute operation", "diagnosis", client.ObjectKey{
 			Name:      diagnosis.Name,
@@ -406,26 +512,27 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		diagnosis.Status.SucceededPath = nil
 
 		// Set phase to failed if all paths are failed.
-		// Increment path index if paths has remaining paths to executed.
 		if checkpoint.PathIndex == len(paths)-1 {
 			ex.Info("failed to run diagnosis", "diagnosis", client.ObjectKey{
 				Name:      diagnosis.Name,
 				Namespace: diagnosis.Namespace,
 			})
 			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s", diagnosis.Namespace, diagnosis.Name)
-
 			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-		} else {
-			checkpoint.PathIndex++
+			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+			}
+			executorSyncFailCount.Inc()
+			return diagnosis, nil
 		}
+
+		// Increment path index if paths has remaining paths to executed.
+		checkpoint.PathIndex++
 	}
 
 	if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
 		return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
 	}
-
-	// Increment counter of successful diagnosis syncs by executor.
-	executorSyncSuccessCount.Inc()
 
 	return diagnosis, nil
 }
