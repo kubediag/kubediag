@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,7 +67,33 @@ func (r *OperationSetReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// TODO: Update OperationSet on specification change.
+	// Update ready status and hash value calculated from adjacency list on specification change.
+	labels := operationSet.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	oldAdjacencyListHash := labels[util.OperationSetUniqueLabelKey]
+	newAdjacencyListHash := util.ComputeHash(operationSet.Spec.AdjacencyList)
+	if oldAdjacencyListHash != newAdjacencyListHash {
+		log.Info("hash value caculated from adjacency list has been changed", "new", newAdjacencyListHash, "old", oldAdjacencyListHash)
+
+		// Set ready status to false if hash value is changed.
+		if operationSet.Status.Ready {
+			operationSet.Status.Ready = false
+			if err := r.Status().Update(ctx, &operationSet); err != nil {
+				log.Error(err, "unable to update OperationSet")
+				return ctrl.Result{}, err
+			}
+		}
+
+		labels[util.OperationSetUniqueLabelKey] = newAdjacencyListHash
+		operationSet.SetLabels(labels)
+		if err := r.Update(ctx, &operationSet); err != nil {
+			log.Error(err, "unable to update OperationSet")
+			return ctrl.Result{}, err
+		}
+	}
+
 	if !operationSet.Status.Ready {
 		err := util.QueueOperationSet(ctx, r.graphBuilderCh, operationSet)
 		if err != nil {

@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"net"
 	"net/url"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/davecgh/go-spew/spew"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,6 +77,11 @@ const (
 	PrometheusAlertAnnotation = KubeDiagnoserPrefix + "prometheus-alert"
 	// KubernetesEventAnnotation is the annotation used to store the kubernetes event that triggers a diagnosis.
 	KubernetesEventAnnotation = KubeDiagnoserPrefix + "kubernetes-event"
+	// OperationSetUniqueLabelKey is the default key of the label that is added to existing OperationSets and Diagnoses
+	// to prevent conflicts on changed OperationSets and running Diagnoses.
+	OperationSetUniqueLabelKey = "adjacency-list-hash"
+	// AlphaNums omits vowels from the set of available characters to reduce the chances of "bad words" being formed.
+	AlphaNums = "bcdfghjklmnpqrstvwxz2456789"
 )
 
 // UpdateDiagnosisCondition updates existing diagnosis condition or creates a new one. Sets
@@ -455,4 +462,29 @@ func StringToNamespacedName(s string) (types.NamespacedName, error) {
 		Namespace: ss[0],
 		Name:      ss[1],
 	}, nil
+}
+
+// ComputeHash returns a hash value calculated from a template. The hash will be safe encoded to avoid bad words.
+func ComputeHash(template interface{}) string {
+	hasher := fnv.New32a()
+	hasher.Reset()
+	printer := spew.ConfigState{
+		Indent:         " ",
+		SortKeys:       true,
+		DisableMethods: true,
+		SpewKeys:       true,
+	}
+	printer.Fprintf(hasher, "%#v", template)
+
+	return SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+// SafeEncodeString encodes s using the same characters as rand.String. This reduces the chances of bad words and
+// ensures that strings generated from hash functions appear consistent throughout the API.
+func SafeEncodeString(s string) string {
+	r := make([]byte, len(s))
+	for i, b := range []rune(s) {
+		r[i] = AlphaNums[(int(b) % len(AlphaNums))]
+	}
+	return string(r)
 }

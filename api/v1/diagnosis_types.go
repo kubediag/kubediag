@@ -41,6 +41,14 @@ const (
 	DiagnosisAccepted DiagnosisConditionType = "Accepted"
 	// DiagnosisComplete means the diagnosis has completed its execution.
 	DiagnosisComplete DiagnosisConditionType = "Complete"
+	// OperationSetChanged means the operation set specification has been changed during diagnosis execution.
+	OperationSetChanged DiagnosisConditionType = "OperationSetChanged"
+	// OperationSetNotReady means the graph has not been updated according to the latest specification.
+	OperationSetNotReady DiagnosisConditionType = "OperationSetNotReady"
+	// OperationSetNotFound means the operation set is not found when running Diagnosis.
+	OperationSetNotFound DiagnosisConditionType = "OperationSetNotFound"
+	// OperationNotFound means the operation is not found when running Diagnosis.
+	OperationNotFound DiagnosisConditionType = "OperationNotFound"
 )
 
 // DiagnosisSpec defines the desired state of Diagnosis.
