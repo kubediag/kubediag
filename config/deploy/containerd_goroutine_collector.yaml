@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: containerd-goroutine-collector
+spec:
+  processor:
+    path: /processor/containerdgoroutinecollector
+    scheme: http
+    timeoutSeconds: 60

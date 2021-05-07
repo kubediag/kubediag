@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: docker-info-collector
+spec:
+  processor:
+    path: /processor/dockerinfocollector
+    scheme: http
+    timeoutSeconds: 60

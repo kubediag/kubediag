@@ -767,6 +767,8 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -1159,8 +1161,10 @@ spec:
         volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        - mountPath: /var/run/docker
+          name: docker-exec-root
         - mountPath: /var/lib/docker
-          name: docker-data
+          name: docker-data-root
         - mountPath: /var/lib/kubelet
           name: kubelet-data
         - mountPath: /var/lib/kube-diagnoser
@@ -1182,9 +1186,13 @@ spec:
           type: Socket
         name: docker-sock
       - hostPath:
+          path: /var/run/docker
+          type: Directory
+        name: docker-exec-root
+      - hostPath:
           path: /var/lib/docker
           type: Directory
-        name: docker-data
+        name: docker-data-root
       - hostPath:
           path: /var/lib/kubelet
           type: Directory
