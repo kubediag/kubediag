@@ -70,6 +70,7 @@ func NewDiagnosisReconciler(
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 // Reconcile synchronizes a Diagnosis object according to the phase.
 func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

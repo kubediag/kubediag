@@ -264,7 +264,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		Namespace: diagnosis.Namespace,
 	})
 
-	// Fetch operation set according to diagnosis.
+	// Fetch operationSet according to diagnosis.
 	var operationset diagnosisv1.OperationSet
 	err := ex.client.Get(ex, client.ObjectKey{
 		Name: diagnosis.Spec.OperationSet,

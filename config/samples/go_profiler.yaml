@@ -1,0 +1,32 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: go-profiler
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: go-profiler
+---
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: go-profiler
+spec: 
+  parameters:
+    1: |
+      {
+        "source": "https://10.0.2.15:6443",
+        "type": "Heap",
+        "tls":{
+          "secretReference": {
+             "name": "<secret-name>",
+             "namespace": "<secret-namespace>"
+          }
+        },
+        "expirationSeconds": 7200
+      }
+  operationSet: go-profiler
+  nodeName: shujiang-virtualbox
