@@ -69,30 +69,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.6
 	CommandExecutor featuregate.Feature = "CommandExecutor"
-	// FileStatusCollector manages information that finding status of files.
-	//
-	// Mode: agent
-	// Owner: @huangjiuyuan
-	// Alpha: 0.1.5
-	FileStatusCollector featuregate.Feature = "FileStatusCollector"
 	// SystemdCollector manages information of systemd on the node.
 	//
 	// Mode: agent
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	SystemdCollector featuregate.Feature = "SystemdCollector"
-	// PodDiskUsageDiagnoser manages diagnosis that finding disk usage of pods.
-	//
-	// Mode: agent
-	// Owner: @huangjiuyuan
-	// Alpha: 0.1.5
-	PodDiskUsageDiagnoser featuregate.Feature = "PodDiskUsageDiagnoser"
-	// TerminatingPodDiagnoser manages diagnosis on terminating pods.
-	//
-	// Mode: agent
-	// Owner: @huangjiuyuan
-	// Alpha: 0.1.5
-	TerminatingPodDiagnoser featuregate.Feature = "TerminatingPodDiagnoser"
 	// SignalRecoverer manages recovery that sending signal to processes.
 	//
 	// Mode: agent
@@ -105,6 +87,30 @@ const (
 	// Owner: @fzu-huang
 	// Alpha: 0.2.0
 	CorefileProfiler featuregate.Feature = "CorefileProfiler"
+	// DockerInfoCollector fetches system-wide information on docker.
+	//
+	// Mode: agent
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.0
+	DockerInfoCollector featuregate.Feature = "DockerInfoCollector"
+	// DockerdGoroutineCollector retrives dockerd goroutine on the node.
+	//
+	// Mode: agent
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.0
+	DockerdGoroutineCollector featuregate.Feature = "DockerdGoroutineCollector"
+	// ContainerdGoroutineCollector retrives containerd goroutine on the node.
+	//
+	// Mode: agent
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.0
+	ContainerdGoroutineCollector featuregate.Feature = "ContainerdGoroutineCollector"
+	// NodeCordon marks node as unschedulable.
+	//
+	// Mode: agent
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.0
+	NodeCordon featuregate.Feature = "NodeCordon"
 	// GoProfiler manages go profiler.
 	//
 	// Mode: agent
@@ -114,20 +120,21 @@ const (
 )
 
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
-	Alertmanager:            {Default: true, PreRelease: featuregate.Alpha},
-	Eventer:                 {Default: false, PreRelease: featuregate.Alpha},
-	ClusterHealthEvaluator:  {Default: true, PreRelease: featuregate.Alpha},
-	PodCollector:            {Default: true, PreRelease: featuregate.Alpha},
-	ContainerCollector:      {Default: true, PreRelease: featuregate.Alpha},
-	ProcessCollector:        {Default: true, PreRelease: featuregate.Alpha},
-	CommandExecutor:         {Default: true, PreRelease: featuregate.Alpha},
-	FileStatusCollector:     {Default: true, PreRelease: featuregate.Alpha},
-	SystemdCollector:        {Default: true, PreRelease: featuregate.Alpha},
-	PodDiskUsageDiagnoser:   {Default: true, PreRelease: featuregate.Alpha},
-	TerminatingPodDiagnoser: {Default: true, PreRelease: featuregate.Alpha},
-	SignalRecoverer:         {Default: true, PreRelease: featuregate.Alpha},
-	CorefileProfiler:        {Default: false, PreRelease: featuregate.Alpha},
-	GoProfiler:              {Default: true, PreRelease: featuregate.Alpha},
+	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
+	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
+	ClusterHealthEvaluator:       {Default: true, PreRelease: featuregate.Alpha},
+	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},
+	ContainerCollector:           {Default: true, PreRelease: featuregate.Alpha},
+	ProcessCollector:             {Default: true, PreRelease: featuregate.Alpha},
+	CommandExecutor:              {Default: true, PreRelease: featuregate.Alpha},
+	SystemdCollector:             {Default: true, PreRelease: featuregate.Alpha},
+	SignalRecoverer:              {Default: true, PreRelease: featuregate.Alpha},
+	CorefileProfiler:             {Default: false, PreRelease: featuregate.Alpha},
+	DockerInfoCollector:          {Default: true, PreRelease: featuregate.Alpha},
+	DockerdGoroutineCollector:    {Default: true, PreRelease: featuregate.Alpha},
+	ContainerdGoroutineCollector: {Default: true, PreRelease: featuregate.Alpha},
+	NodeCordon:                   {Default: true, PreRelease: featuregate.Alpha},
+	GoProfiler:                   {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagnoserFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

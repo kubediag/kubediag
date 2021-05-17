@@ -362,6 +362,31 @@ func DiskUsage(path string) (int, error) {
 	return size, nil
 }
 
+// GetProgramPID finds the process ID of a running program by executing "pidof" command.
+func GetProgramPID(program string) ([]int, error) {
+	command := []string{"pidof", program}
+	out, err := BlockingRunCommandWithTimeout(command, 60)
+	if err != nil {
+		return nil, fmt.Errorf("execute command pidof %s with error %v", program, err)
+	}
+
+	pids := make([]int, 0)
+	pidStrs := strings.Fields(string(out))
+	for _, pidStr := range pidStrs {
+		pid, err := strconv.Atoi(pidStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse pid string %s due to error %v", pidStr, err)
+		}
+		pids = append(pids, pid)
+	}
+
+	if len(pids) == 0 {
+		return nil, fmt.Errorf("unable to find any pid")
+	}
+
+	return pids, nil
+}
+
 // RemoveFile removes a file or a directory by executing "rm" command.
 func RemoveFile(path string) error {
 	command := []string{"rm", "-r", "-f", path}

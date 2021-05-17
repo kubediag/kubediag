@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: node-cordon
+spec:
+  processor:
+    path: /processor/nodecordon
+    scheme: http
+    timeoutSeconds: 60

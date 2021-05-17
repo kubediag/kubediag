@@ -409,11 +409,41 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("processor/processcollector"),
 			featureGate.Enabled(features.ProcessCollector),
 		)
-		commandexecutor := processors.NewCommandExecutor(
+		dockerInfoCollector, err := processors.NewDockerInfoCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/dockerinfocollector"),
+			opts.DockerEndpoint,
+			featureGate.Enabled(features.DockerInfoCollector),
+		)
+		if err != nil {
+			setupLog.Error(err, "unable to create processor", "processors", "dockerinfocollector")
+			return fmt.Errorf("unable to create processor: %v", err)
+		}
+		dockerdGoroutineCollector := processors.NewDockerdGoroutineCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/dockerdgoroutinecollector"),
+			opts.DataRoot,
+			featureGate.Enabled(features.DockerdGoroutineCollector),
+		)
+		containerdGoroutineCollector := processors.NewContainerdGoroutineCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/containerdgoroutinecollector"),
+			featureGate.Enabled(features.ContainerdGoroutineCollector),
+		)
+
+		commandExecutor := processors.NewCommandExecutor(
 			context.Background(),
 			ctrl.Log.WithName("processor/commandexecutor"),
 			featureGate.Enabled(features.CommandExecutor),
 		)
+		nodeCordon := processors.NewNodeCordon(
+			context.Background(),
+			ctrl.Log.WithName("processor/nodecordon"),
+			mgr.GetClient(),
+			opts.NodeName,
+			featureGate.Enabled(features.NodeCordon),
+		)
+
 		goProfiler := processors.NewGoProfiler(
 			context.Background(),
 			ctrl.Log.WithName("processor/goprofiler"),
@@ -422,7 +452,6 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.BindAddress,
 			featureGate.Enabled(features.GoProfiler),
 		)
-
 		coreFileProfiler, err := processors.NewCoreFileProfiler(
 			context.Background(),
 			ctrl.Log.WithName("processor/corefileprofiler"),
@@ -438,13 +467,17 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		go func(stopCh chan struct{}) {
 			// TODO: Implement a registry for managing processor registrations.
 			r := mux.NewRouter()
-			// handle information collectors
+			// Handlers for collecting information.
 			r.HandleFunc("/processor/podcollector", podCollector.Handler)
 			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
 			r.HandleFunc("/processor/processcollector", processCollector.Handler)
-			// handle executors
-			r.HandleFunc("/processor/commandexecutor", commandexecutor.Handler)
-			// handle profilers
+			r.HandleFunc("/processor/dockerinfocollector", dockerInfoCollector.Handler)
+			r.HandleFunc("/processor/dockerdgoroutinecollector", dockerdGoroutineCollector.Handler)
+			r.HandleFunc("/processor/containerdgoroutinecollector", containerdGoroutineCollector.Handler)
+			// Handlers for executing specified command.
+			r.HandleFunc("/processor/commandexecutor", commandExecutor.Handler)
+			r.HandleFunc("/processor/nodecordon", nodeCordon.Handler)
+			// Handlers for profiling programs.
 			r.HandleFunc("/processor/corefileprofiler", coreFileProfiler.Handler)
 			r.HandleFunc("/processor/goprofiler", goProfiler.Handler)
 

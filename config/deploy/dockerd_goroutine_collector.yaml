@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: dockerd-goroutine-collector
+spec:
+  processor:
+    path: /processor/dockerdgoroutinecollector
+    scheme: http
+    timeoutSeconds: 60
