@@ -1281,6 +1281,60 @@ webhooks:
     - UPDATE
     resources:
     - diagnoses
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-operation
+  failurePolicy: Fail
+  name: moperation.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - operations
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-operationset
+  failurePolicy: Fail
+  name: moperationset.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - operationsets
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /mutate-diagnosis-netease-com-v1-trigger
+  failurePolicy: Fail
+  name: mtrigger.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - triggers
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
@@ -1307,3 +1361,57 @@ webhooks:
     - UPDATE
     resources:
     - diagnoses
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /validate-diagnosis-netease-com-v1-operation
+  failurePolicy: Fail
+  name: voperation.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - operations
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /validate-diagnosis-netease-com-v1-operationset
+  failurePolicy: Fail
+  name: voperationset.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - operationsets
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: kube-diagnoser
+      path: /validate-diagnosis-netease-com-v1-trigger
+  failurePolicy: Fail
+  name: vtrigger.kb.io
+  rules:
+  - apiGroups:
+    - diagnosis.netease.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - triggers
