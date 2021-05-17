@@ -17,17 +17,76 @@ limitations under the License.
 package v1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // log is for logging in this package.
-var triggerlog = logf.Log.WithName("trigger-resource")
+var triggerlog = logf.Log.WithName("trigger-webhook")
 
+// SetupWebhookWithManager setups the Trigger webhook.
 func (r *Trigger) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
+// +kubebuilder:webhook:path=/mutate-diagnosis-netease-com-v1-trigger,mutating=true,failurePolicy=fail,groups=diagnosis.netease.com,resources=triggers,verbs=create;update,versions=v1,name=mtrigger.kb.io
+
+var _ webhook.Defaulter = &Trigger{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type.
+func (r *Trigger) Default() {
+	triggerlog.Info("defaulting Trigger", "trigger", r.Name)
+}
+
+// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-trigger,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=triggers,versions=v1,name=vtrigger.kb.io
+
+var _ webhook.Validator = &Trigger{}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
+func (r *Trigger) ValidateCreate() error {
+	triggerlog.Info("validating creation of Trigger", "trigger", r.Name)
+
+	return r.validateTrigger()
+}
+
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
+func (r *Trigger) ValidateUpdate(old runtime.Object) error {
+	triggerlog.Info("validating update of Trigger", "trigger", r.Name)
+
+	return r.validateTrigger()
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
+func (r *Trigger) ValidateDelete() error {
+	triggerlog.Info("validating deletion of Trigger", "trigger", r.Name)
+
+	return nil
+}
+
+// validateTrigger validates Trigger and returns err if any invalidation is found.
+func (r *Trigger) validateTrigger() error {
+	var allErrs field.ErrorList
+
+	if r.Spec.OperationSet == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("operationSet"),
+			r.Spec.OperationSet, "must not be empty"))
+	}
+	if r.Spec.SourceTemplate.PrometheusAlertTemplate == nil && r.Spec.SourceTemplate.KubernetesEventTemplate == nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate"),
+			r.Spec.OperationSet, "must specify either prometheus alert template or kubernetes event template"))
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "diagnosis.netease.com", Kind: "Trigger"},
+		r.Name, allErrs)
+}
