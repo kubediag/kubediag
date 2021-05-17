@@ -326,6 +326,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Operation")
 			return fmt.Errorf("unable to create webhook for Operation: %v", err)
 		}
+		if err = (&diagnosisv1.OperationSet{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "OperationSet")
+			return fmt.Errorf("unable to create webhook for OperationSet: %v", err)
+		}
 		// +kubebuilder:scaffold:builder
 
 		setupLog.Info("starting manager")
