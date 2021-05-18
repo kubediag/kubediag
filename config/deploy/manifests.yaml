@@ -68,8 +68,8 @@ spec:
               additionalProperties:
                 type: string
               description: Parameters is a set of the parameters to be passed to opreations.
-                A key is the node id in referenced operation set, while the value
-                contains parameters for executing operation.
+                Parameters and OperationResults are encoded into a json object and
+                sent to operation processor when running diagnosis.
               type: object
             podReference:
               description: PodReference contains details of the target pod.
@@ -174,21 +174,10 @@ spec:
               type: array
             operationResults:
               additionalProperties:
-                description: OperationResult contains the result of an operation.
-                properties:
-                  operation:
-                    description: Operation is the name of operation.
-                    type: string
-                  result:
-                    description: Result is is a blob of information containing result
-                      of an executed operation.
-                    type: string
-                required:
-                - operation
-                type: object
-              description: OperationResults contains results of operations. A key
-                is the node id in referenced operation set, while the value usually
-                contains detailed information of operation result.
+                type: string
+              description: OperationResults contains results of operations. Parameters
+                and OperationResults are encoded into a json object and sent to operation
+                processor when running diagnosis.
               type: object
             phase:
               description: "Phase is a simple, high-level summary of where the diagnosis
@@ -1064,7 +1053,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
+        image: hub.c.163.com/combk8s/kube-diagnoser:6eb044a
         name: kube-diagnoser
         ports:
         - containerPort: 9443
@@ -1141,7 +1130,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
+        image: hub.c.163.com/combk8s/kube-diagnoser:6eb044a
         name: kube-diagnoser
         ports:
         - containerPort: 10355

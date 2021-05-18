@@ -67,13 +67,13 @@ func GetAvailablePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// getPodInfoFromHeader will get pod info from http request header.
-func getPodInfoFromHeader(r *http.Request) v1.PodReference {
+// getPodInfoFromContext gets pod information from http json object payload.
+func getPodInfoFromContext(data map[string]string) v1.PodReference {
 	return v1.PodReference{
 		NamespacedName: v1.NamespacedName{
-			Namespace: r.Header.Get(executor.TracePodNamespace),
-			Name:      r.Header.Get(executor.TracePodName),
+			Namespace: data[executor.PodNamespaceTelemetryKey],
+			Name:      data[executor.PodNameTelemetryKey],
 		},
-		Container: r.Header.Get(executor.TracePodContainerName),
+		Container: data[executor.ContainerTelemetryKey],
 	}
 }

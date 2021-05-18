@@ -76,9 +76,17 @@ func (dc *dockerInfoCollector) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := json.Marshal(info)
+		raw, err := json.Marshal(info)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal docker info: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		result := make(map[string]string)
+		result["docker.info"] = string(raw)
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
 			return
 		}
 

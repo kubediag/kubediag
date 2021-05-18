@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -145,22 +146,33 @@ func (c *coreFileProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		c.Info("handle POST request")
 		// read request body and unmarshal into a CoreFileConfig
-		parameters, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := ExtractParametersFromHTTPContext(r)
 		if err != nil {
-			c.Error(err, "extract parameters failed")
+			c.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		config := &CoreFileConfig{}
-		err = json.Unmarshal([]byte(parameters[executor.HTTPRequestBodyParameterKey]), config)
+		expirationSeconds, err := strconv.Atoi(contexts["expirationSeconds"])
 		if err != nil {
-			c.Error(err, "unmarshal parameter in data failed")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.Error(err, "invalid expirationSeconds field")
+			http.Error(w, err.Error(), http.StatusNotAcceptable)
 			return
 		}
+		pid, err := strconv.Atoi(contexts["pid"])
+		if err != nil {
+			c.Error(err, "invalid pid field")
+			http.Error(w, err.Error(), http.StatusNotAcceptable)
+			return
+		}
+		config := &CoreFileConfig{
+			ExpirationSeconds: uint64(expirationSeconds),
+			Type:              CoreFileProfilerType(contexts["type"]),
+			FilePath:          contexts["filePath"],
+			Pid:               pid,
+		}
 
-		podInfo := getPodInfoFromHeader(r)
+		podInfo := getPodInfoFromContext(contexts)
 
 		c.V(4).Info("get pod info", "pod info", podInfo)
 
@@ -221,8 +233,17 @@ func (c *coreFileProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
+		result := make(map[string]string)
+		result["corefile.endpoint"] = fmt.Sprintf("http://%s:%d", contexts[executor.NodeTelemetryKey], port)
+		data, err := json.Marshal(result)
+		if err != nil {
+			c.Error(err, "failed to marshal response body")
+			http.Error(w, err.Error(), http.StatusNotAcceptable)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(fmt.Sprintf("http://%s:%d", r.Header.Get(executor.TraceNodeName), port)))
+		w.Write(data)
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}

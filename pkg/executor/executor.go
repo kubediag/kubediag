@@ -47,23 +47,21 @@ const (
 	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
 	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
 	MaxDataSize = 1024 * 1024 * 2
-	// HTTPRequestBodyParameterKey is the key of parameter to be passed to opreation.
-	HTTPRequestBodyParameterKey = "parameter"
 
-	// TraceDiagnosisUUID is uid of diagnosis object, with uuid in http header, we could build a diagnosis flow
-	TraceDiagnosisUUID = "diagnosis-uuid"
-	// TraceDiagnosisNamespace is namespace of diagnosis object
-	TraceDiagnosisNamespace = "diagnosis-namespace"
-	// TraceDiagnosisName is name of diagnosis object
-	TraceDiagnosisName = "diagnosis-name"
-	// TracePodNamespace is namespace of pod which diagnosis concern to
-	TracePodNamespace = "pod-namespace"
-	// TracePodName is name of pod which diagnosis concern to
-	TracePodName = "pod-name"
-	// TracePodContainerName is name of container in pod which diagnosis concern to
-	TracePodContainerName = "pod-container-name"
-	// TraceNodeName is name of node which diagnosis concern to
-	TraceNodeName = "node-name"
+	// DiagnosisUIDTelemetryKey is the telemetry key of diagnosis object uid.
+	DiagnosisUIDTelemetryKey = "diagnosis.uid"
+	// DiagnosisNamespaceTelemetryKey is the telemetry key of diagnosis namespace.
+	DiagnosisNamespaceTelemetryKey = "diagnosis.namespace"
+	// DiagnosisNameTelemetryKey is the telemetry key of diagnosis name.
+	DiagnosisNameTelemetryKey = "diagnosis.name"
+	// PodNamespaceTelemetryKey is the telemetry key of pod namespace.
+	PodNamespaceTelemetryKey = "pod.namespace"
+	// PodNameTelemetryKey is the telemetry key of pod name.
+	PodNameTelemetryKey = "pod.name"
+	// ContainerTelemetryKey is the telemetry key of container.
+	ContainerTelemetryKey = "container"
+	// NodeTelemetryKey is the telemetry key of node.
+	NodeTelemetryKey = "node"
 )
 
 var (
@@ -403,47 +401,24 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		return diagnosis, err
 	}
 
-	// Construct request data for current operation by adding predefined contexts and operation results.
-	// The request data is a map[string][]byte which contains key value pairs of operation names and results.
+	// Construct request data for current operation by adding contexts and operation results.
+	// The request data is a map[string]string which contains key value pairs.
 	data := make(map[string]string)
-	for idStr, parameter := range diagnosis.Spec.Parameters {
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			return diagnosis, err
-		}
-
-		// Set request data if context id is the same as current node id.
-		if id == node.ID {
-			data[HTTPRequestBodyParameterKey] = parameter
-			break
-		}
+	for key, value := range diagnosis.Spec.Parameters {
+		data[key] = value
 	}
-	for idStr, operationResult := range diagnosis.Status.OperationResults {
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			return diagnosis, err
-		}
-
-		// Set request data if operation result id is among dependences of current node.
-		for _, dependence := range node.Dependences {
-			if id == dependence {
-				if operationResult.Result != nil {
-					data[operationResult.Operation] = *operationResult.Result
-				}
-			}
-		}
+	for key, value := range diagnosis.Status.OperationResults {
+		data[key] = value
 	}
+	updateDiagnosisContext(data, diagnosis)
 
 	ex.Info("running operation", "diagnosis", client.ObjectKey{
 		Name:      diagnosis.Name,
 		Namespace: diagnosis.Namespace,
 	}, "node", node, "operationset", operationset.Name, "path", path)
 
-	// Build diagnosis trace info, which will be frequently quoted to get some global information.
-	traceInfo := buildDiagnosisTraceInfo(diagnosis)
-
 	// Execute the operation by sending http request to the processor.
-	succeeded, body, err := ex.doHTTPRequestWithContext(operation, data, traceInfo)
+	succeeded, result, err := ex.doHTTPRequestWithContext(operation, data)
 	if err != nil {
 		return diagnosis, err
 	}
@@ -456,15 +431,12 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		}, "node", node, "operationset", operationset.Name, "path", path)
 		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "OperationSucceeded", "Operation %s executed successfully", operation.Name)
 
-		// Set operation result according to response body from operaton processor.
-		result := string(body)
+		// Set operation result according to response from operaton processor.
 		if diagnosis.Status.OperationResults == nil {
-			diagnosis.Status.OperationResults = make(map[string]diagnosisv1.OperationResult)
+			diagnosis.Status.OperationResults = make(map[string]string)
 		}
-		idStr := strconv.Itoa(node.ID)
-		diagnosis.Status.OperationResults[idStr] = diagnosisv1.OperationResult{
-			Operation: node.Operation,
-			Result:    &result,
+		for key, value := range result {
+			diagnosis.Status.OperationResults[key] = value
 		}
 
 		// Set current path as succeeded path if current operation is succeeded.
@@ -539,7 +511,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.
 // It returns a bool, a response body and an error as results.
-func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data, traceInfo map[string]string) (bool, []byte, error) {
+func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
 	// Set http request contexts and construct http client. Use kube diagnoser agent bind address as the processor
 	// address if external ip and external port not specified.
 	var host string
@@ -573,11 +545,6 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 		return false, nil, err
 	}
 
-	// insert trace info into http request's header
-	for key, value := range traceInfo {
-		req.Header.Set(key, value)
-	}
-
 	// Send the http request to operation processor.
 	res, err := cli.Do(req)
 	if err != nil {
@@ -595,12 +562,19 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 		return false, nil, fmt.Errorf("response body size %d exceeds max data size %d", len(body), MaxDataSize)
 	}
 
-	if res.StatusCode != http.StatusOK {
-		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
-		return false, body, nil
+	var result map[string]string
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		ex.Error(err, "failed to marshal response body", "response", string(body))
+		return false, nil, err
 	}
 
-	return true, body, nil
+	if res.StatusCode != http.StatusOK {
+		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
+		return false, result, nil
+	}
+
+	return true, result, nil
 }
 
 // addDiagnosisToExecutorQueue adds Diagnosis to the queue processed by executor.
@@ -614,18 +588,17 @@ func (ex *executor) addDiagnosisToExecutorQueue(diagnosis diagnosisv1.Diagnosis)
 	}
 }
 
-// buildDiagnosisTraceInfo build a map with all trace info of a diagnosis object.
-func buildDiagnosisTraceInfo(diagnosis diagnosisv1.Diagnosis) map[string]string {
-	traceInfo := map[string]string{
-		TraceDiagnosisNamespace: diagnosis.Namespace,
-		TraceDiagnosisName:      diagnosis.Name,
-		TraceDiagnosisUUID:      string(diagnosis.UID),
-		TraceNodeName:           diagnosis.Spec.NodeName,
-	}
+// updateDiagnosisContext updates data with diagnosis contexts.
+func updateDiagnosisContext(data map[string]string, diagnosis diagnosisv1.Diagnosis) {
+	data[DiagnosisNamespaceTelemetryKey] = diagnosis.Namespace
+	data[DiagnosisNameTelemetryKey] = diagnosis.Name
+	data[DiagnosisUIDTelemetryKey] = string(diagnosis.UID)
+	data[NodeTelemetryKey] = diagnosis.Spec.NodeName
 	if diagnosis.Spec.PodReference != nil {
-		traceInfo[TracePodNamespace] = diagnosis.Spec.PodReference.Namespace
-		traceInfo[TracePodName] = diagnosis.Spec.PodReference.Name
-		traceInfo[TracePodContainerName] = diagnosis.Spec.PodReference.Container
+		data[PodNamespaceTelemetryKey] = diagnosis.Spec.PodReference.Namespace
+		data[PodNameTelemetryKey] = diagnosis.Spec.PodReference.Name
+		if diagnosis.Spec.PodReference.Container != "" {
+			data[ContainerTelemetryKey] = diagnosis.Spec.PodReference.Container
+		}
 	}
-	return traceInfo
 }

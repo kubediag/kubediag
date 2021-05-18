@@ -77,9 +77,17 @@ func (pc *podCollector) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := json.Marshal(pods)
+		raw, err := json.Marshal(pods)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal pods: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		result := make(map[string]string)
+		result["pod.list"] = string(raw)
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
 			return
 		}
 

@@ -45,30 +45,21 @@ type Processor struct {
 Kube Diagnoser Agent 中的 Executor 负责向 Processor 发送 HTTP 请求让 Processor 执行诊断操作。HTTP 请求必须满足以下条件：
 
 * 必须是 POST 请求。
-* HTTP 请求中可以包含请求体，请求体必须是 JSON 数据。
-* HTTP 请求中会**尽可能**地将一些全局信息填入 HTTP Header ，方便全局追踪或 Processor 引用。包括：
-    * `diagnosis-uuid` 记录了调用该 Processor 的 Diagnosis 的 ID
-    * `diagnosis-namespace` 记录了调用该 Processor 的 Diagnosis 的 Namespace
-    * `diagnosis-name` 记录了调用该 Processor 的 Diagnosis 的 Name
-    * `pod-namespace` 记录了该 Processor 需要关注的 Pod 的 Namespace
-    * `pod-name` 记录了该 Processor 需要关注的 Pod 的 Name
-    * `pod-container-name` 记录了该 Processor 需要关注的容器的 Name
-    * `node-name` 记录了该 Processor 需要关注的 node 的 Name
+* HTTP 请求中一般会包含请求体，请求体必须是 JSON 对象。
+* HTTP 请求体中一般包含表示全局信息的键值对：
+  * `diagnosis.uid` 记录了 Diagnosis 的 UID。
+  * `diagnosis.namespace` 记录了 Diagnosis 的 Namespace。
+  * `diagnosis.name` 记录了 Diagnosis 的 Name。
+  * `pod.namespace` 记录了该 Processor 需要关注的 Pod 的 Namespace。
+  * `pod.name` 记录了该 Processor 需要关注的 Pod 的 Name。
+  * `container` 记录了该 Processor 需要关注的容器的 Name。
+  * `node` 记录了该 Processor 需要关注的 Node 的 Name。
 
 Processor 的实现必须满足以下条件：
 
 * 能够处理 POST 请求。
-* 能够处理 HTTP 请求中包含的请求体。
-* 如果 HTTP 返回中包含返回体，返回体必须是 JSON 数据。
-
-请求体或返回体中包含的数据类型必须是下列类型之一，详情可参考 [RFC 4627](https://www.ietf.org/rfc/rfc4627.txt)：
-
-* String
-* Number
-* Boolean
-* Null
-* Object
-* Array
+* 能够处理 HTTP 请求中包含的请求体，即将 JSON 对象解析为 Map、Dict 等数据结构。
+* 如果 HTTP 返回中包含返回体，返回体必须是 JSON 对象，详情可参考 [RFC 4627](https://www.ietf.org/rfc/rfc4627.txt)。
 
 ### 举例说明
 
@@ -104,29 +95,22 @@ spec:
 
 以向进程 27065 发送信号为例，一次操作执行的流程如下：
 
-1. 创建一个 Diagnosis 对象如: `defalt/diagnosis-to-kill-process` ，在对象中描述了要诊断的 Pod 和使用的 OperationSet ，其中就包括发送信号的 Processor
-1. Kube Diagnoser Agent 中的 Executor 向发送信号的 Processor 执行 HTTP 请求，请求类型为 POST，请求体中包含如下 JSON 数据：
+1. 创建一个 Diagnosis 对象如: `defalt/kill-process` ，在对象中描述了要诊断的 Pod 和使用的 OperationSet，其中就包括发送信号的 Processor。
+1. Kube Diagnoser Agent 中的 Executor 向发送信号的 Processor 执行 HTTP 请求，请求类型为 POST，请求体中包含如下 JSON 对象：
 
    ```json
    {
-       "pid": 27065,
-       "signal": 15
-   }
-   ```
-   
-   且基于 Diagnosis 对象的描述信息，填充了 HTTP Header ，包含如下内容:
-   ```
-   {
-       "diagnosis-namespace": "default",
-       "diagnosis-name": "diagnosis-to-kill-process",
-       "pod-namespace": "default",
-       "pod-name": "some-pod",
-       "pod-container-name": "debian",
-       ...
+       "diagnosis.namespace": "default",
+       "diagnosis.name": "kill-process",
+       "pod.namespace": "default",
+       "pod.name": "some-pod",
+       "container": "debian",
+       "signal.sender.pid": 27065,
+       "signal.sender.signal": 15
    }
    ```
 
-1. Processor 接收到请求后解析请求体中的 JSON 数据，向进程 27065 发送 SIGTERM 信号，如果在实现上，这个 Processor 需要 Pod 的相关信息，可以从 HTTP Header 中获取。
+1. Processor 接收到请求后解析请求体中的 JSON 对象，向进程 27065 发送 SIGTERM 信号，如果这个 Processor 需要 Pod 的相关信息，可以通过 `pod.name` 和 `pod.namespace` 字段获取。
 1. Processor 发送信号成功则向 Kube Diagnoser Agent 返回 200 状态码。
 1. Processor 发送信号失败则向 Kube Diagnoser Agent 返回 500 状态码。
 1. Kube Diagnoser Agent 中的 Executor 在请求返回后继续执行诊断逻辑。
