@@ -74,23 +74,23 @@ func (nc *nodeCordon) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		result := make(map[string]string)
+		result["node.cordon"] = nc.nodeName
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		if node.Spec.Unschedulable {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(fmt.Sprintf("node/%s already cordoned", nc.nodeName)))
+			w.Write(data)
 			return
 		}
 
 		node.Spec.Unschedulable = true
 		if err := nc.client.Update(nc, &node); err != nil {
 			http.Error(w, fmt.Sprintf("unable to update Node"), http.StatusUnprocessableEntity)
-			return
-		}
-
-		result := make(map[string]string)
-		result["node.cordon"] = nc.nodeName
-		data, err := json.Marshal(result)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
 			return
 		}
 
