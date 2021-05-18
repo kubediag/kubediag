@@ -63,7 +63,8 @@ type DiagnosisSpec struct {
 	// +optional
 	PodReference *PodReference `json:"podReference,omitempty"`
 	// Parameters is a set of the parameters to be passed to opreations.
-	// A key is the node id in referenced operation set, while the value contains parameters for executing operation.
+	// Parameters and OperationResults are encoded into a json object and sent to operation processor when
+	// running diagnosis.
 	// +optional
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
@@ -116,10 +117,10 @@ type DiagnosisStatus struct {
 	// +optional
 	SucceededPath Path `json:"succeededPath,omitempty"`
 	// OperationResults contains results of operations.
-	// A key is the node id in referenced operation set, while the value usually contains detailed information of
-	// operation result.
+	// Parameters and OperationResults are encoded into a json object and sent to operation processor when
+	// running diagnosis.
 	// +optional
-	OperationResults map[string]OperationResult `json:"operationResults,omitempty"`
+	OperationResults map[string]string `json:"operationResults,omitempty"`
 	// Checkpoint is the checkpoint for resuming unfinished diagnosis.
 	// +optional
 	Checkpoint *Checkpoint `json:"checkpoint,omitempty"`
@@ -142,15 +143,6 @@ type DiagnosisCondition struct {
 	// Message is a human readable message indicating details about last transition.
 	// +optional
 	Message string `json:"message,omitempty"`
-}
-
-// OperationResult contains the result of an operation.
-type OperationResult struct {
-	// Operation is the name of operation.
-	Operation string `json:"operation"`
-	// Result is is a blob of information containing result of an executed operation.
-	// +optional
-	Result *string `json:"result,omitempty"`
 }
 
 // Checkpoint is the checkpoint for resuming unfinished diagnosis.
