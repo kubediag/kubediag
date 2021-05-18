@@ -33,6 +33,7 @@ type DiagnosisSpec struct {
     PodReference *PodReference `json:"podReference,omitempty"`
     // Parameters 包含诊断过程中需要传入的参数。
     // 通常该字段的键为 OperationSet 中顶点的序号，值为执行该顶点诊断操作需要的参数。
+    // Parameters 和 OperationResults 会被序列化为 JSON 对象并在运行诊断的过程中发送给故障处理器。
     Parameters map[string]string `json:"parameters,omitempty"`
 }
 
@@ -71,8 +72,8 @@ type DiagnosisStatus struct {
     // SucceededPath 是诊断流水线中运行成功的路径。
     SucceededPath Path `json:"succeededPath,omitempty"`
     // OperationResults 包含诊断运行过程中操作的结果。
-    // 通常该字段的键为 OperationSet 中顶点的序号，值为该 Operation 输出的详细信息。
-    OperationResults map[string]OperationResult `json:"operationResults,omitempty"`
+    // Parameters 和 OperationResults 会被序列化为 JSON 对象并在运行诊断的过程中发送给故障处理器。
+    OperationResults map[string]string `json:"operationResults,omitempty"`
     // Checkpoint 是恢复未完成诊断的检查点。
     Checkpoint *Checkpoint `json:"checkpoint,omitempty"`
 }
@@ -90,14 +91,6 @@ type DiagnosisCondition struct {
     Reason string `json:"reason,omitempty"`
     // Message 是描述上一次状况迁移细节的信息。
     Message string `json:"message,omitempty"`
-}
-
-// OperationResult 包含一次诊断操作的结果。
-type OperationResult struct {
-    // Operation 是操作名。
-    Operation string `json:"operation"`
-    // Result 包含诊断操作运行结果的信息。
-    Result *string `json:"result,omitempty"`
 }
 
 // Checkpoint 是恢复未完成诊断的检查点。
