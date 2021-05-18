@@ -30,6 +30,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// TODO: Support script type operations.
 // commandExecutor handles request for running specified command and respond with command result.
 type commandExecutor struct {
 	// Context carries values across API boundaries.

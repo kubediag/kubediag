@@ -18,6 +18,7 @@ package processors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"syscall"
@@ -80,8 +81,16 @@ func (dc *containerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.R
 			return
 		}
 
+		result := make(map[string]string)
+		result["containerd.goroutine"] = dumpTime.String()
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(dumpTime.String()))
+		w.Write(data)
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}

@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -129,19 +130,24 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		gp.Info("handle POST request")
 		// read request body and unmarshal into a goProfilerRequestParameter
-		parameters, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := ExtractParametersFromHTTPContext(r)
 		if err != nil {
-			gp.Error(err, "extract parameters failed")
+			gp.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var parameter goProfilerRequestParameter
-		err = json.Unmarshal([]byte(parameters[executor.HTTPRequestBodyParameterKey]), &parameter)
+		// TODO: Support TLS via map[string]string struct.
+		expirationSeconds, err := strconv.Atoi(contexts["expirationSeconds"])
 		if err != nil {
-			gp.Error(err, "unmarshal parameter in data failed")
-			http.Error(w, err.Error(), http.StatusNotAcceptable)
+			gp.Error(err, "invalid expirationSeconds field")
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		parameter := goProfilerRequestParameter{
+			GoProfilerType:    goProfilerType(contexts["type"]),
+			Source:            contexts["source"],
+			ExpirationSeconds: int64(expirationSeconds),
 		}
 
 		if parameter.ExpirationSeconds <= 0 {
@@ -159,9 +165,9 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		namespace := r.Header.Get(executor.TraceDiagnosisNamespace)
-		name := r.Header.Get(executor.TraceDiagnosisName)
-		podInfo := getPodInfoFromHeader(r)
+		namespace := contexts[executor.DiagnosisNamespaceTelemetryKey]
+		name := contexts[executor.DiagnosisNameTelemetryKey]
+		podInfo := getPodInfoFromContext(contexts)
 
 		endpoint, err := gp.runGoProfiler(name, namespace, gp.BindAddress, parameter, &podInfo, gp.dataRoot)
 		if err != nil {
@@ -169,7 +175,9 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := json.Marshal(endpoint)
+		result := make(map[string]string)
+		result["goprofiler.endpoint"] = endpoint
+		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal go profiler results: %v", err), http.StatusInternalServerError)
 			return

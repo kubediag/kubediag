@@ -18,6 +18,7 @@ package processors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -85,8 +86,16 @@ func (nc *nodeCordon) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		result := make(map[string]string)
+		result["node.cordon"] = nc.nodeName
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(fmt.Sprintf("node/%s cordoned", nc.nodeName)))
+		w.Write(data)
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}

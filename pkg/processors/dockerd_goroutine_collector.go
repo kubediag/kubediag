@@ -18,6 +18,7 @@ package processors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -136,8 +137,16 @@ func (dc *dockerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.Requ
 			}
 		}
 
+		result := make(map[string]string)
+		result["dockerd.goroutine"] = stacksLogPath
+		data, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(stacksLogPath))
+		w.Write(data)
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}
