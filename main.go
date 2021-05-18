@@ -41,7 +41,6 @@ import (
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/alertmanager"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/clusterhealthevaluator"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/controllers"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnosisreaper"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/eventer"
@@ -83,8 +82,6 @@ type KubeDiagnoserOptions struct {
 	// AlertmanagerRepeatInterval specifies how long to wait before sending a notification again if it has
 	// already been sent successfully for an alert.
 	AlertmanagerRepeatInterval time.Duration
-	// ClusterHealthEvaluatorHousekeepingInterval specifies the interval between cluster health updates.
-	ClusterHealthEvaluatorHousekeepingInterval time.Duration
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// DiagnosisTTL is amount of time to retain diagnoses.
@@ -153,15 +150,14 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 	}
 
 	return &KubeDiagnoserOptions{
-		Mode:                       "agent",
-		BindAddress:                "0.0.0.0",
-		Port:                       8090,
-		MetricsPort:                10357,
-		EnableLeaderElection:       false,
-		WebhookPort:                9443,
-		CertDir:                    defaultCertDir,
-		AlertmanagerRepeatInterval: 6 * time.Hour,
-		ClusterHealthEvaluatorHousekeepingInterval: 30 * time.Second,
+		Mode:                        "agent",
+		BindAddress:                 "0.0.0.0",
+		Port:                        8090,
+		MetricsPort:                 10357,
+		EnableLeaderElection:        false,
+		WebhookPort:                 9443,
+		CertDir:                     defaultCertDir,
+		AlertmanagerRepeatInterval:  6 * time.Hour,
 		DiagnosisTTL:                240 * time.Hour,
 		MinimumDiagnosisTTLDuration: 30 * time.Minute,
 		MaximumDiagnosesPerNode:     20,
@@ -242,27 +238,10 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			eventer.Run(stopCh)
 		}(stopCh)
 
-		// Create alertmanager for evaluating cluster health.
-		clusterHealthEvaluator := clusterhealthevaluator.NewClusterHealthEvaluator(
-			context.Background(),
-			ctrl.Log.WithName("clusterhealthevaluator"),
-			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/clusterhealthevaluator"),
-			mgr.GetScheme(),
-			mgr.GetCache(),
-			opts.ClusterHealthEvaluatorHousekeepingInterval,
-			opts.APIServerAccessToken,
-			featureGate.Enabled(features.ClusterHealthEvaluator),
-		)
-		go func(stopCh chan struct{}) {
-			clusterHealthEvaluator.Run(stopCh)
-		}(stopCh)
-
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			r := mux.NewRouter()
 			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
-			r.HandleFunc("/clusterhealth", clusterHealthEvaluator.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -534,7 +513,6 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
-	fs.DurationVar(&opts.ClusterHealthEvaluatorHousekeepingInterval, "cluster-health-evaluator-housekeeping-interval", opts.ClusterHealthEvaluatorHousekeepingInterval, "The interval between cluster health updates.")
 	fs.DurationVar(&opts.DiagnosisTTL, "diagnosis-ttl", opts.DiagnosisTTL, "Amount of time to retain diagnoses.")
 	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
