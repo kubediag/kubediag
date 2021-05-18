@@ -230,8 +230,34 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 					},
 					Spec: diagnosisv1.DiagnosisSpec{
 						OperationSet: trigger.Spec.OperationSet,
-						NodeName:     string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel]),
 					},
+				}
+
+				podReference := new(diagnosisv1.PodReference)
+				if sourceTemplate.PrometheusAlertTemplate.PodNamespaceReferenceLabel != "" {
+					podReference.Namespace = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.PodNamespaceReferenceLabel])
+				}
+				if sourceTemplate.PrometheusAlertTemplate.PodNameReferenceLabel != "" {
+					podReference.Name = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.PodNameReferenceLabel])
+				}
+				if sourceTemplate.PrometheusAlertTemplate.ContainerReferenceLabel != "" {
+					podReference.Container = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.ContainerReferenceLabel])
+				}
+				if podReference.Namespace != "" && podReference.Name != "" {
+					diagnosis.Spec.PodReference = podReference
+				}
+
+				parameters := make(map[string]string)
+				for _, label := range sourceTemplate.PrometheusAlertTemplate.ParameterInjectionLabels {
+					value, ok := alert.Labels[label]
+					if ok {
+						parameters[string(label)] = string(value)
+					}
+				}
+				diagnosis.Spec.Parameters = parameters
+
+				if sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel != "" {
+					diagnosis.Spec.NodeName = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
 				}
 
 				if err := am.client.Create(am, &diagnosis); err != nil {

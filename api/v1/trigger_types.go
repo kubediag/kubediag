@@ -45,8 +45,26 @@ type SourceTemplate struct {
 type PrometheusAlertTemplate struct {
 	// Regexp is the regular expression for matching prometheus alert template.
 	Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
-	// NodeNameReferenceLabel specifies the label for setting NodeName of generated diagnosis.
-	NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel"`
+	// NodeNameReferenceLabel specifies the label for setting ".spec.nodeName" of generated diagnosis.
+	// The label value will be set as ".spec.nodeName" field.
+	// +optional
+	NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel,omitempty"`
+	// PodNamespaceReferenceLabel specifies the label for setting ".spec.podReference.namespace" of generated diagnosis.
+	// The label value will be set as ".spec.podReference.namespace" field.
+	// +optional
+	PodNamespaceReferenceLabel model.LabelName `json:"podNamespaceReferenceLabel,omitempty"`
+	// PodNameReferenceLabel specifies the label for setting ".spec.podReference.name" of generated diagnosis.
+	// The label value will be set as ".spec.podReference.name" field.
+	// +optional
+	PodNameReferenceLabel model.LabelName `json:"podNameReferenceLabel,omitempty"`
+	// ContainerReferenceLabel specifies the label for setting ".spec.podReference.container" of generated diagnosis.
+	// The label value will be set as ".spec.podReference.container" field.
+	// +optional
+	ContainerReferenceLabel model.LabelName `json:"containerReferenceLabel,omitempty"`
+	// ParameterInjectionLabels specifies the labels for setting ".spec.podReference.parameters" of generated diagnosis.
+	// All label names and values will be set as key value pairs in ".spec.podReference.parameters" field.
+	// +optional
+	ParameterInjectionLabels []model.LabelName `json:"parameterInjectionLabels,omitempty"`
 }
 
 // PrometheusAlertTemplateRegexp is the regular expression for matching prometheus alert template.

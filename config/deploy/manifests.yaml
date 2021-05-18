@@ -566,9 +566,37 @@ spec:
                     specified. PrometheusAlertTemplate specifies the template to create
                     an diagnosis from a prometheus alert.
                   properties:
+                    containerReferenceLabel:
+                      description: ContainerReferenceLabel specifies the label for
+                        setting ".spec.podReference.container" of generated diagnosis.
+                        The label value will be set as ".spec.podReference.container"
+                        field.
+                      type: string
                     nodeNameReferenceLabel:
                       description: NodeNameReferenceLabel specifies the label for
-                        setting NodeName of generated diagnosis.
+                        setting ".spec.nodeName" of generated diagnosis. The label
+                        value will be set as ".spec.nodeName" field.
+                      type: string
+                    parameterInjectionLabels:
+                      description: ParameterInjectionLabels specifies the labels for
+                        setting ".spec.podReference.parameters" of generated diagnosis.
+                        All label names and values will be set as key value pairs
+                        in ".spec.podReference.parameters" field.
+                      items:
+                        description: A LabelName is a key for a LabelSet or Metric.  It
+                          has a value associated therewith.
+                        type: string
+                      type: array
+                    podNameReferenceLabel:
+                      description: PodNameReferenceLabel specifies the label for setting
+                        ".spec.podReference.name" of generated diagnosis. The label
+                        value will be set as ".spec.podReference.name" field.
+                      type: string
+                    podNamespaceReferenceLabel:
+                      description: PodNamespaceReferenceLabel specifies the label
+                        for setting ".spec.podReference.namespace" of generated diagnosis.
+                        The label value will be set as ".spec.podReference.namespace"
+                        field.
                       type: string
                     regexp:
                       description: Regexp is the regular expression for matching prometheus
@@ -612,7 +640,6 @@ spec:
                           type: string
                       type: object
                   required:
-                  - nodeNameReferenceLabel
                   - regexp
                   type: object
               type: object
