@@ -34,7 +34,6 @@ Kube Diagnoser Master 由下列部分组成：
 * 图构建器（GraphBuilder）
 * 报警管理器（Alertmanager）
 * 事件管理器（Eventer）
-* 集群健康评估器（ClusterHealthEvaluator）
 
 #### 图构建器
 
@@ -47,10 +46,6 @@ Kube Diagnoser Master 由下列部分组成：
 #### 事件管理器
 
 事件管理器接收 Kubernetes Event 并创建 Diagnosis 对象。报警管理器可以接收 Kubernetes Event 并与 Trigger 中定义的模板进行匹配，如果匹配成功则根据 Trigger 的元数据创建 Diagnosis 对象。
-
-#### 集群健康评估器
-
-集群健康评估器对集群健康状况进行评估。通过定时获取集群监控数据来评估集群当前健康状况，并在出现问题时创建 Diagnosis 对象触发诊断工作流。
 
 ### 代理
 

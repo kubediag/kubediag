@@ -38,12 +38,6 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	Eventer featuregate.Feature = "Eventer"
-	// ClusterHealthEvaluator evaluates the health status of kubernetes cluster.
-	//
-	// Mode: master
-	// Owner: @huangjiuyuan
-	// Alpha: 0.1.5
-	ClusterHealthEvaluator featuregate.Feature = "ClusterHealthEvaluator"
 
 	// PodCollector manages information of all pods on the node.
 	//
@@ -122,7 +116,6 @@ const (
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
-	ClusterHealthEvaluator:       {Default: true, PreRelease: featuregate.Alpha},
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},
 	ContainerCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	ProcessCollector:             {Default: true, PreRelease: featuregate.Alpha},
