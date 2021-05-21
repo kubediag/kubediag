@@ -111,6 +111,12 @@ const (
 	// Owner: @April-Q
 	// Alpha: 0.2.0
 	GoProfiler featuregate.Feature = "GoProfiler"
+	// NetworkingDiagnosis manages networking troubleshooting.
+	//
+	// Mode: agent
+	// Owner: @fzu-huang
+	// Alpha: 0.2.0
+	NetworkingDiagnosis featuregate.Feature = "NetworkingDiagnosis"
 )
 
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -128,6 +134,7 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	ContainerdGoroutineCollector: {Default: true, PreRelease: featuregate.Alpha},
 	NodeCordon:                   {Default: true, PreRelease: featuregate.Alpha},
 	GoProfiler:                   {Default: true, PreRelease: featuregate.Alpha},
+	NetworkingDiagnosis:          {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagnoserFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

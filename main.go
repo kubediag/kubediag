@@ -48,6 +48,7 @@ import (
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/graphbuilder"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/networking"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -446,6 +447,20 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to create processor: %v", err)
 		}
 
+		networkClassifier, err := networking.NewNetworkClassifier(
+			context.Background(),
+			ctrl.Log.WithName("processor/networkTroubleClassifier"),
+			mgr.GetCache(),
+			opts.DockerEndpoint,
+			featureGate.Enabled(features.NetworkingDiagnosis))
+
+		serviceNetworkInfoCollector, err := networking.NewServiceNetworkInfoCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/serviceNetworkInfoCollector"),
+			mgr.GetCache(),
+			opts.DockerEndpoint,
+			featureGate.Enabled(features.NetworkingDiagnosis))
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			// TODO: Implement a registry for managing processor registrations.
@@ -457,6 +472,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			r.HandleFunc("/processor/dockerinfocollector", dockerInfoCollector.Handler)
 			r.HandleFunc("/processor/dockerdgoroutinecollector", dockerdGoroutineCollector.Handler)
 			r.HandleFunc("/processor/containerdgoroutinecollector", containerdGoroutineCollector.Handler)
+			r.HandleFunc("/processor/networktroubleclassifier", networkClassifier.Handler)
+			r.HandleFunc("/processor/servicenetworkinfocollector", serviceNetworkInfoCollector.Handler)
 			// Handlers for executing specified command.
 			r.HandleFunc("/processor/commandexecutor", commandExecutor.Handler)
 			r.HandleFunc("/processor/nodecordon", nodeCordon.Handler)

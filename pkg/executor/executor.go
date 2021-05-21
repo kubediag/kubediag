@@ -369,7 +369,17 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 	if checkpoint.NodeIndex >= len(path) {
 		return diagnosis, fmt.Errorf("invalid node index %d of length %d", checkpoint.NodeIndex, len(path))
 	}
-	node := path[checkpoint.NodeIndex]
+	nodeID := path[checkpoint.NodeIndex].ID
+	var node *diagnosisv1.Node
+	for _, n := range operationset.Spec.AdjacencyList {
+		if n.ID == nodeID {
+			node = &n
+			break
+		}
+	}
+	if node == nil {
+		return diagnosis, fmt.Errorf("invalid node with id %d", nodeID)
+	}
 
 	// Fetch operation according to operation node information.
 	var operation diagnosisv1.Operation
@@ -443,7 +453,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		if diagnosis.Status.SucceededPath == nil {
 			diagnosis.Status.SucceededPath = make(diagnosisv1.Path, 0, len(path))
 		}
-		diagnosis.Status.SucceededPath = append(diagnosis.Status.SucceededPath, node)
+		diagnosis.Status.SucceededPath = append(diagnosis.Status.SucceededPath, path[checkpoint.NodeIndex])
 
 		// Set phase to succeeded if current path has been finished and all operations are succeeded.
 		if checkpoint.NodeIndex == len(path)-1 {
