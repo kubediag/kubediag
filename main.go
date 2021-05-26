@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -47,6 +46,7 @@ import (
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/graphbuilder"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/kafka"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	// +kubebuilder:scaffold:imports
 )
@@ -82,6 +82,10 @@ type KubeDiagnoserOptions struct {
 	// AlertmanagerRepeatInterval specifies how long to wait before sending a notification again if it has
 	// already been sent successfully for an alert.
 	AlertmanagerRepeatInterval time.Duration
+	// KafkaBrokers is the list of broker addresses used to connect to the kafka cluster.
+	KafkaBrokers []string
+	// KafkaTopic specifies the topic to read messages from.
+	KafkaTopic string
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
 	// DiagnosisTTL is amount of time to retain diagnoses.
@@ -90,8 +94,6 @@ type KubeDiagnoserOptions struct {
 	MinimumDiagnosisTTLDuration time.Duration
 	// MaximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
 	MaximumDiagnosesPerNode int32
-	// APIServerAccessToken is the kubernetes apiserver access token.
-	APIServerAccessToken string
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
 	// piecemeal the default values from "github.com/kube-diagnoser/kube-diagnoser/pkg/features/features.go".
 	FeatureGates map[string]bool
@@ -138,17 +140,6 @@ of an Diagnosis.`,
 
 // NewKubeDiagnoserOptions creates a new KubeDiagnoserOptions with a default config.
 func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
-	// Set token at /var/run/secrets/kubernetes.io/serviceaccount/token as default if kube diagnoser
-	// is running in a pod.
-	token := []byte{}
-	_, err := os.Stat(defaultTokenFile)
-	if err == nil {
-		token, err = ioutil.ReadFile(defaultTokenFile)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &KubeDiagnoserOptions{
 		Mode:                        "agent",
 		BindAddress:                 "0.0.0.0",
@@ -161,7 +152,6 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 		DiagnosisTTL:                240 * time.Hour,
 		MinimumDiagnosisTTLDuration: 30 * time.Minute,
 		MaximumDiagnosesPerNode:     20,
-		APIServerAccessToken:        string(token),
 		DataRoot:                    defaultDataRoot,
 	}, nil
 }
@@ -237,6 +227,25 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		go func(stopCh chan struct{}) {
 			eventer.Run(stopCh)
 		}(stopCh)
+
+		// Create kafka consumer for managing kafka messages.
+		if len(opts.KafkaBrokers) != 0 && opts.KafkaTopic != "" {
+			kafkaConsumer, err := kafka.NewConsumer(
+				context.Background(),
+				ctrl.Log.WithName("kafkaconsumer"),
+				mgr.GetClient(),
+				opts.KafkaBrokers,
+				opts.KafkaTopic,
+				featureGate.Enabled(features.KafkaConsumer),
+			)
+			if err != nil {
+				setupLog.Error(err, "unable to create kafka consumer")
+				return fmt.Errorf("unable to create kafka consumer: %v", err)
+			}
+			go func(stopCh chan struct{}) {
+				kafkaConsumer.Run(stopCh)
+			}(stopCh)
+		}
 
 		// Start http server.
 		go func(stopCh chan struct{}) {
@@ -513,10 +522,11 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
 	fs.StringVar(&opts.CertDir, "cert-dir", opts.CertDir, "The directory that contains the server key and certificate.")
 	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
+	fs.StringSliceVar(&opts.KafkaBrokers, "kafka-brokers", opts.KafkaBrokers, "The list of broker addresses used to connect to the kafka cluster.")
+	fs.StringVar(&opts.KafkaTopic, "kafka-topic", opts.KafkaTopic, "The topic to read messages from.")
 	fs.DurationVar(&opts.DiagnosisTTL, "diagnosis-ttl", opts.DiagnosisTTL, "Amount of time to retain diagnoses.")
 	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
-	fs.StringVar(&opts.APIServerAccessToken, "apiserver-access-token", opts.APIServerAccessToken, "The kubernetes apiserver access token.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kube diagnoser data.")
 }

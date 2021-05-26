@@ -38,6 +38,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	Eventer featuregate.Feature = "Eventer"
+	// KafkaConsumer can processs valid kafka messages.
+	//
+	// Mode: master
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.0
+	KafkaConsumer featuregate.Feature = "KafkaConsumer"
 
 	// PodCollector manages information of all pods on the node.
 	//
@@ -116,6 +122,7 @@ const (
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
+	KafkaConsumer:                {Default: true, PreRelease: featuregate.Alpha},
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},
 	ContainerCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	ProcessCollector:             {Default: true, PreRelease: featuregate.Alpha},
