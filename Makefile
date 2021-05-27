@@ -21,16 +21,12 @@ endif
 all: kube-diagnoser
 
 # Run e2e tests
-e2e-test: 
+e2e: 
 	go test ./test/e2e/... -coverprofile cover.out
 
 # Run unit tests
-unit-test: generate fmt vet manifests
-	go test ./pkg/... -coverprofile cover.out
-
-# Run tests
 test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+	go test ./pkg/... -coverprofile cover.out
 
 # Build kube-diagnoser binary
 kube-diagnoser: generate fmt vet
@@ -51,13 +47,12 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && $(KUSTOMIZE) edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
-	$(KUSTOMIZE) build config/default > config/deploy/manifests.yaml
 	kubectl apply -f config/deploy
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=kube-diagnoser-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd config/manager && $(KUSTOMIZE) edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
 	$(KUSTOMIZE) build config/default > config/deploy/manifests.yaml
 
 # Run go fmt against code
@@ -73,7 +68,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: unit-test
+docker-build: test
 	docker build . -t ${IMG}:${TAG}
 
 # Push the docker image
@@ -92,7 +87,7 @@ ifeq (, $(shell which controller-gen))
 	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
+CONTROLLER_GEN=$(shell which controller-gen)
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
