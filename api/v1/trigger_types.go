@@ -121,12 +121,6 @@ type KubernetesEventTemplateRegexp struct {
 	Source corev1.EventSource `json:"source,omitempty"`
 }
 
-// TriggerStatus defines the observed state of Trigger.
-type TriggerStatus struct {
-	// Specifies whether the finalizers of referenced operation set is updated with the trigger.
-	Ready bool `json:"ready"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
@@ -139,8 +133,7 @@ type Trigger struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TriggerSpec   `json:"spec,omitempty"`
-	Status TriggerStatus `json:"status,omitempty"`
+	Spec TriggerSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

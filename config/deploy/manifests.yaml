@@ -647,16 +647,6 @@ spec:
           - operationSet
           - sourceTemplate
           type: object
-        status:
-          description: TriggerStatus defines the observed state of Trigger.
-          properties:
-            ready:
-              description: Specifies whether the finalizers of referenced operation
-                set is updated with the trigger.
-              type: boolean
-          required:
-          - ready
-          type: object
       type: object
   version: v1
   versions:
