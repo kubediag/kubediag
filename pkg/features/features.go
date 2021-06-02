@@ -111,6 +111,19 @@ const (
 	// Owner: @April-Q
 	// Alpha: 0.2.0
 	GoProfiler featuregate.Feature = "GoProfiler"
+	// MountInfoCollector manages mount info on node
+	//
+	// Mode: agent
+	// Owner: @fzu-huang
+	// Alpha: 0.2.0
+	MountInfoCollector featuregate.Feature = "MountInfoCollector"
+	// SubpathRemountDiagnoser diagnosis whether abnormal came from subpath-remount-bug
+	//
+	// BugLink: https://github.com/kubernetes/kubernetes/issues/68211
+	// Mode: agent
+	// Owner: @fzu-huang
+	// Alpha: 0.2.0
+	SubpathRemountDiagnoser featuregate.Feature = "SubpathRemountDiagnoser"
 )
 
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -128,6 +141,8 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	ContainerdGoroutineCollector: {Default: true, PreRelease: featuregate.Alpha},
 	NodeCordon:                   {Default: true, PreRelease: featuregate.Alpha},
 	GoProfiler:                   {Default: true, PreRelease: featuregate.Alpha},
+	MountInfoCollector:           {Default: true, PreRelease: featuregate.Alpha},
+	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagnoserFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

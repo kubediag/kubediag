@@ -377,6 +377,13 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			opts.NodeName,
 			featureGate.Enabled(features.PodCollector),
 		)
+		podDetailCollector := processors.NewPodDetailCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/poddetailcollector"),
+			mgr.GetCache(),
+			opts.NodeName,
+			featureGate.Enabled(features.PodCollector),
+		)
 		containerCollector, err := processors.NewContainerCollector(
 			context.Background(),
 			ctrl.Log.WithName("processor/containercollector"),
@@ -413,6 +420,11 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			ctrl.Log.WithName("processor/containerdgoroutinecollector"),
 			featureGate.Enabled(features.ContainerdGoroutineCollector),
 		)
+		mountInfoCollector := processors.NewMountInfoCollector(
+			context.Background(),
+			ctrl.Log.WithName("processor/mountinfocollector"),
+			featureGate.Enabled(features.MountInfoCollector),
+		)
 
 		commandExecutor := processors.NewCommandExecutor(
 			context.Background(),
@@ -446,23 +458,43 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("unable to create processor: %v", err)
 		}
 
+		subpathRemountDiagnoser := processors.NewSubPathRemountDiagnoser(
+			context.Background(),
+			ctrl.Log.WithName("processor/subpathremountdiagnoser"),
+			mgr.GetCache(),
+			featureGate.Enabled(features.SubpathRemountDiagnoser),
+		)
+
+		subpathRemountRecover := processors.NewSubPathRemountRecover(
+			context.Background(),
+			ctrl.Log.WithName("processor/subpathremountrecover"),
+			featureGate.Enabled(features.SubpathRemountDiagnoser),
+		)
+
 		// Start http server.
 		go func(stopCh chan struct{}) {
 			// TODO: Implement a registry for managing processor registrations.
 			r := mux.NewRouter()
 			// Handlers for collecting information.
 			r.HandleFunc("/processor/podcollector", podCollector.Handler)
+			r.HandleFunc("/processor/poddetailcollector", podDetailCollector.Handler)
 			r.HandleFunc("/processor/containercollector", containerCollector.Handler)
 			r.HandleFunc("/processor/processcollector", processCollector.Handler)
 			r.HandleFunc("/processor/dockerinfocollector", dockerInfoCollector.Handler)
 			r.HandleFunc("/processor/dockerdgoroutinecollector", dockerdGoroutineCollector.Handler)
 			r.HandleFunc("/processor/containerdgoroutinecollector", containerdGoroutineCollector.Handler)
+			r.HandleFunc("/processor/mountinfocollector", mountInfoCollector.Handler)
 			// Handlers for executing specified command.
 			r.HandleFunc("/processor/commandexecutor", commandExecutor.Handler)
 			r.HandleFunc("/processor/nodecordon", nodeCordon.Handler)
 			// Handlers for profiling programs.
 			r.HandleFunc("/processor/corefileprofiler", coreFileProfiler.Handler)
 			r.HandleFunc("/processor/goprofiler", goProfiler.Handler)
+
+			// Handlers for diagnosing programs
+			r.HandleFunc("/processor/subpathremountdiagnoser", subpathRemountDiagnoser.Handler)
+
+			r.HandleFunc("/processor/subpathremountrecover", subpathRemountRecover.Handler)
 
 			r.HandleFunc("/healthz", HealthCheckHandler)
 

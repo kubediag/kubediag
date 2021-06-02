@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: pod-detail-collector
+spec:
+  processor:
+    path: /processor/poddetailcollector
+    scheme: http
+    timeoutSeconds: 60

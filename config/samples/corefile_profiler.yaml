@@ -1,0 +1,44 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: core-combine-os
+spec:
+  adjacencyList:
+    - id: 0
+      to:
+        - 1
+        - 2
+    - id: 1
+      operation: corefile-profiler
+    - id: 2
+      operation: pod-collector
+      to:
+        - 3
+    - id: 3
+      operation: corefile-profiler
+
+---
+
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: diagnosis-coreprofiler-example
+  namespace: default
+spec:
+  nodeName: my-node
+  operationSet: core-combine
+  parameters:
+    "1": |
+      {
+        "expirationSeconds": 20000,
+        "type": "gcore"
+      }
+    "3": |
+      {
+        "expirationSeconds": 20000,
+        "type": "coredump"
+      }
+  podReference:
+    container: test-coredump
+    name: testcore-5b89896b96-d44xl
+    namespace: default

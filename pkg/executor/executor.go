@@ -562,16 +562,17 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 		return false, nil, fmt.Errorf("response body size %d exceeds max data size %d", len(body), MaxDataSize)
 	}
 
+	if res.StatusCode != http.StatusOK {
+		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
+		return false, nil, nil
+	}
+
 	var result map[string]string
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		ex.Error(err, "failed to marshal response body", "response", string(body))
-		return false, nil, err
-	}
-
-	if res.StatusCode != http.StatusOK {
-		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
-		return false, result, nil
+		// If response code is 200 but body is not a string-map, we think this processor is finished but failed and will not return error
+		return false, nil, nil
 	}
 
 	return true, result, nil
