@@ -6,7 +6,7 @@
 
 * `go` 版本 v1.15+
 * `docker` 版本 17.03+
-* `kubenetes` 版本 v1.15+
+* `kubenetes` 版本 v1.16+
 
 ## 如何在本地部署 Kube Diagnoser
 
@@ -17,7 +17,7 @@
    ```bash
    # Kubernetes 1.16+
    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.yaml
-   
+
    # Kubernetes <1.16
    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager-legacy.yaml
    ```
