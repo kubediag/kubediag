@@ -46,75 +46,24 @@ POST /processor/containercollector
 
 #### 返回体参数
 
-JSON 返回体格式为 Array，数组中单个元素如下：
+JSON 返回体格式为 JSON 对象，对象中包含存有容器列表的 String 键值对。键为 `container.list`，值可以被解析为下列数据结构：
 
 | Scheme | Description |
 |-|-|
-| [Container](https://github.com/moby/moby/blob/v19.03.15/api/types/types.go#L58) | 容器的元数据信息。 |
+| [][Container](https://github.com/moby/moby/blob/v19.03.15/api/types/types.go#L58) | 容器的元数据信息数组。 |
 
 ### 举例说明
 
 一次节点上容器信息采集操作执行的流程如下：
 
 1. Kube Diagnoser Agent 向 Container Collector 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
-1. Container Collector 接收到请求后在节点上调用 Docker 客户端获取节点上所有容器信息。
+1. Container Collector 接收到请求后在节点上调用 Docker 客户端获取节点上所有容器信息数组。
 1. 如果 Container Collector 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
 
-   ```json
-   [
-       {
-           "Command": "/pause",
-           "Created": 1597630531,
-           "HostConfig": {
-               "NetworkMode": "none"
-           },
-           "Id": "93f241547812697998f5a3e257745741cec209fb61aa5f14ec0f9fbd84de409b",
-           "Image": "k8s.gcr.io/pause:3.1",
-           "ImageID": "sha256:da86e6ba6ca197bf6bc5e9d900febd906b133eaa4750e6bed647b0fbe50ed43e",
-           "Labels": {
-               "annotation.kubernetes.io/config.seen": "2020-08-17T10:14:33.641535585+08:00",
-               "annotation.kubernetes.io/config.source": "api",
-               "app": "nginx",
-               "io.kubernetes.container.name": "POD",
-               "io.kubernetes.docker.type": "podsandbox",
-               "io.kubernetes.pod.name": "nginx-deployment-7fd6966748-lt65j",
-               "io.kubernetes.pod.namespace": "default",
-               "io.kubernetes.pod.uid": "13d025ab-451d-40b4-9d18-d2b0d09cd102",
-               "pod-template-hash": "7fd6966748"
-           },
-           "Mounts": [],
-           "Names": [
-               "/k8s_POD_nginx-deployment-7fd6966748-lt65j_default_13d025ab-451d-40b4-9d18-d2b0d09cd102_102"
-           ],
-           "NetworkSettings": {
-               "Networks": {
-                   "none": {
-                       "Aliases": null,
-                       "DriverOpts": null,
-                       "EndpointID": "7132b2fd1deffd7564370f7af662e9e62311be14e5b35240b1b9f26f0a9b5b3b",
-                       "Gateway": "",
-                       "GlobalIPv6Address": "",
-                       "GlobalIPv6PrefixLen": 0,
-                       "IPAMConfig": null,
-                       "IPAddress": "",
-                       "IPPrefixLen": 0,
-                       "IPv6Gateway": "",
-                       "Links": null,
-                       "MacAddress": "",
-                       "NetworkID": "2499f96edd88779350ff37ed240f7466fcbda7825532f8fd868a6c66872d1f4c"
-                   }
-               }
-           },
-           "Ports": [],
-           "State": "running",
-           "Status": "Up About a minute"
-       },
-       // ......
-   ]
-   ```
+```json
+{
+    "container.list": '[{{"Id":"b29a190d773988689efe3ef7b616e4dd4159f54ac4d131595d442a60d0b0b5ed","Names":["/k8s_POD_coredns-5644d7b6d9-c5tbq_kube-system_caf1aa9e-c2ee-4782-ad6d-98736fa15dd2_13"],"Image":"k8s.gcr.io/pause:3.1","ImageID":"sha256:da86e6ba6ca197bf6bc5e9d900febd906b133eaa4750e6bed647b0fbe50ed43e","Command":"/pause","Created":1622512223,"Ports":[],"Labels":{"annotation.cni.projectcalico.org/podIP":"192.168.236.158/32","annotation.cni.projectcalico.org/podIPs":"192.168.236.158/32","annotation.kubernetes.io/config.seen":"2021-06-01T09:49:50.754123792+08:00","annotation.kubernetes.io/config.source":"api","io.kubernetes.container.name":"POD","io.kubernetes.docker.type":"podsandbox","io.kubernetes.pod.name":"coredns-5644d7b6d9-c5tbq","io.kubernetes.pod.namespace":"kube-system","io.kubernetes.pod.uid":"caf1aa9e-c2ee-4782-ad6d-98736fa15dd2","k8s-app":"kube-dns","pod-template-hash":"5644d7b6d9"},"State":"running","Status":"Up 5 hours","HostConfig":{"NetworkMode":"none"},"NetworkSettings":{"Networks":{"none":{"IPAMConfig":null,"Links":null,"Aliases":null,"NetworkID":"2499f96edd88779350ff37ed240f7466fcbda7825532f8fd868a6c66872d1f4c","EndpointID":"bc34c9eca08ae33e719dfd7acbff65fe83fe55f798f0aeab179865333650c880","Gateway":"","IPAddress":"","IPPrefixLen":0,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"","DriverOpts":null}}},"Mounts":[]},......}]'
+}
+```
 
-1. 如果 Container Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码，返回体中包含描述错误的字符串：
-
-   ```string
-   Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
-   ```
+1. 如果 Container Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码。

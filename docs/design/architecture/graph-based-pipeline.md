@@ -201,12 +201,6 @@ type KubernetesEventTemplateRegexp struct {
     Type string `json:"type,omitempty"`
 }
 
-// TriggerStatus 定义了 Trigger 的实际状态。
-type TriggerStatus struct {
-    // 表示 Trigger 是否已被成功更新至被引用 OperationSet 的 Finalizers 列表。
-    Ready bool `json:"ready"`
-}
-
 // Trigger 的 API 对象。
 type Trigger struct {
     metav1.TypeMeta   `json:",inline"`
@@ -254,17 +248,3 @@ Diagnosis 对象的元数据中记录了诊断流水线的运行状态。诊断�
 * 数据收集 1、数据分析 1、恢复 2
 * 数据收集 2、数据分析 2、恢复 2
 * 数据收集 3、数据收集 4
-
-### 延迟被引用资源的删除
-
-Diagnosis、Trigger、OperationSet、Operation 之间包含以下引用关系：
-
-* Diagnosis 通过引用 OperationSet 来定义需要执行的诊断流水线。删除某个 OperationSet 前必须先删除引用该 OperationSet 的 Diagnosis。
-* Trigger 通过引用 OperationSet 来定义被自动创建的 Diagnosis。删除某个 OperationSet 前必须先删除引用该 OperationSet 的 Trigger。
-* OperationSet 通过引用 Operation 来定义每个顶点上需要执行的诊断操作。删除某个 Operation 前必须先删除引用该 Operation 的 OperationSet。
-
-通过设置对象的 Finalizers 列表可以表示上列对象之间的关系并延迟被引用资源的删除：
-
-* 在创建 Diagnosis 时，Diagnosis 被更新至 OperationSet 的 Finalizers 列表。
-* 在创建 Trigger 时，Trigger 被更新至 OperationSet 的 Finalizers 列表。
-* 在创建 OperationSet 时，OperationSet 被更新至 Operation 的 Finalizers 列表。
