@@ -22,10 +22,11 @@ require (
 	github.com/prometheus/alertmanager v0.21.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.12.0
+	github.com/segmentio/kafka-go v0.4.16
 	github.com/shirou/gopsutil v2.20.7+incompatible
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	gonum.org/v1/gonum v0.9.0

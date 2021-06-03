@@ -54,6 +54,7 @@ spec:
           privileged: true
         terminationMessagePolicy: FallbackToLogsOnError
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       hostPID: true
       securityContext:
         runAsNonRoot: false
@@ -179,6 +180,7 @@ spec:
           path: /usr/local/bin
           type: DirectoryOrCreate
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       hostPID: true
       securityContext:
         runAsNonRoot: false

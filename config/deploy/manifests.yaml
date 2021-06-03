@@ -1104,6 +1104,7 @@ spec:
         - mountPath: /etc/kube-diagnoser/serving-certs
           name: cert
           readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
       securityContext:
@@ -1187,6 +1188,7 @@ spec:
           name: kube-diagnoser-data
         - mountPath: /usr/local/bin/
           name: usr-local-bin
+      dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
       securityContext:
