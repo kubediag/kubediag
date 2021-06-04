@@ -72,7 +72,7 @@ POST /processor/corefileprofiler
 HTTP 请求返回体格式为 String ，值为 Corefile Profiler 提供的 HTTP 服务的地址：
 
 ```
-http://hydev:46765
+http://my-node:46765
 ```
 
 并且最终，这部分信息将会记录在 Diagnosis 对象的 status 中， 如下：
@@ -90,7 +90,7 @@ status:
   operationResults:
     "1":
       operation: corefile-profiler
-      result: http://hydev:46765
+      result: http://my-node:46765
     ...
 ```
 
@@ -139,7 +139,7 @@ spec:
 $ kubectl create deploy testcore --image hub.c.163.com/combk8s/test-coredump:latest
 $ kubectl get pod -o wide
 NAME                        READY   STATUS             RESTARTS   AGE     IP            NODE    NOMINATED NODE   READINESS GATES
-testcore-5b89896b96-d44xl   1/1     Running   1         2m   10.244.0.31   hydev   <none>           <none>
+testcore-5b89896b96-d44xl   1/1     Running   1         2m   10.244.0.31   my-node   <none>           <none>
 ```
 
 
@@ -166,7 +166,7 @@ spec:
         "type": "coredump"
       }
   operationSet: core-profiler-oset
-  nodeName: hydev
+  nodeName: my-node
   podReference:
     namespace: default
     name: testcore-5b89896b96-d44xl
@@ -216,7 +216,7 @@ spec:
         "type": "coredump"
       }
   operationSet: core-profiler-oset
-  nodeName: hydev
+  nodeName: my-node
   podReference:
     namespace: default
     name: testcore-5b89896b96-d44xl
@@ -231,13 +231,13 @@ status:
   operationResults:
     "1":
       operation: corefile-profiler
-      result: http://hydev:40563
+      result: http://my-node:40563
     ...
 ```
 
-可以看到，在 ID 为 1 的 operation 中有了结果： `http://hydev:40563`  , 说明这次 type 为 gcore 的 Corefile Profiler 执行成功了 【注：这里 Corefile Profiler 是通过 pod 信息在本地检索容器，找到了运行中的业务容器进程】
+可以看到，在 ID 为 1 的 operation 中有了结果： `http://my-node:40563`  , 说明这次 type 为 gcore 的 Corefile Profiler 执行成功了 【注：这里 Corefile Profiler 是通过 pod 信息在本地检索容器，找到了运行中的业务容器进程】
 
-3. 我们在浏览器中访问 `http://hydev:40563` ， 将看到一个 web页面：
+3. 我们在浏览器中访问 `http://my-node:40563` ， 将看到一个 web页面：
 
    ![image-20210409164627511](../images/gcore-1.png)
 
@@ -283,7 +283,7 @@ spec:
 $ kubectl create deploy testcore --image hub.c.163.com/combk8s/test-coredump:latest
 $ kubectl get pod -o wide
 NAME                        READY   STATUS             RESTARTS   AGE     IP            NODE    NOMINATED NODE   READINESS GATES
-testcore-5b89896b96-d44xl   0/1     CrashLoopBackOff   1         5m   10.244.0.31   hydev   <none>           <none>
+testcore-5b89896b96-d44xl   0/1     CrashLoopBackOff   1         5m   10.244.0.31   my-node   <none>           <none>
 $ kubectl delete diagnosis diagnosis-coreprofiler-example
 $ kubectl create -f diagnosis-coreprofiler-example.yaml
 ```
@@ -303,7 +303,7 @@ metadata:
   selfLink: /apis/diagnosis.netease.com/v1/namespaces/default/diagnoses/diagnosis-coreprofiler-example
   uid: 2a13263e-c1cb-4087-9d1b-e918de2e8fe7
 spec:
-  nodeName: hydev
+  nodeName: my-node
   operationSet: core-profiler-oset
   parameters:
     "1": |
@@ -326,7 +326,7 @@ status:
     pathIndex: 1
   conditions:
   - lastTransitionTime: "2021-04-06T02:55:56Z"
-    message: Diagnosis is accepted by agent on node hydev
+    message: Diagnosis is accepted by agent on node my-node
     reason: DiagnosisAccepted
     status: "True"
     type: Accepted
@@ -341,7 +341,7 @@ status:
   operationResults:
     "2":
       operation: corefile-profiler
-      result: http://hydev:33907
+      result: http://my-node:33907
   phase: Succeeded
   startTime: "2021-04-06T02:55:56Z"
   succeededPath:
@@ -449,7 +449,7 @@ kind: Diagnosis
 metadata:
   name: diagnosis-coreprofiler-example
 spec:
-  nodeName: hydev
+  nodeName: my-node
   operationSet: core-profiler-example
   parameters:
     "1": |

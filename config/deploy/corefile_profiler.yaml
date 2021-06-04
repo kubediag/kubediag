@@ -1,0 +1,9 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Operation
+metadata:
+  name: corefile-profiler
+spec:
+  processor:
+    path: /processor/corefileprofiler
+    scheme: http
+    timeoutSeconds: 60
