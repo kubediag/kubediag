@@ -11,14 +11,14 @@ Kube Diagnoser 早期设计上为了规范和简化流水线的定义，将诊�
 基于图的诊断流水线在设计上需要考虑以下假设条件：
 
 * 有限可终止：整个流水线不是无限执行的，在一定时间和空间复杂度内能够终止运行。
-* 过程可追溯：诊断结束后可以查看运行过程中某个节点产生的结果。
-* 状态机可扩展：支持增加新的处理节点到流水线中。
+* 过程可追溯：诊断结束后可以查看运行过程中某个顶点产生的结果。
+* 状态机可扩展：支持增加新的处理顶点到流水线中。
 
 ## 实现
 
 通过引入下列 API 对象可以实现基于图的诊断流水线：
 
-* `Operation`：描述如何在诊断流水线中加入处理节点以及如何存储该处理节点产生的结果。
+* `Operation`：描述如何在诊断流水线中加入处理顶点以及如何存储该处理顶点产生的结果。
 * `OperationSet`：表示诊断过程状态机的有向无环图。
 * `Trigger`：描述如何通过 Prometheus 报警或 Event 触发一次诊断。
 
@@ -84,8 +84,6 @@ type Operation struct {
 ```go
 // OperationSetSpec 定义了 OperationSet 的目标状态。
 type OperationSetSpec struct {
-    // Edges 包含有向无环图中所有表示诊断操作路径的边。
-    Edges []Edge `json:"edges"`
     // AdjacencyList 包含有向无环图中所有表示诊断操作的顶点。
     // 数组的第一个顶点表示诊断的开始而不是某个特定的诊断操作。
     AdjacencyList []Node `json:"adjacencyList"`
@@ -95,23 +93,22 @@ type OperationSetSpec struct {
 type Node struct {
     // ID 是该顶点的唯一标识符。
     ID int `json:"id"`
-    // To 是从该顶点能够直接到达的节点序号列表。
+    // To 是从该顶点能够直接到达的顶点序号列表。
     To NodeSet `json:"to,omitempty"`
     // Operation 是在该顶点运行的操作名。
     Operation string `json:"operation"`
     // Dependences 是所有被依赖且必须预先执行的诊断操作 ID 列表。
-    // 被依赖节点的诊断结果会作为该节点的输入。
     Dependences []int `json:"dependences,omitempty"`
 }
 
-// NodeSet 是一组节点序号。
+// NodeSet 是一组顶点序号。
 type NodeSet []int
 
 // OperationSetStatus 定义了 OperationSet 的实际状态。
 type OperationSetStatus struct {
     // Paths 是有向无环图中所有诊断路径的集合。
     Paths []Path `json:"paths,omitempty"`
-    // 表示定义中提供的边是否能生成合法的有向无环图。
+    // 表示定义中提供的顶点是否能生成合法的有向无环图。
     Ready bool `json:"ready,omitempty"`
 }
 
@@ -154,8 +151,16 @@ type SourceTemplate struct {
 type PrometheusAlertTemplate struct {
     // Regexp 是用于匹配 Prometheus 报警模板的正则表达式。
     Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
-    // NodeNameReferenceLabel 指定用于设置 Diagnosis 的 NodeName 字段的标签。
+    // NodeNameReferenceLabel 指定用于设置 Diagnosis 的 ".spec.nodeName" 字段的标签键。
     NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel"`
+    // PodNamespaceReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.namespace" 字段的标签键。
+    PodNamespaceReferenceLabel model.LabelName `json:"podNamespaceReferenceLabel,omitempty"`
+    // PodNameReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.name" 字段的标签键。
+    PodNameReferenceLabel model.LabelName `json:"podNameReferenceLabel,omitempty"`
+    // ContainerReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.container" 字段的标签键。
+    ContainerReferenceLabel model.LabelName `json:"containerReferenceLabel,omitempty"`
+    // ParameterInjectionLabels 指定需要注入到 ".spec.parameters" 字段的标签键列表。
+    ParameterInjectionLabels []model.LabelName `json:"parameterInjectionLabels,omitempty"`
 }
 
 // PrometheusAlertTemplateRegexp 是用于匹配 Prometheus 报警模板的正则表达式。
@@ -194,11 +199,9 @@ type KubernetesEventTemplateRegexp struct {
     Reason string `json:"reason,omitempty"`
     // Message 是用于匹配 Event 的 Message 字段的正则表达式。
     Message string `json:"message,omitempty"`
-    // From 是用于匹配 Event 的 From 字段的正则表达式。
-    // 所有 From 中的字段均为正则表达式。
-    From corev1.EventSource `json:"source,omitempty"`
-    // Type 是用于匹配 Event 的 Type 字段的正则表达式。
-    Type string `json:"type,omitempty"`
+    // Source 是用于匹配 Event 的 Source 字段的正则表达式。
+    // 所有 Source 中的字段均为正则表达式。
+    Source corev1.EventSource `json:"source,omitempty"`
 }
 
 // Trigger 的 API 对象。
@@ -207,7 +210,6 @@ type Trigger struct {
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
     Spec TriggerSpec `json:"spec,omitempty"`
-    Status TriggerStatus `json:"status,omitempty"`
 }
 ```
 
