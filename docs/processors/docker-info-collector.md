@@ -1,6 +1,6 @@
 # Docker Info Collector
 
-Docker Info Collector 是一个 [Processor](../architecture/processor.md)，用户可以通过 Docker Info Collector 获取节点上 Docker 系统信息。
+Docker Info Collector 是一个 [Processor](../design/processor.md)，用户可以通过 Docker Info Collector 获取节点上 Docker 系统信息。
 
 ## 背景
 
@@ -8,7 +8,7 @@ Docker Info Collector 是一个 [Processor](../architecture/processor.md)，用�
 
 ## 实现
 
-Docker Info Collector 按照 [Processor](../architecture/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Docker Info Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Docker Info Collector：
+Docker Info Collector 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Docker Info Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Docker Info Collector：
 
 ```bash
 $ $ kubectl get operation docker-info-collector -o yaml

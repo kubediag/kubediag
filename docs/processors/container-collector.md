@@ -1,6 +1,6 @@
 # Container Collector
 
-Container Collector 是一个 [Processor](../architecture/processor.md)，用户可以通过 Container Collector 采集节点上的容器信息。
+Container Collector 是一个 [Processor](../design/processor.md)，用户可以通过 Container Collector 采集节点上的容器信息。
 
 ## 背景
 
@@ -8,7 +8,7 @@ Container Collector 是一个 [Processor](../architecture/processor.md)，用户
 
 ## 实现
 
-Container Collector 按照 [Processor](../architecture/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Container Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Container Collector：
+Container Collector 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Container Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Container Collector：
 
 ```bash
 $ kubectl get operation container-collector -o yaml
