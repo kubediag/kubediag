@@ -269,7 +269,7 @@ func (in *Node) DeepCopyInto(out *Node) {
 	}
 	if in.Dependences != nil {
 		in, out := &in.Dependences, &out.Dependences
-		*out = make([]int, len(*in))
+		*out = make(NodeSet, len(*in))
 		copy(*out, *in)
 	}
 }

@@ -112,7 +112,7 @@ type DiagnosisStatus struct {
 	// FailedPaths contains all failed paths in diagnosis pipeline.
 	// The last node in the path is the one which fails to execute operation.
 	// +optional
-	FailedPaths []Path `json:"failedPath,omitempty"`
+	FailedPaths []Path `json:"failedPaths,omitempty"`
 	// SucceededPath is the succeeded paths in diagnosis pipeline.
 	// +optional
 	SucceededPath Path `json:"succeededPath,omitempty"`

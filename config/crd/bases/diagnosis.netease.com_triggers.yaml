@@ -111,9 +111,9 @@ spec:
                       type: string
                     parameterInjectionLabels:
                       description: ParameterInjectionLabels specifies the labels for
-                        setting ".spec.podReference.parameters" of generated diagnosis.
-                        All label names and values will be set as key value pairs
-                        in ".spec.podReference.parameters" field.
+                        setting ".spec.parameters" of generated diagnosis. All label
+                        names and values will be set as key value pairs in ".spec.parameters"
+                        field.
                       items:
                         description: A LabelName is a key for a LabelSet or Metric.  It
                           has a value associated therewith.

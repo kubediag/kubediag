@@ -40,9 +40,9 @@ type Node struct {
 	// It is empty if the node is the first in the list.
 	// +optional
 	Operation string `json:"operation,omitempty"`
-	// Dependences is the list of depended node ids. Operation results of depended nodes are used as input.
+	// Dependences is the list of depended node ids.
 	// +optional
-	Dependences []int `json:"dependences,omitempty"`
+	Dependences NodeSet `json:"dependences,omitempty"`
 }
 
 // NodeSet is the set of node ids.
@@ -53,7 +53,7 @@ type OperationSetStatus struct {
 	// Paths is the collection of all directed paths of the directed acyclic graph.
 	// +optional
 	Paths []Path `json:"paths,omitempty"`
-	// Specifies whether a valid directed acyclic graph can be generated via provided edges.
+	// Specifies whether a valid directed acyclic graph can be generated via provided nodes.
 	Ready bool `json:"ready"`
 }
 
