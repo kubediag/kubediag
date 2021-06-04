@@ -139,7 +139,7 @@ spec:
                 - type
                 type: object
               type: array
-            failedPath:
+            failedPaths:
               description: FailedPaths contains all failed paths in diagnosis pipeline.
                 The last node in the path is the one which fails to execute operation.
               items:
@@ -150,8 +150,7 @@ spec:
                     details of the operation.
                   properties:
                     dependences:
-                      description: Dependences is the list of depended node ids. Operation
-                        results of depended nodes are used as input.
+                      description: Dependences is the list of depended node ids.
                       items:
                         type: integer
                       type: array
@@ -206,8 +205,7 @@ spec:
                   details of the operation.
                 properties:
                   dependences:
-                    description: Dependences is the list of depended node ids. Operation
-                      results of depended nodes are used as input.
+                    description: Dependences is the list of depended node ids.
                     items:
                       type: integer
                     type: array
@@ -388,8 +386,7 @@ spec:
                   details of the operation.
                 properties:
                   dependences:
-                    description: Dependences is the list of depended node ids. Operation
-                      results of depended nodes are used as input.
+                    description: Dependences is the list of depended node ids.
                     items:
                       type: integer
                     type: array
@@ -426,8 +423,7 @@ spec:
                     details of the operation.
                   properties:
                     dependences:
-                      description: Dependences is the list of depended node ids. Operation
-                        results of depended nodes are used as input.
+                      description: Dependences is the list of depended node ids.
                       items:
                         type: integer
                       type: array
@@ -450,7 +446,7 @@ spec:
               type: array
             ready:
               description: Specifies whether a valid directed acyclic graph can be
-                generated via provided edges.
+                generated via provided nodes.
               type: boolean
           required:
           - ready
@@ -579,9 +575,9 @@ spec:
                       type: string
                     parameterInjectionLabels:
                       description: ParameterInjectionLabels specifies the labels for
-                        setting ".spec.podReference.parameters" of generated diagnosis.
-                        All label names and values will be set as key value pairs
-                        in ".spec.podReference.parameters" field.
+                        setting ".spec.parameters" of generated diagnosis. All label
+                        names and values will be set as key value pairs in ".spec.parameters"
+                        field.
                       items:
                         description: A LabelName is a key for a LabelSet or Metric.  It
                           has a value associated therewith.

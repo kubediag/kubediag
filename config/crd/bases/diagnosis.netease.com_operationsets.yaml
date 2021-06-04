@@ -51,8 +51,7 @@ spec:
                   details of the operation.
                 properties:
                   dependences:
-                    description: Dependences is the list of depended node ids. Operation
-                      results of depended nodes are used as input.
+                    description: Dependences is the list of depended node ids.
                     items:
                       type: integer
                     type: array
@@ -89,8 +88,7 @@ spec:
                     details of the operation.
                   properties:
                     dependences:
-                      description: Dependences is the list of depended node ids. Operation
-                        results of depended nodes are used as input.
+                      description: Dependences is the list of depended node ids.
                       items:
                         type: integer
                       type: array
@@ -113,7 +111,7 @@ spec:
               type: array
             ready:
               description: Specifies whether a valid directed acyclic graph can be
-                generated via provided edges.
+                generated via provided nodes.
               type: boolean
           required:
           - ready

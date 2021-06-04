@@ -61,8 +61,8 @@ type PrometheusAlertTemplate struct {
 	// The label value will be set as ".spec.podReference.container" field.
 	// +optional
 	ContainerReferenceLabel model.LabelName `json:"containerReferenceLabel,omitempty"`
-	// ParameterInjectionLabels specifies the labels for setting ".spec.podReference.parameters" of generated diagnosis.
-	// All label names and values will be set as key value pairs in ".spec.podReference.parameters" field.
+	// ParameterInjectionLabels specifies the labels for setting ".spec.parameters" of generated diagnosis.
+	// All label names and values will be set as key value pairs in ".spec.parameters" field.
 	// +optional
 	ParameterInjectionLabels []model.LabelName `json:"parameterInjectionLabels,omitempty"`
 }

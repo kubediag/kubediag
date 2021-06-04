@@ -1,6 +1,6 @@
 # Go Profiler
 
-Go Profiler 是一个 [Processor](../architecture/processor.md)，用户可以通过 Go Profiler 采集节点上的服务器性能信息。
+Go Profiler 是一个 [Processor](../design/processor.md)，用户可以通过 Go Profiler 采集节点上的服务器性能信息。
 
 ## 背景
 
@@ -8,7 +8,7 @@ Go Profiler 是一个 [Processor](../architecture/processor.md)，用户可以�
 
 ## 实现
 
-Go Profiler 按照 [Processor](../architecture/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Go Profiler，该 Operation 在 Kube Diagnoser Agent 部署时已默认注册，执行下列命令可以查看已注册的 Go Profiler：
+Go Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Go Profiler，该 Operation 在 Kube Diagnoser Agent 部署时已默认注册，执行下列命令可以查看已注册的 Go Profiler：
 
 ```bash
 $ kubectl get operation go-profiler -o yaml
@@ -38,7 +38,7 @@ POST /processor/goprofiler
 
 #### 请求体参数
 
-```
+```json
 {
   "source": "https://10.0.2.15:6443",                // 指定要剖析的地址
   "type": "Heap",                                    // 指定要剖析的类型
@@ -82,7 +82,7 @@ Visit http://10.0.2.15:35869, this server will expire in 300 seconds.
 
 这部分信息将会记录在 Diagnosis 对象的 status 中， 如下：
 
-```
+```yaml
 apiVersion: diagnosis.netease.com/v1
 kind: Diagnosis
 metadata:
@@ -104,7 +104,7 @@ status:
 
 1. 以访问 Kube Diagnoser 自身的8090端口为例，创建 OperationSet 和 Diagnosis:
 
-```
+```yaml
 apiVersion: diagnosis.netease.com/v1
 kind: OperationSet
 metadata:
@@ -121,7 +121,7 @@ apiVersion: diagnosis.netease.com/v1
 kind: Diagnosis
 metadata:
   name: go-profiler
-spec: 
+spec:
   parameters:
     1: |
       {
@@ -135,7 +135,7 @@ spec:
 
 该 Diagnosis 定义了一个需要执行的 Go 语言内存性能剖析。Go 语言程序的性能剖析数据访问地址为 `http://127.0.0.1:8090`，性能剖析提供服务的有效时间为 300 秒。性能剖析的执行结果会被同步到 `operationResults` 中：
 
-```
+```yaml
 status:
   operationResults:
     "1":

@@ -1,6 +1,6 @@
 # Containerd Goroutine Collector
 
-Containerd Goroutine Collector 是一个 [Processor](../architecture/processor.md)，用户可以通过 Containerd Goroutine Collector 获取节点上 Containerd 栈信息。
+Containerd Goroutine Collector 是一个 [Processor](../design/processor.md)，用户可以通过 Containerd Goroutine Collector 获取节点上 Containerd 栈信息。
 
 ## 背景
 
@@ -8,7 +8,7 @@ Containerd Goroutine Collector 是一个 [Processor](../architecture/processor.m
 
 ## 实现
 
-Containerd Goroutine Collector 按照 [Processor](../architecture/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Containerd Goroutine Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Containerd Goroutine Collector：
+Containerd Goroutine Collector 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Containerd Goroutine Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Containerd Goroutine Collector：
 
 ```bash
 $ kubectl get operation dockerd-goroutine-collector -o yaml

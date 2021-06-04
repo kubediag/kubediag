@@ -141,7 +141,7 @@ spec:
                 - type
                 type: object
               type: array
-            failedPath:
+            failedPaths:
               description: FailedPaths contains all failed paths in diagnosis pipeline.
                 The last node in the path is the one which fails to execute operation.
               items:
@@ -152,8 +152,7 @@ spec:
                     details of the operation.
                   properties:
                     dependences:
-                      description: Dependences is the list of depended node ids. Operation
-                        results of depended nodes are used as input.
+                      description: Dependences is the list of depended node ids.
                       items:
                         type: integer
                       type: array
@@ -208,8 +207,7 @@ spec:
                   details of the operation.
                 properties:
                   dependences:
-                    description: Dependences is the list of depended node ids. Operation
-                      results of depended nodes are used as input.
+                    description: Dependences is the list of depended node ids.
                     items:
                       type: integer
                     type: array
