@@ -24,7 +24,6 @@ import (
 	"os/exec"
 
 	"github.com/go-logr/logr"
-	"k8s.io/klog"
 )
 
 const (
@@ -77,6 +76,7 @@ func (srr *subPathRemountRecover) Handler(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+		srr.Info("will umount subpath", "target", target)
 		err = unmountInHost(target)
 		if err != nil {
 			srr.Error(err, "failed to umount", "target", target)
@@ -101,7 +101,6 @@ func (srr *subPathRemountRecover) Handler(w http.ResponseWriter, r *http.Request
 
 // unmountInHost unmounts the target.
 func unmountInHost(target string) error {
-	klog.V(4).Infof("Unmounting %s", target)
 	command := exec.Command("nsenter", "-t", "1", "--mount", "umount", target)
 	output, err := command.CombinedOutput()
 	if err != nil {
