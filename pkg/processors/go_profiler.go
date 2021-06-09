@@ -43,6 +43,16 @@ import (
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
+const (
+	ParameterKeyGoProfilerExpirationSeconds  = "goprofiler.expirationseconds"
+	ParameterKeyGoProfilerType               = "goprofiler.type"
+	ParameterKeyGoProfilerSource             = "goprofiler.source"
+	ParameterKeyGoProfilerTLSSecretNamespace = "goprofiler.tls.secretReference.namespace"
+	ParameterKeyGoProfilerTLSSecretName      = "goprofiler.tls.secretReference.name"
+
+	ContextKeyGoProfilerResultEndpoint = "diagnoser.runtime.goprofiler.result.endpoint"
+)
+
 // goProfiler manages information of all pods on the node.
 type goProfiler struct {
 	// Context carries values across API boundaries.
@@ -136,27 +146,42 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		// TODO: Support TLS via map[string]string struct.
-		expirationSeconds, err := strconv.Atoi(contexts["expirationSeconds"])
-		if err != nil {
-			gp.Error(err, "invalid expirationSeconds field")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		var expirationSeconds int
+		if _, ok := contexts[ParameterKeyGoProfilerExpirationSeconds]; !ok {
+			expirationSeconds = DefaultExpirationSeconds
+		} else {
+			expirationSeconds, err = strconv.Atoi(contexts[ParameterKeyGoProfilerExpirationSeconds])
+			if err != nil {
+				gp.Error(err, "invalid expirationSeconds field")
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if expirationSeconds <= 0 {
+				expirationSeconds = DefaultExpirationSeconds
+			}
 		}
+
 		parameter := goProfilerRequestParameter{
-			GoProfilerType:    goProfilerType(contexts["type"]),
-			Source:            contexts["source"],
+			GoProfilerType:    goProfilerType(contexts[ParameterKeyGoProfilerType]),
+			Source:            contexts[ParameterKeyGoProfilerSource],
 			ExpirationSeconds: int64(expirationSeconds),
+			TLS: goProfilerTLS{
+				SecretReference: diagnosisv1.NamespacedName{
+					Namespace: contexts[ParameterKeyGoProfilerTLSSecretNamespace],
+					Name:      contexts[ParameterKeyGoProfilerTLSSecretName],
+				},
+			},
 		}
 
-		if parameter.ExpirationSeconds <= 0 {
-			parameter.ExpirationSeconds = DefaultExpirationSeconds
-		}
 		if parameter.GoProfilerType != cpuGoProfilerType && parameter.GoProfilerType != goroutineGoProfilerType &&
 			parameter.GoProfilerType != heapGoProfilerType {
 			http.Error(w, fmt.Sprintf("Go profiler type must be Profile, Heap or Goroutine."), http.StatusNotAcceptable)
 			return
+		}
+		if parameter.Source == "" {
+			http.Error(w, fmt.Sprintf("Must specify go profiler source."), http.StatusNotAcceptable)
+			return
+
 		}
 		if strings.HasPrefix(parameter.Source, "https") {
 			if parameter.TLS.SecretReference.Name == "" {
@@ -176,7 +201,7 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := make(map[string]string)
-		result["goprofiler.endpoint"] = endpoint
+		result[ContextKeyGoProfilerResultEndpoint] = endpoint
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal go profiler results: %v", err), http.StatusInternalServerError)
