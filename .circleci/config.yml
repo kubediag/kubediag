@@ -1,20 +1,59 @@
 version: 2.1
-
 jobs:
   # Compile and test code.
   compile_and_test:
-    docker:
-      - image: circleci/golang:1.14
+    machine: 
+      image: ubuntu-2004:202010-01
+    working_directory: ~/go/src/github.com/kube-diagnoser/kube-diagnoser
     steps:
       - checkout
       - run:
           name: Compile code
           command: |
-            go build -mod vendor -o bin/kube-diagnoser main.go
+            make kube-diagnoser
       - run:
           name: Run unit tests
           command: |
-            go test ./pkg/... -coverprofile cover.out
+            make test
+      # run e2e test
+      - run:
+          name: Create cluster
+          command: |
+            swapoff -a
+            apt-get update && apt-get install -y apt-transport-https ca-certificates curl
+            sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+            echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get update
+            sudo apt-get install -y kubectl=1.17.3-00 kubelet=1.17.3-00 kubeadm=1.17.3-00
+            sudo apt-mark hold kubelet kubeadm kubectl
+            sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+            mkdir -p $HOME/.kube
+            sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+            sudo chown $(id -u):$(id -g) $HOME/.kube/config
+            kubectl taint nodes --all node-role.kubernetes.io/master-
+            kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      - run:
+          name: Run e2e tests
+          command: |
+            # Deploy cert-manager in the configured Kubernetes cluster
+            kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.yaml
+            kubectl wait deployment/cert-manager --for=condition=available --timeout=120s -n cert-manager
+            kubectl wait deployment/cert-manager-cainjector --for=condition=available --timeout=120s -n cert-manager
+            kubectl wait deployment/cert-manager-webhook --for=condition=available --timeout=120s -n cert-manager
+            kubectl create ns kube-diagnoser
+            make install
+            # disable prometheus in e2e test
+            sed -i '25d' config/default/kustomization.yaml
+            make manifests
+            make docker-build
+            # build deployment and service first
+            kubectl apply -f config/deploy/manifests.yaml
+            kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=agent
+            kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=master
+            # wait for webhook service ready
+            sleep 10
+            kubectl apply -f config/deploy/
+            make e2e
   # Build and push docker image.
   build_and_push:
     environment:
