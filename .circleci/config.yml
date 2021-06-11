@@ -51,8 +51,7 @@ jobs:
             kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=agent
             kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=master
             # wait for webhook service ready
-            sleep 10
-            kubectl apply -f config/deploy/
+            for (( c=1; c<=5; c++ )); do if( kubectl apply -f config/deploy/ ); then break ;fi ;sleep 10; done
             make e2e
   # Build and push docker image.
   build_and_push:
