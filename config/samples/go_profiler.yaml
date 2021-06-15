@@ -16,17 +16,10 @@ metadata:
   name: go-profiler
 spec: 
   parameters:
-    1: |
-      {
-        "source": "https://10.0.2.15:6443",
-        "type": "Heap",
-        "tls":{
-          "secretReference": {
-             "name": "<secret-name>",
-             "namespace": "<secret-namespace>"
-          }
-        },
-        "expirationSeconds": 7200
-      }
+    goprofiler.expirationseconds: "7200"
+    goprofiler.type: Heap
+    goprofiler.source: https://10.0.2.15:6443
+    goprofiler.tls.secretReference.namespace: kube-diagnoser
+    goprofiler.tls.secretReference.name: apiserver-profiler-sa-token-qz2t9
   operationSet: go-profiler
-  nodeName: shujiang-virtualbox
+  nodeName: my-node
