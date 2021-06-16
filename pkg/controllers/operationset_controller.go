@@ -18,14 +18,27 @@ package controllers
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+)
+
+var (
+	operationsetInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "operationset_info",
+			Help: "Information about operationset",
+		},
+		[]string{"name", "ready"},
+	)
 )
 
 // OperationSetReconciler reconciles a OperationSet object.
@@ -43,6 +56,9 @@ func NewOperationSetReconciler(
 	scheme *runtime.Scheme,
 	graphBuilderCh chan diagnosisv1.OperationSet,
 ) *OperationSetReconciler {
+	metrics.Registry.MustRegister(
+		operationsetInfo,
+	)
 	return &OperationSetReconciler{
 		Client:         cli,
 		Log:            log,
@@ -60,6 +76,7 @@ func (r *OperationSetReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	log := r.Log.WithValues("operationSet", req.NamespacedName)
 
 	log.Info("reconciling OperationSet")
+	r.collectOperationsetMetrics(ctx, log)
 
 	var operationSet diagnosisv1.OperationSet
 	if err := r.Get(ctx, req.NamespacedName, &operationSet); err != nil {
@@ -109,4 +126,19 @@ func (r *OperationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.OperationSet{}).
 		Complete(r)
+}
+
+func (r *OperationSetReconciler) collectOperationsetMetrics(ctx context.Context, log logr.Logger) {
+	var operationsetList diagnosisv1.OperationSetList
+	err := r.Client.List(ctx, &operationsetList)
+	if err != nil {
+		log.Error(err, "Error in collect Operationset metrics")
+		return
+	}
+
+	operationsetInfo.Reset()
+	for _, ops := range operationsetList.Items {
+		operationsetInfo.WithLabelValues(ops.Name, strconv.FormatBool(ops.Status.Ready)).Set(1)
+	}
+	log.Info("Collected operationset metrics.")
 }

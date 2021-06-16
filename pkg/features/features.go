@@ -22,7 +22,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/component-base/featuregate"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
@@ -132,6 +134,16 @@ const (
 	SubpathRemountDiagnoser featuregate.Feature = "SubpathRemountDiagnoser"
 )
 
+var (
+	featureGateInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "feature_gate",
+			Help: "Information about feature gate",
+		},
+		[]string{"name", "enabled"},
+	)
+)
+
 var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
@@ -172,8 +184,11 @@ type kubeDiagnoserFeatureGate struct {
 	enabled *atomic.Value
 }
 
+var metricRegistry sync.Once
+
 // NewFeatureGate creates a new KubeDiagnoserFeatureGate.
 func NewFeatureGate() KubeDiagnoserFeatureGate {
+	metricRegistry.Do(func() { metrics.Registry.MustRegister(featureGateInfo) })
 	// Set default known features.
 	knownMap := make(map[featuregate.Feature]featuregate.FeatureSpec)
 	for key, value := range defaultKubeDiagnoserFeatureGates {
@@ -256,4 +271,16 @@ func (kf *kubeDiagnoserFeatureGate) SetFromMap(featureMap map[string]bool) error
 	kf.enabled.Store(enabledMap)
 
 	return nil
+}
+
+// Collect feature gate metrics.
+func Collect(features KubeDiagnoserFeatureGate) {
+	featureGateInfo.Reset()
+	for key := range defaultKubeDiagnoserFeatureGates {
+		if features.Enabled(key) {
+			featureGateInfo.WithLabelValues(string(key), "true").Set(1)
+		} else {
+			featureGateInfo.WithLabelValues(string(key), "false").Set(1)
+		}
+	}
 }

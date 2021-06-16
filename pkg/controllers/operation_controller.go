@@ -30,63 +30,66 @@ import (
 )
 
 var (
-	triggerInfo = prometheus.NewGaugeVec(
+	operationInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "trigger_info",
-			Help: "Information about trigger",
+			Name: "operation_info",
+			Help: "Information about Operation",
 		},
 		[]string{"name"},
 	)
 )
 
-// TriggerReconciler reconciles a Trigger object.
-type TriggerReconciler struct {
+// OperationReconciler reconciles a Operation object.
+type OperationReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-func NewTriggerReconciler(
+func NewOperationReconciler(
 	cli client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
-) *TriggerReconciler {
-	metrics.Registry.MustRegister(triggerInfo)
-	return &TriggerReconciler{
+) *OperationReconciler {
+	metrics.Registry.MustRegister(
+		operationInfo,
+	)
+	return &OperationReconciler{
 		Client: cli,
 		Log:    log,
 		Scheme: scheme,
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=triggers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=triggers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=Operations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=Operations/status,verbs=get;update;patch
 
-func (r *TriggerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("trigger", req.NamespacedName)
-	r.collectTriggerMetrics(ctx, log)
+	log := r.Log.WithValues("operation", req.NamespacedName)
+	r.collectOperationMetrics(ctx, log)
 
 	return ctrl.Result{}, nil
 }
 
-func (r *TriggerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *OperationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&diagnosisv1.Trigger{}).
+		For(&diagnosisv1.Operation{}).
 		Complete(r)
 }
 
-func (r *TriggerReconciler) collectTriggerMetrics(ctx context.Context, log logr.Logger) {
-	var triggerList diagnosisv1.TriggerList
-	err := r.Client.List(ctx, &triggerList)
+func (r *OperationReconciler) collectOperationMetrics(ctx context.Context, log logr.Logger) {
+	var operationList diagnosisv1.OperationList
+	err := r.Client.List(ctx, &operationList)
 	if err != nil {
-		log.Error(err, "Error in collect trigger metrics")
+		log.Error(err, "Error in collect Operation metrics")
 		return
 	}
 
-	triggerInfo.Reset()
-	for _, tg := range triggerList.Items {
-		triggerInfo.WithLabelValues(tg.Name).Set(1)
+	operationInfo.Reset()
+	for _, op := range operationList.Items {
+		operationInfo.WithLabelValues(op.Name).Set(1)
 	}
-	log.Info("Collected trigger metrics.")
+	log.Info("Collected operation metrics.")
+
 }

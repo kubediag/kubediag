@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,9 +29,31 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+)
+
+var (
+	graphbuilderSyncSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "graphbuilder_sync_success_count",
+			Help: "Counter of successful operationset syncs by graphbuilder",
+		},
+	)
+	graphbuilderSyncSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "graphbuilder_sync_skip_count",
+			Help: "Counter of skipped operationset syncs by graphbuilder",
+		},
+	)
+	graphbuilderSyncErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "graphbuilder_sync_error_count",
+			Help: "Counter of erroneous operationset syncs by graphbuilder",
+		},
+	)
 )
 
 // GraphBuilder analyzes directed acyclic graph defined in operation set.
@@ -73,6 +96,11 @@ func NewGraphBuilder(
 	cache cache.Cache,
 	graphBuilderCh chan diagnosisv1.OperationSet,
 ) GraphBuilder {
+	metrics.Registry.MustRegister(
+		graphbuilderSyncSuccessCount,
+		graphbuilderSyncSkipCount,
+		graphbuilderSyncErrorCount,
+	)
 	return &graphBuilder{
 		Context:        ctx,
 		Logger:         logger,
@@ -96,6 +124,7 @@ func (gb *graphBuilder) Run(stopCh <-chan struct{}) {
 		select {
 		// Process operation sets queuing in graph builder channel.
 		case operationSet := <-gb.graphBuilderCh:
+
 			err := gb.client.Get(gb, client.ObjectKey{
 				Name: operationSet.Name,
 			}, &operationSet)
@@ -109,6 +138,7 @@ func (gb *graphBuilder) Run(stopCh <-chan struct{}) {
 
 			// Only process unready operation set.
 			if operationSet.Status.Ready {
+				graphbuilderSyncSkipCount.Inc()
 				continue
 			}
 
@@ -118,6 +148,7 @@ func (gb *graphBuilder) Run(stopCh <-chan struct{}) {
 				gb.addDiagnosisToGraphBuilderQueue(operationSet)
 				continue
 			}
+			graphbuilderSyncSuccessCount.Inc()
 		// Stop graph builder on stop signal.
 		case <-stopCh:
 			return
@@ -190,6 +221,7 @@ func (gb *graphBuilder) syncOperationSet(operationSet diagnosisv1.OperationSet) 
 
 // addDiagnosisToGraphBuilderQueue adds OperationSets to the queue processed by graph builder.
 func (gb *graphBuilder) addDiagnosisToGraphBuilderQueue(operationSet diagnosisv1.OperationSet) {
+	graphbuilderSyncErrorCount.Inc()
 	err := util.QueueOperationSet(gb, gb.graphBuilderCh, operationSet)
 	if err != nil {
 		gb.Error(err, "failed to send operation set to graph builder queue", "operationset", client.ObjectKey{

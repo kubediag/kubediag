@@ -89,28 +89,22 @@ var (
 			Help: "Counter of erroneous diagnosis syncs by executor",
 		},
 	)
-	executorCommandExecutorSuccessCount = prometheus.NewCounter(
+	executorOperationErrorCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "executor_command_executor_success_count",
-			Help: "Counter of successful command executor runs by executor",
+			Name: "executor_operation_error_counter",
+			Help: "Counter of erroneous diagnosis syncs by operation",
 		},
 	)
-	executorCommandExecutorFailCount = prometheus.NewCounter(
+	executorOperationSuccessCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "executor_command_executor_fail_count",
-			Help: "Counter of failed command executor runs by executor",
+			Name: "executor_operation_success_counter",
+			Help: "Counter of success diagnosis syncs by operation",
 		},
 	)
-	executorProfilerSuccessCount = prometheus.NewCounter(
+	executorOperationFailCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "executor_profiler_success_count",
-			Help: "Counter of successful profiler runs by executor",
-		},
-	)
-	executorProfilerFailCount = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "executor_profiler_fail_count",
-			Help: "Counter of failed profiler runs by executor",
+			Name: "executor_operation_fail_counter",
+			Help: "Counter of fail diagnosis syncs by operation",
 		},
 	)
 )
@@ -173,10 +167,9 @@ func NewExecutor(
 		executorSyncSkipCount,
 		executorSyncFailCount,
 		executorSyncErrorCount,
-		executorCommandExecutorSuccessCount,
-		executorCommandExecutorFailCount,
-		executorProfilerSuccessCount,
-		executorProfilerFailCount,
+		executorOperationErrorCounter,
+		executorOperationSuccessCounter,
+		executorOperationFailCounter,
 	)
 
 	transport := utilnet.SetTransportDefaults(
@@ -420,6 +413,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 	// Execute the operation by sending http request to the processor.
 	succeeded, result, err := ex.doHTTPRequestWithContext(operation, data)
 	if err != nil {
+		executorOperationErrorCounter.Inc()
 		return diagnosis, err
 	}
 
@@ -430,6 +424,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 			Namespace: diagnosis.Namespace,
 		}, "node", node, "operationset", operationset.Name, "path", path)
 		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "OperationSucceeded", "Operation %s executed successfully", operation.Name)
+		executorOperationSuccessCounter.Inc()
 
 		// Set operation result according to response from operaton processor.
 		if diagnosis.Status.OperationResults == nil {
@@ -475,6 +470,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 			Namespace: diagnosis.Namespace,
 		}, "node", node, "operationset", operationset.Name, "path", path)
 		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "OperationFailed", "Failed to execute operation %s", operation.Name)
+		executorOperationFailCounter.Inc()
 
 		// Set current path as failed path and clear succeeded path if current operation is failed.
 		if diagnosis.Status.FailedPaths == nil {

@@ -24,10 +24,12 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	kafkago "github.com/segmentio/kafka-go"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
@@ -61,6 +63,26 @@ var (
 	// KafkaMessageContainerKey is the key to specify container in kafka messages.
 	KafkaMessageContainerKey = "container"
 )
+var (
+	kafkaReceivedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_received_count",
+			Help: "Counter of messages received by kafka",
+		},
+	)
+	kafkaDiagnosisGenerationSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_diagnosis_generation_success_count",
+			Help: "Counter of successful diagnosis generations by kafka",
+		},
+	)
+	kafkaDiagnosisGenerationErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_diagnosis_generation_error_count",
+			Help: "Counter of erroneous diagnosis generations by kafka",
+		},
+	)
+)
 
 // Consumer consumes kafka messages and create diagnoses from messages.
 type Consumer interface {
@@ -91,6 +113,11 @@ func NewConsumer(
 	topic string,
 	kafkaConsumerEnabled bool,
 ) (Consumer, error) {
+	metrics.Registry.MustRegister(
+		kafkaReceivedCount,
+		kafkaDiagnosisGenerationSuccessCount,
+		kafkaDiagnosisGenerationErrorCount,
+	)
 	if len(brokers) == 0 || topic == "" {
 		return nil, fmt.Errorf("kafka broker and topic are not specified")
 	}
@@ -127,6 +154,7 @@ func (c *consumer) Run(stopCh <-chan struct{}) {
 		case <-stopCh:
 			return
 		default:
+			kafkaReceivedCount.Inc()
 			message, err := c.reader.ReadMessage(context.Background())
 			if err != nil {
 				c.Error(err, "failed to read message")
@@ -138,6 +166,7 @@ func (c *consumer) Run(stopCh <-chan struct{}) {
 			diagnosis, err := c.createDiagnosisFromMessageValue(message)
 			if err != nil {
 				c.Error(err, "failed to creating Diagnosis from kafka message")
+				kafkaDiagnosisGenerationErrorCount.Inc()
 				continue
 			}
 
@@ -147,6 +176,7 @@ func (c *consumer) Run(stopCh <-chan struct{}) {
 					Namespace: diagnosis.Namespace,
 				})
 			}
+			kafkaDiagnosisGenerationSuccessCount.Inc()
 		}
 	}
 }

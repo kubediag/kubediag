@@ -21,14 +21,73 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+)
+
+// Kubediag master metrics
+var (
+	diagnosisMasterSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_master_skip_count",
+			Help: "Counter of diagnosis sync skip by kubediag master",
+		},
+	)
+	diagnosisMasterAssignNodeCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_master_assign_node_count",
+			Help: "Counter of diagnosis sync by kubediag master",
+		},
+	)
+	diagnosisTotalCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_total_count",
+			Help: "Counter of total diagnosis",
+		},
+	)
+	diagnosisTotalSuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_total_success_count",
+			Help: "Counter of total success diagnosis",
+		},
+	)
+	diagnosisTotalFailCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_total_fail_count",
+			Help: "Counter of total fail diagnosis",
+		},
+	)
+	diagnosisInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "diagnosis_info",
+			Help: "Information about diagnosis",
+		},
+		[]string{"name", "operationset", "phase"},
+	)
+)
+
+// Kubediag agent metrics
+var (
+	diagnosisAgentSkipCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_agent_skip_count",
+			Help: "Counter of diagnosis sync skip by agent",
+		},
+	)
+	diagnosisAgentQueuedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_agent_queued_count",
+			Help: "Counter of diagnosis sync queued by agent",
+		},
+	)
 )
 
 // DiagnosisReconciler reconciles a Diagnosis object.
@@ -51,6 +110,22 @@ func NewDiagnosisReconciler(
 	nodeName string,
 	executorCh chan diagnosisv1.Diagnosis,
 ) *DiagnosisReconciler {
+	if mode == "master" {
+		metrics.Registry.MustRegister(
+			diagnosisMasterSkipCount,
+			diagnosisMasterAssignNodeCount,
+			diagnosisTotalCount,
+			diagnosisTotalSuccessCount,
+			diagnosisTotalFailCount,
+			diagnosisInfo,
+		)
+	} else if mode == "agent" {
+		metrics.Registry.MustRegister(
+			diagnosisAgentSkipCount,
+			diagnosisAgentQueuedCount,
+		)
+	}
+
 	return &DiagnosisReconciler{
 		Client:     cli,
 		Log:        log,
@@ -79,6 +154,9 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	log.Info("reconciling Diagnosis")
 
+	// Classify and calculate diagnosis according to the phase.
+	r.collectDiagnosisMetricsWithPhase(ctx, log)
+
 	var diagnosis diagnosisv1.Diagnosis
 	if err := r.Get(ctx, req.NamespacedName, &diagnosis); err != nil {
 		log.Error(err, "unable to fetch Diagnosis")
@@ -93,6 +171,10 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if diagnosis.Spec.NodeName == "" && diagnosis.Spec.PodReference == nil {
 				// Ignore diagnosis if nodeName and podReference are both empty.
 				log.Error(fmt.Errorf("nodeName and podReference are both empty"), "ignoring invalid Diagnosis")
+
+				diagnosisMasterSkipCount.Inc()
+				diagnosisTotalCount.Inc()
+
 				return ctrl.Result{}, nil
 			} else if diagnosis.Spec.NodeName == "" {
 				// Set diagnosis NodeName if NodeName is empty and PodReference is not nil.
@@ -110,6 +192,8 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					log.Error(err, "unable to update Diagnosis")
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
+
+				diagnosisMasterAssignNodeCount.Inc()
 			} else {
 				log.Info("diagnosis accepted by kube diagnoser master", "diagnosis", client.ObjectKey{
 					Name:      diagnosis.Name,
@@ -122,7 +206,12 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					log.Error(err, "unable to update Diagnosis")
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
+				diagnosisTotalCount.Inc()
 			}
+		case diagnosisv1.DiagnosisFailed:
+			diagnosisTotalFailCount.Inc()
+		case diagnosisv1.DiagnosisSucceeded:
+			diagnosisTotalSuccessCount.Inc()
 		}
 	} else if r.mode == "agent" {
 		if !util.IsDiagnosisNodeNameMatched(diagnosis, r.nodeName) {
@@ -152,11 +241,13 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err != nil {
 				log.Error(err, "failed to send diagnosis to executor queue")
 			}
+			diagnosisAgentQueuedCount.Inc()
 		case diagnosisv1.DiagnosisRunning:
 			err := util.QueueDiagnosis(ctx, r.executorCh, diagnosis)
 			if err != nil {
 				log.Error(err, "failed to send diagnosis to executor queue")
 			}
+			diagnosisAgentQueuedCount.Inc()
 		case diagnosisv1.DiagnosisSucceeded:
 			log.Info("ignoring Diagnosis in phase Succeeded")
 		case diagnosisv1.DiagnosisFailed:
@@ -174,4 +265,22 @@ func (r *DiagnosisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.Diagnosis{}).
 		Complete(r)
+}
+
+func (r *DiagnosisReconciler) collectDiagnosisMetricsWithPhase(ctx context.Context, log logr.Logger) {
+	if r.mode == "agent" {
+		return
+	}
+
+	var diagnosisList diagnosisv1.DiagnosisList
+	if err := r.List(ctx, &diagnosisList); err != nil {
+		log.Error(err, "Error in collect diagnosis metrics")
+		return
+	}
+
+	diagnosisInfo.Reset()
+	for _, diag := range diagnosisList.Items {
+		diagnosisInfo.WithLabelValues(diag.Name, diag.Spec.OperationSet, string(diag.Status.Phase)).Set(1)
+	}
+	return
 }
