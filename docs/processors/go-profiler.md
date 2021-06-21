@@ -23,7 +23,7 @@ metadata:
   uid: 933bb82d-4b54-49fa-8035-7dafd2b2ffe5
 spec:
   processor:
-    path: /processor/goprofiler
+    path: /processor/goProfiler
     scheme: http
     timeoutSeconds: 60
 ```
@@ -34,25 +34,21 @@ Go Profiler 处理的请求必须为 POST 类型，处理的 HTTP 请求中必�
 
 #### HTTP 请求
 
-POST /processor/goprofiler
+POST /processor/goProfiler
 
 #### 请求体参数
 
 ```json
 {
-  "source": "https://10.0.2.15:6443",                // 指定要剖析的地址
-  "type": "Heap",                                    // 指定要剖析的类型
-  "tls":{                                            // 用于连接 HTTPS 类型的 `source` 的 TLS 参数
-    "secretReference": {                             // 指定 Secert 的 Name 与 Namespace
-      "name": "apiserver-profiler-sa-token-gj9x8",
-      "namespace": "kube-diagnoser"
-    }
-  },
-  "expirationSeconds": 300                           // 过期时间
+  "param.diagnoser.runtime.go_profiler.source": "https://10.0.2.15:6443",                // 指定要剖析的地址
+  "param.diagnoser.runtime.go_profiler.type": "Heap",                                    // 指定要剖析的类型
+  "param.diagnoser.runtime.go_profiler.tls.secret_reference.name": "apiserver-profiler-sa-token-gj9x8",
+  "param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace": "kube-diagnoser",
+  "param.diagnoser.runtime.go_profiler.expiration_seconds": 300                           // 过期时间
 }
 ```
 
-请求体中的参数：
+请求体中的参数(为方便阅读此处省略了较长的前缀)：
 
 - `source` 是 Go 语言性能剖析器源。通常是一个 HTTP 访问路径。
 - `type` 表示 Go 语言性能剖析器的类型。支持 Profile、Heap、Goroutine 类型。
@@ -60,7 +56,7 @@ POST /processor/goprofiler
   - Heap：内存分析，在应用程序堆栈分配时记录跟踪，用于监视当前和历史内存使用情况，检查内存泄漏情况。
   - Goroutine：Goroutine 分析，对所有当前 Goroutine 的堆栈跟踪。
 - `tls` 表示连接到远程 HTTPS 服务器时要用到的 TLS 配置。对于非 HTTPS 类型的 `source` 不必填写此参数。
-  - `secretReference` 是包含 Token 内容的 Secret 引用，用于连接远程 HTTPS 服务器。
+  - `secretReference` 是包含 Token 内容的 Secret 引用，用于连接远程 HTTPS 服务器。其下包含了 `namespace`  和 `name` 用于描述指定的 secret 对象
 - `expirationSeconds` 是 Go Profiler 提供服务的有效时间，超时后 `OperationResults` 中的 Server 将不可访问。
 
 #### 状态码
@@ -74,7 +70,7 @@ POST /processor/goprofiler
 
 #### 返回体
 
-HTTP 请求返回体格式为 String ，结果中包含 Go Profiler 提供的 HTTP 服务地址与此服务的过期时间：
+HTTP 请求返回体格式为 map[string]string ，结果中包含 Go Profiler 提供的 HTTP 服务地址与此服务的过期时间：
 
 ```
 Visit http://10.0.2.15:35869, this server will expire in 300 seconds.
@@ -94,9 +90,7 @@ status:
   phase: Succeeded
   ...
   operationResults:
-    "1":
-      operation: go-profiler
-      result: '"Visit http://10.0.2.15:35869, this server will expire in 300 seconds."'
+    diagnoser.runtime.go_profiler.result.endpoint: '"Visit http://10.0.2.15:35869, this server will expire in 300 seconds."'
   ...
 ```
 
@@ -138,9 +132,7 @@ spec:
 ```yaml
 status:
   operationResults:
-    "1":
-      operation: go-profiler
-      result: '"Visit http://10.0.2.15:42359, this server will expire in 300 seconds."'
+    diagnoser.runtime.go_profiler.result.endpoint: '"Visit http://10.0.2.15:42359, this server will expire in 300 seconds."'
   phase: Succeeded
   startTime: "2021-04-16T06:12:53Z"
   succeededPath:

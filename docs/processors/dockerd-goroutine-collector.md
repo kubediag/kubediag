@@ -23,7 +23,7 @@ metadata:
   uid: bbba5c0d-2bb1-49e2-925a-b6f2643a79fb
 spec:
   processor:
-    path: /processor/dockerdgoroutinecollector
+    path: /processor/dockerdGoroutineCollector
     scheme: http
     timeoutSeconds: 60
 ```
@@ -46,7 +46,7 @@ POST /processor/dockerdgoroutinecollector
 
 #### 返回体参数
 
-JSON 返回体格式为 JSON 对象，对象中包含存有 Dockerd 栈信息日志路径的 String 键值对。键为 `dockerd.goroutine`，值为 Dockerd 栈信息日志路径。
+JSON 返回体格式为 JSON 对象，对象中包含存有 Dockerd 栈信息日志路径的 String 键值对。键为 `collector.runtime.dockerd.goroutine`，值为 Dockerd 栈信息日志路径。
 
 ### 举例说明
 
@@ -58,7 +58,7 @@ JSON 返回体格式为 JSON 对象，对象中包含存有 Dockerd 栈信息日
 
 ```json
 {
-    "dockerd.goroutine": "/var/lib/kube-diagnoser/dockerd-goroutine/goroutine-stacks-2021-05-17T172336+0800.log"
+    "collector.runtime.dockerd.goroutine": "/var/lib/kube-diagnoser/dockerd-goroutine/goroutine-stacks-2021-05-17T172336+0800.log"
 }
 ```
 

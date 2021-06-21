@@ -1,6 +1,6 @@
-# Corefile Profiler
+# Core File Profiler
 
-Corefile Profiler 是一个 [Processor](../design/processor.md)，用户可以通过 Corefile Profiler 采集节点上容器的 coredump 信息或直接进行 gdb 调试。
+Core File Profiler 是一个 [Processor](../design/processor.md)，用户可以通过 Core File Profiler 采集节点上容器的 coredump 信息或直接进行 gdb 调试。
 
 ## 背景
 
@@ -8,20 +8,20 @@ Corefile Profiler 是一个 [Processor](../design/processor.md)，用户可以�
 
 ## 实现
 
-Corefile Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Corefile Profiler，该 Operation 在 Kube Diagnoser Agent 部署时已默认注册，执行下列命令可以查看已注册的 Corefile Profiler：
+Core File Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Core File Profiler，该 Operation 在 Kube Diagnoser Agent 部署时默认注册，但整体功能是关闭的，可以在部署  Kube Diagnoser Agent 时在启动参数中配置：`--feature-gates=CorefileProfiler=true` 打开该功能，执行下列命令可以查看已注册的 Core File Profiler：
 
 ```bash
-$ kubectl  get operation corefile-profiler -o yaml
+$ kubectl  get operation core-file-profiler -o yaml
 apiVersion: diagnosis.netease.com/v1
 kind: Operation
 metadata:
-  name: corefile-profiler
+  name: core-file-profiler
   resourceVersion: "57862"
-  selfLink: /apis/diagnosis.netease.com/v1/operations/corefile-profiler
+  selfLink: /apis/diagnosis.netease.com/v1/operations/core-file-profiler
   uid: 1feb15cc-4000-4934-a2dc-9433bbf6e9da
 spec:
   processor:
-    path: /processor/corefileprofiler
+    path: /processor/coreFileProfiler
     scheme: http
     timeoutSeconds: 60
 
@@ -29,29 +29,27 @@ spec:
 
 ### HTTP 请求格式
 
-Corefile Profiler 处理的请求必须为 POST 类型，处理的 HTTP 请求中包含请求体。
+Core File Profiler 处理的请求必须为 POST 类型，处理的 HTTP 请求中包含请求体。
 
 #### HTTP 请求
 
-POST /processor/corefileprofiler
+POST /processor/coreFileProfiler
 
 #### HTTP request body
 
 ```json
 {
-  "parameter":{
-    "expirationSeconds": 200,
-    "type": "coredump",
-    "filePath": "/data/coredump/core",  // 指定 coredump 文件路径。 可选，默认为空
-    "pid": 0                            // 指定 gcore 进程号。 可选，默认为0
-  }
+  "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "200",
+  "param.diagnoser.runtime.core_file_profiler.type": "coredump",
+  "param.diagnoser.runtime.core_file_profiler.filepath": "/data/coredump/core",  // 指定 coredump 文件路径。 可选，默认为空
+  "param.diagnoser.runtime.core_file_profiler.pid": "0"    // 指定 gcore 进程号。 可选，默认为0
 }
 ```
 
-请求体中 parameter 结构里包含四个字段：
+请求体中 parameter 结构里包含四个参数，为了方便阅读，此处做了简写：
 
-- expirationSeconds 表示 Corefile Profiler 启动的 HTTP 服务的运行时间（单位为秒）。一定时间内，用户可以访问该 HTTP 服务
-- type 表示 Corefile Profiler 提供的服务类型。 可选值有二：
+- expiration_seconds 表示 Core File Profiler 启动的 HTTP 服务的运行时间（单位为秒）。一定时间内，用户可以访问该 HTTP 服务
+- type 表示 Core File Profiler 提供的服务类型。 可选值有二：
   - coredump 将启动一个 HTTP 服务，提供 coredump 文件的下载或在线调试
   - gcore 将直接启动一个 websocket 服务，提供指定进程的在线调试
 - filePath 当 type 为 coredump 时，通过此字段，用户可以显式指定 coredump 文件路径或目录，需要注意，该路径或其父目录必须挂载到 Kube Diagnoser Agent 中，否则无法提供访问; 当该字段为空时，Corefile Profiler 会基于相关 pod 的 Namespace 、 Name 、 ContainerName 信息，找到特定的存放 coredump 文件的目录，其中的原理可以参考[下文](#coredump转储原理说明)
@@ -86,9 +84,7 @@ status:
   phase: Succeeded
   ...
   operationResults:
-    "1":
-      operation: corefile-profiler
-      result: http://my-node:46765
+    diagnoser.runtime.core_file_profiler.result.endpoint: http://my-node:46765
     ...
 ```
 
@@ -104,17 +100,17 @@ status:
    apiVersion: diagnosis.netease.com/v1
    kind: Operation
    metadata:
-     name: corefile-profiler
+     name: core-file-profiler
    spec:
      processor:
-       path: /processor/corefileprofiler
+       path: /processor/coreFileProfiler
        scheme: http
        timeoutSeconds: 60
    ---
    apiVersion: diagnosis.netease.com/v1
    kind: OperationSet
    metadata:
-     name: core-profiler-oset
+     name: core-profiler-operationset
    spec:
      adjacencyList:
      - id: 0
@@ -122,9 +118,9 @@ status:
        - 1
        - 2
      - id: 1
-       operation: corefile-profiler
+       operation: pod-list-collector
      - id: 2
-       operation: corefile-profiler
+       operation: core-file-profiler
    ```
 
 2. 创建一个测试用的 pod ，该 pod 会在 sleep 3分钟后异常退出 ：
@@ -147,44 +143,29 @@ status:
      name: diagnosis-coreprofiler-example
    spec:
      parameters:
-       1: |
-         {
-           "expirationSeconds": 20000,
-           "type": "gcore"
-         }
-       2: |
-         {
-           "expirationSeconds": 20000,
-           "type": "coredump"
-         }
-     operationSet: core-profiler-oset
+       "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+       "param.diagnoser.runtime.core_file_profiler.type": "gcore"
+     operationSet: core-profiler-operationset
      nodeName: my-node
      podReference:
        namespace: default
        name: testcore-5b89896b96-d44xl
        container: test-coredump
    ```
-
-   创建后， 该 Diagnosis 将会在指定节点上由 Kube Diagnoser Agent 组件接管执行。Kube Diagnoser Agent  向 Corefile Profiler 发送 HTTP 请求，请求类型为 POST，请求中包含请求体：
-
+   
+   创建后， 该 Diagnosis 将会在指定节点上由 Kube Diagnoser Agent 组件接管执行。Kube Diagnoser Agent  向 Corefile Profiler 发送 HTTP 请求，请求类型为 POST，请求中包含请求体，请求体将包括 `spec.parameters` 中的所有信息，和 `spec.podReference` 中的 Pod 相关信息：
+   
    ```json
    {
-     "parameter":{
-       "expirationSeconds": 20000,
-       "type": "gcore"
-     }
+     "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000",
+     "param.diagnoser.runtime.core_file_profiler.type": "gcore",
+     "pod.namespace": "default",
+     "pod.name": "testcore-5b89896b96-d44xl",
+     "container": "test-coredump"
    }
    ```
-
-   并且在 HTTP Header 中包含了如下信息：
-
-   ```
-   pod-namespace: default
-   pod-name: testcore-5b89896b96-d44xl
-   pod-container-name: test-coredump
-   ```
-
-2. 等待Corefile Profiler 处理完毕，在 HTTP response 中告知了自己新启动的 HTTP 服务地址，查看Diagnosis  对象：
+   
+2. 等待Corefile Profiler 处理完毕，在 HTTP response 中告知了自己新启动的 HTTP 服务地址，查看 Diagnosis  对象：
 
    ```yaml
    apiVersion: diagnosis.netease.com/v1
@@ -193,17 +174,9 @@ status:
      name: diagnosis-coreprofiler-example
    spec:
      parameters:
-       1: |
-         {
-           "expirationSeconds": 20000,
-           "type": "gcore"
-         }
-       2: |
-         {
-           "expirationSeconds": 20000,
-           "type": "coredump"
-         }
-     operationSet: core-profiler-oset
+       "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+       "param.diagnoser.runtime.core_file_profiler.type": "gcore"
+     operationSet: core-profiler-operationset
      nodeName: my-node
      podReference:
        namespace: default
@@ -217,14 +190,12 @@ status:
      conditions:
        ...
      operationResults:
-       "1":
-         operation: corefile-profiler
-         result: http://my-node:40563
-       ...
+       diagnoser.runtime.core_file_profiler.result.endpoint: http://my-node:40563  
+       pod.list: ...
    ```
    
-   可以看到，在 ID 为 1 的 operation 中有了结果： `http://my-node:40563`  , 说明这次 type 为 gcore 的 Corefile Profiler 执行成功了 【注：这里 Corefile Profiler 是通过 pod 信息在本地检索容器，找到了运行中的业务容器进程】
-
+   可以看到，在 ID 为 2 的 operation 中有了结果： `http://my-node:40563`  , 说明这次 type 为 gcore 的 Core File Profiler 执行成功了 【注：这里 Core File Profiler 是通过 pod 信息在本地检索容器，找到了运行中的业务容器进程】
+   
 3. 我们在浏览器中访问 `http://my-node:40563`，将看到一个 web页面：
 
    ![image-20210409164627511](../images/gcore-1.png)
@@ -235,7 +206,7 @@ status:
 
 #### 指定 pid 进行 gcore
 
-默认情况下我们不需要指定 pid ， Corefile Profiler 将会基于 Diagnosis 对象中的 pod 信息， 在本地找到匹配的、运行中的容器，从而获取到容器进程号，并进行 gcore ; 如果找不到对应的容器，该次 operation 将以失败告终。
+默认情况下我们不需要指定 pid ， Core File Profiler 将会基于 Diagnosis 对象中的 pod 信息， 在本地找到匹配的、运行中的容器，从而获取到容器进程号，并进行 gcore ; 如果找不到对应的容器，该次 operation 将以失败告终。
 
 若我们需要指定 pid ， 可以在 Diagnosis 对象中，相应 operation 的 parameter 中追加该参数。如：
 
@@ -246,20 +217,36 @@ metadata:
   name: diagnosis-coreprofiler-example
 spec:
   parameters:
-    1: |
-      {
-        "expirationSeconds": 20000,
-        "type": "gcore",
-        "pid": 5767
-      }
-      ...
+    "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+    "param.diagnoser.runtime.core_file_profiler.type": "gcore"
+    "param.diagnoser.runtime.core_file_profiler.pid": "5767"
+    ...
 ```
 
-若 Corefile Profiler 找不到该进程， 该次 operation 将以 failed 告终。
+若 Core File Profiler 找不到该进程， 该次 operation 将以 failed 告终。
 
 #### coredump 分析
 
-1. 当上述的 pod 运行超过3分钟后， pod 进入了 CrashLoopBackOff 状态， 我们此时将之前的 Diagnosis 对象删除并重新创建：
+1. 当上述的 pod 运行超过3分钟后， pod 进入了 CrashLoopBackOff 状态， 我们此时将之前的 Diagnosis 对象删除并重新创建一个心的 Diagnosis ：
+
+   ```
+   apiVersion: diagnosis.netease.com/v1
+   kind: Diagnosis
+   metadata:
+     name: diagnosis-coreprofiler-example
+   spec:
+     parameters:
+       "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+       "param.diagnoser.runtime.core_file_profiler.type": "coredump"
+     operationSet: core-profiler-operationset
+     nodeName: my-node
+     podReference:
+       namespace: default
+       name: testcore-5b89896b96-d44xl
+       container: test-coredump
+   ```
+
+   
 
    ```bash
    $ kubectl create deploy testcore --image hub.c.163.com/combk8s/test-coredump:latest
@@ -284,61 +271,36 @@ spec:
      uid: 2a13263e-c1cb-4087-9d1b-e918de2e8fe7
    spec:
      nodeName: my-node
-     operationSet: core-profiler-oset
+     operationSet: core-profiler-operationset
      parameters:
-       "1": |
-         {
-           "expirationSeconds": 20000,
-           "type": "gcore"
-         }
-       "2": |
-         {
-           "expirationSeconds": 20000,
-           "type": "coredump"
-         }
+       "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+       "param.diagnoser.runtime.core_file_profiler.type": "coredump"
      podReference:
        container: test-coredump
        name: testcore-5b89896b96-d44xl
        namespace: default
    status:
-     checkpoint:
-       nodeIndex: 0
-       pathIndex: 1
-     conditions:
-     - lastTransitionTime: "2021-04-06T02:55:56Z"
-       message: Diagnosis is accepted by agent on node my-node
-       reason: DiagnosisAccepted
-       status: "True"
-       type: Accepted
-     - lastTransitionTime: "2021-04-06T02:55:56Z"
-       message: Diagnosis is completed
-       reason: DiagnosisComplete
-       status: "True"
-       type: Complete
-     failedPath:
-     - - id: 1
-         operation: corefile-profiler
+     ...
      operationResults:
-       "2":
-         operation: corefile-profiler
-         result: http://my-node:33907
+       diagnoser.runtime.core_file_profiler.result.endpoint": http://my-node:33907
      phase: Succeeded
      startTime: "2021-04-06T02:55:56Z"
      succeededPath:
      - id: 2
-       operation: corefile-profiler
+       operation: core-file-profiler
    ```
 
-   可以看到， ID 为 1 的 operation 执行失败了（处于 filedPath 中），而 ID 为 2 的 operation 执行成功了，也就是说， gcore 分析失败； coredump 分析成功。
+   可以看到 coredump 分析成功。
 
-   在 coredump 分析中， Kube Diagnoser Agent  向 Corefile Profiler 发起另一个 HTTP POST 请求，带有和之前同样的 Header， 但 body 则不一样：
+   在 coredump 分析中， Kube Diagnoser Agent  向 Corefile Profiler 发起另一个 HTTP POST 请求，body 如下：
 
    ```json
    {
-     "parameter":{
-       "expirationSeconds": 20000,
-       "type": "coredump"
-     }
+     "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000",
+     "param.diagnoser.runtime.core_file_profiler.type": "coredump",
+     "pod.namespace": "default",
+     "pod.name": "testcore-5b89896b96-d44xl",
+     "container": "test-coredump"
    }
    ```
 
@@ -347,6 +309,7 @@ spec:
    ![coredump-1](../images/coredump-1.png)
 
 4. 点击文件名可以下载对应的 coredump 文件。
+
 5. 点击文件名后面的 debug 可以进入 webocket  页面，进行在线的 gdb 调试:
 
    ![coredump-2](../images/coredump-2.png)
@@ -355,7 +318,7 @@ spec:
 
 #### 指定 filePath 进行 coredump
 
-默认情况下，Corefile Profiler 在处理 coredump 类型的请求时， 会从 :
+默认情况下，Core File Profiler 在处理 coredump 类型的请求时， 会从 :
 
 ```
 /var/lib/kube-diagnoser/corefile/k8s/
@@ -392,16 +355,13 @@ metadata:
   name: diagnosis-coreprofiler-example
 spec:
   parameters:
-    1: |
-      {
-        "expirationSeconds": 20000,
-        "type": "coredump",
-        "pid": /core
-      }
-      ...
+    "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+    "param.diagnoser.runtime.core_file_profiler.type": "coredump"
+    "param.diagnoser.runtime.core_file_profiler.filepath": "/core"
+   ...
 ```
 
-若 corefile profiler 找不到该路径或文件， 则该次 operation 将以失败告终。 注意，corefile profiler 无法识别某个文件是否是 coredump 文件， 只要路径存在， corefile profiler 就会建立起 HTTP Server。
+若 Core File Profiler 找不到该路径或文件， 则该次 operation 将以失败告终。 注意，Core File Profiler 无法识别某个文件是否是 coredump 文件， 只要路径存在， corefile profiler 就会建立起 HTTP Server。
 
 #### 查找pod下所有容器的 coredump
 
@@ -416,23 +376,15 @@ spec:
      nodeName: my-node
      operationSet: core-profiler-example
      parameters:
-       "1": |
-         {
-           "expirationSeconds": 20000,
-           "type": "gcore"
-         }
-       "2": |
-         {
-           "expirationSeconds": 20000,
-           "type": "coredump"
-         }
+       "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+       "param.diagnoser.runtime.core_file_profiler.type": "coredump"
      podReference:
        name: testcore-5b89896b96-d44xl
        namespace: default
    ```
-
-   这种情况下， Corefile Profiler 将会把该 pod 的所有容器的 coredump 文件都列举出来。 也即：`/var/lib/kube-diagnoser/corefile/k8s/default/testcore-5b89896b96-d44xl/`下的所有子目录的所有文件。
-
+   
+   这种情况下，访问 Core File Profiler 时， body 中将会缺少 `container` 参数， Core File Profiler 将会把该 pod 的所有容器的 coredump 文件都列举出来。 也即：`/var/lib/kube-diagnoser/corefile/k8s/default/testcore-5b89896b96-d44xl/`下的所有子目录的所有文件。
+   
 2. 访问 operationResult 中记录的 url ：
 
    ![coredump-4](../images/coredump-4.png)
