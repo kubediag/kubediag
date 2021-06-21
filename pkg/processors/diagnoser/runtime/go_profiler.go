@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package runtime
 
 import (
 	"bytes"
@@ -40,17 +40,19 @@ import (
 
 	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
 const (
-	ParameterKeyGoProfilerExpirationSeconds  = "goprofiler.expirationseconds"
-	ParameterKeyGoProfilerType               = "goprofiler.type"
-	ParameterKeyGoProfilerSource             = "goprofiler.source"
-	ParameterKeyGoProfilerTLSSecretNamespace = "goprofiler.tls.secretReference.namespace"
-	ParameterKeyGoProfilerTLSSecretName      = "goprofiler.tls.secretReference.name"
+	ParameterKeyGoProfilerExpirationSeconds  = "param.diagnoser.runtime.go_profiler.expiration_seconds"
+	ParameterKeyGoProfilerType               = "param.diagnoser.runtime.go_profiler.type"
+	ParameterKeyGoProfilerSource             = "param.diagnoser.runtime.go_profiler.source"
+	ParameterKeyGoProfilerTLSSecretNamespace = "param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace"
+	ParameterKeyGoProfilerTLSSecretName      = "param.diagnoser.runtime.go_profiler.tls.secret_reference.name"
 
-	ContextKeyGoProfilerResultEndpoint = "diagnoser.runtime.goprofiler.result.endpoint"
+	ContextKeyGoProfilerResultEndpoint = "diagnoser.runtime.go_profiler.result.endpoint"
 )
 
 // goProfiler manages information of all pods on the node.
@@ -118,7 +120,7 @@ func NewGoProfiler(
 	dataRoot string,
 	bindAddress string,
 	goProfilerEnabled bool,
-) Processor {
+) processors.Processor {
 	return &goProfiler{
 		Context:           ctx,
 		Logger:            logger,
@@ -140,7 +142,7 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		gp.Info("handle POST request")
 		// read request body and unmarshal into a goProfilerRequestParameter
-		contexts, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := utils.ExtractParametersFromHTTPContext(r)
 		if err != nil {
 			gp.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -148,7 +150,7 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		var expirationSeconds int
 		if _, ok := contexts[ParameterKeyGoProfilerExpirationSeconds]; !ok {
-			expirationSeconds = DefaultExpirationSeconds
+			expirationSeconds = processors.DefaultExpirationSeconds
 		} else {
 			expirationSeconds, err = strconv.Atoi(contexts[ParameterKeyGoProfilerExpirationSeconds])
 			if err != nil {
@@ -157,7 +159,7 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if expirationSeconds <= 0 {
-				expirationSeconds = DefaultExpirationSeconds
+				expirationSeconds = processors.DefaultExpirationSeconds
 			}
 		}
 
@@ -192,7 +194,7 @@ func (gp *goProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 
 		namespace := contexts[executor.DiagnosisNamespaceTelemetryKey]
 		name := contexts[executor.DiagnosisNameTelemetryKey]
-		podInfo := getPodInfoFromContext(contexts)
+		podInfo := utils.GetPodInfoFromContext(contexts)
 
 		endpoint, err := gp.runGoProfiler(name, namespace, gp.BindAddress, parameter, &podInfo, gp.dataRoot)
 		if err != nil {

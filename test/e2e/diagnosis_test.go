@@ -52,15 +52,15 @@ var _ = Describe("Diagnosis", func() {
 
 	Context("When calling pod collector processor", func() {
 		It("Should run a diagnosis successful", func() {
-			By("Creating a pod collector operationset")
-			operationset = f.NewSimpleOperationset("operationset-pod-collector", f.Namespace.Name, podCollectorOperation)
+			By("Creating a pod list collector operationset")
+			operationset = f.NewSimpleOperationset("operationset-pod-list-collector", f.Namespace.Name, podListCollectorOperation)
 			err = f.K8sClient.Create(f, operationset)
 			ExpectNoError(err, "failed to create operationset %s", operationset.Name)
 			err = WaitForOperationsetPath(f.K8sClient, operationset.Name, 1, poll, pollShortTimeout)
 			ExpectNoError(err)
 
 			By("Creating a pod collector diagnosis")
-			diagnosis = f.NewDiagnosisWithRandomNode("diagnosis-pod-collector", f.Namespace.Name, operationset.Name)
+			diagnosis = f.NewDiagnosisWithRandomNode("diagnosis-pod-list-collector", f.Namespace.Name, operationset.Name)
 			err = f.K8sClient.Create(f, diagnosis)
 			ExpectNoError(err, "failed to create diagnosis %s in namespace: %s", diagnosis.Name, f.Namespace.Name)
 			err = WaitForDiagnosisPhaseSucceeded(f.K8sClient, diagnosis.Name, diagnosis.Namespace, poll, pollLongTimeout)

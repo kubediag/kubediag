@@ -1,4 +1,4 @@
-package processors
+package runtime
 
 import (
 	"context"
@@ -20,11 +20,20 @@ import (
 
 	v1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
 )
 
 type CoreFileProfilerType string
 
 const (
+	ParameterKeyCoreFileProfilerExpirationSeconds = "param.diagnoser.runtime.core_file_profiler.expiration_seconds"
+	ParameterKeyCoreFileProfilerPid               = "param.diagnoser.runtime.core_file_profiler.pid"
+	ParameterKeyCoreFileProfilerType              = "param.diagnoser.runtime.core_file_profiler.type"
+	ParameterKeyCoreFileProfilerFilepath          = "param.diagnoser.runtime.core_file_profiler.filepath"
+
+	ContextKeyCoreFileProfilerResultEndpoint = "diagnoser.runtime.core_file_profiler.result.endpoint"
+
 	l1CoreFileSubPath      = "corefile/"
 	l2CoreFileSubPathOfPod = "k8s/"
 )
@@ -114,7 +123,7 @@ type coreFileProfiler struct {
 }
 
 // NewCoreFileProfiler creates a new coreFileProfiler.
-func NewCoreFileProfiler(ctx context.Context, log logr.Logger, dockerEndpoint string, corefileProfilerEnabled bool, dataRoot string) (Processor, error) {
+func NewCoreFileProfiler(ctx context.Context, log logr.Logger, dockerEndpoint string, corefileProfilerEnabled bool, dataRoot string) (processors.Processor, error) {
 	coreFilePath := path.Join(dataRoot, l1CoreFileSubPath)
 	podCoreFilePath := path.Join(coreFilePath, l2CoreFileSubPathOfPod)
 	if corefileProfilerEnabled {
@@ -146,33 +155,38 @@ func (c *coreFileProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		c.Info("handle POST request")
 		// read request body and unmarshal into a CoreFileConfig
-		contexts, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := utils.ExtractParametersFromHTTPContext(r)
 		if err != nil {
 			c.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		expirationSeconds, err := strconv.Atoi(contexts["expirationSeconds"])
+		expirationSeconds, err := strconv.Atoi(contexts[ParameterKeyCoreFileProfilerExpirationSeconds])
 		if err != nil {
 			c.Error(err, "invalid expirationSeconds field")
 			http.Error(w, err.Error(), http.StatusNotAcceptable)
 			return
 		}
-		pid, err := strconv.Atoi(contexts["pid"])
-		if err != nil {
-			c.Error(err, "invalid pid field")
-			http.Error(w, err.Error(), http.StatusNotAcceptable)
-			return
+
+		pid := 0
+		if pidParam, exist := contexts[ParameterKeyCoreFileProfilerPid]; exist {
+			pid, err = strconv.Atoi(pidParam)
+			if err != nil {
+				c.Error(err, "invalid pid field")
+				http.Error(w, err.Error(), http.StatusNotAcceptable)
+				return
+			}
 		}
+
 		config := &CoreFileConfig{
 			ExpirationSeconds: uint64(expirationSeconds),
-			Type:              CoreFileProfilerType(contexts["type"]),
-			FilePath:          contexts["filePath"],
+			Type:              CoreFileProfilerType(contexts[ParameterKeyCoreFileProfilerType]),
+			FilePath:          contexts[ParameterKeyCoreFileProfilerFilepath],
 			Pid:               pid,
 		}
 
-		podInfo := getPodInfoFromContext(contexts)
+		podInfo := utils.GetPodInfoFromContext(contexts)
 
 		c.V(4).Info("get pod info", "pod info", podInfo)
 
@@ -183,7 +197,7 @@ func (c *coreFileProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		port, err := GetAvailablePort()
+		port, err := utils.GetAvailablePort()
 		if err != nil {
 			c.Error(err, "get available port failed")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -234,7 +248,7 @@ func (c *coreFileProfiler) Handler(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		result := make(map[string]string)
-		result["corefile.endpoint"] = fmt.Sprintf("http://%s:%d", contexts[executor.NodeTelemetryKey], port)
+		result[ContextKeyCoreFileProfilerResultEndpoint] = fmt.Sprintf("http://%s:%d", contexts[executor.NodeTelemetryKey], port)
 		data, err := json.Marshal(result)
 		if err != nil {
 			c.Error(err, "failed to marshal response body")

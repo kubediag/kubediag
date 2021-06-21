@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package executor
 
 import (
 	"bytes"
@@ -28,7 +28,34 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 )
+
+// CommandExecutorRequest is the request body data struct of command executor.
+type CommandExecutorRequest struct {
+	// Parameter is the parameter for executing a command.
+	Parameter string `json:"parameter"`
+}
+
+// CommandExecutorRequestParameter is the parameter for executing a command.
+type CommandExecutorRequestParameter struct {
+	// Command represents a command being prepared and run.
+	Command string `json:"command"`
+	// Args is arguments to the command.
+	Args []string `json:"args,omitempty"`
+	// Number of seconds after which the command times out.
+	// Defaults to 30 seconds. Minimum value is 1.
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// CommandExecutorResponse is the response body data struct of command executor.
+type CommandExecutorResponse struct {
+	// Stdout is standard output of the command.
+	Stdout string `json:"stdout,omitempty"`
+	// Stderr is standard error of the command.
+	Stderr string `json:"stderr,omitempty"`
+}
 
 // TODO: Support script type operations.
 // commandExecutor handles request for running specified command and respond with command result.
@@ -47,7 +74,7 @@ func NewCommandExecutor(
 	ctx context.Context,
 	logger logr.Logger,
 	commandExecutorEnabled bool,
-) Processor {
+) processors.Processor {
 	return &commandExecutor{
 		Context:                ctx,
 		Logger:                 logger,
@@ -139,7 +166,7 @@ func (ce *commandExecutor) executeCommand(name string, args []string, timeoutSec
 	if timeoutSeconds != nil {
 		timeout = time.After(time.Duration(*timeoutSeconds) * time.Second)
 	} else {
-		timeout = time.After(time.Duration(DefaultTimeoutSeconds) * time.Second)
+		timeout = time.After(time.Duration(processors.DefaultTimeoutSeconds) * time.Second)
 	}
 
 	select {

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package k8s
 
 import (
 	"context"
@@ -27,13 +27,18 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/k8s"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/system"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
 )
 
 const (
-	contextKeySubpathRemountDiagnosisResult         = "diagnoser.bug.subpathremount.result"
-	contextKeySubpathRemountBugLink                 = "diagnoser.bug.subpathremount.link"
-	contextKeySubpathRemountOriginalSourcePath      = "diagnoser.bug.subpathremount.originalsrcpath"
-	contextKeySubpathRemountOriginalDestinationPath = "diagnoser.bug.subpathremount.originaldstpath"
+	ContextKeySubpathRemountDiagnosisResult         = "diagnoser.kubernetes.subpath_remount.result"
+	ContextKeySubpathRemountBugLink                 = "diagnoser.kubernetes.subpath_remount.bug_link"
+	ContextKeySubpathRemountOriginalSourcePath      = "diagnoser.kubernetes.subpath_remount.original_source_path"
+	ContextKeySubpathRemountOriginalDestinationPath = "diagnoser.kubernetes.subpath_remount.original_destination_path"
 
 	bugLink    = "https://github.com/kubernetes/kubernetes/issues/68211"
 	matchRegex = `^.*mounting.*volume-subpaths.*to rootfs.*at.*no such file or directory.*`
@@ -58,7 +63,7 @@ func NewSubPathRemountDiagnoser(
 	logger logr.Logger,
 	cache cache.Cache,
 	subPathRemountEnabled bool,
-) Processor {
+) processors.Processor {
 	return &subPathRemountDiagnoser{
 		Context:               ctx,
 		Logger:                logger,
@@ -76,19 +81,19 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 
 	switch r.Method {
 	case "POST":
-		contexts, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := utils.ExtractParametersFromHTTPContext(r)
 		if err != nil {
 			srd.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if contexts[contextKeyPodDetail] == "" || contexts[contextKeyMountInfo] == "" {
-			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", contextKeyPodDetail, contextKeyMountInfo))
+		if contexts[k8s.ContextKeyPodDetail] == "" || contexts[system.ContextKeyMountInfo] == "" {
+			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", k8s.ContextKeyPodDetail, system.ContextKeyMountInfo))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		pod := corev1.Pod{}
-		err = json.Unmarshal([]byte(contexts[contextKeyPodDetail]), &pod)
+		err = json.Unmarshal([]byte(contexts[k8s.ContextKeyPodDetail]), &pod)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to unmarshal pod: %v", err), http.StatusInternalServerError)
 			return
@@ -155,7 +160,7 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 		}
 		srd.Info("get mount source path", "path", sourcePath)
 
-		mountInfos := strings.Split(contexts[contextKeyMountInfo], "\n")
+		mountInfos := strings.Split(contexts[system.ContextKeyMountInfo], "\n")
 		var mountLine string
 		for _, line := range mountInfos {
 			if strings.Contains(line, sourcePath) {
@@ -171,10 +176,10 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 		}
 
 		result := make(map[string]string)
-		result[contextKeySubpathRemountDiagnosisResult] = "pod met a bug of subpath-remounting"
-		result[contextKeySubpathRemountBugLink] = bugLink
-		result[contextKeySubpathRemountOriginalSourcePath] = src
-		result[contextKeySubpathRemountOriginalDestinationPath] = dst
+		result[ContextKeySubpathRemountDiagnosisResult] = "A kubernetes bug #68211 has been encountered on pod subpath remounting."
+		result[ContextKeySubpathRemountBugLink] = bugLink
+		result[ContextKeySubpathRemountOriginalSourcePath] = src
+		result[ContextKeySubpathRemountOriginalDestinationPath] = dst
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

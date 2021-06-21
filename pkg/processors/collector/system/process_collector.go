@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package system
 
 import (
 	"context"
@@ -26,7 +26,12 @@ import (
 	"github.com/go-logr/logr"
 	psutil "github.com/shirou/gopsutil/process"
 
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/types"
+)
+
+const (
+	ContextKeyProcessList = "collector.system.process.list"
 )
 
 // processCollector manages information of all processes on the node.
@@ -45,7 +50,7 @@ func NewProcessCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	processCollectorEnabled bool,
-) Processor {
+) processors.Processor {
 	return &processCollector{
 		Context:                 ctx,
 		Logger:                  logger,
@@ -76,7 +81,7 @@ func (pc *processCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := make(map[string]string)
-		result["process.list"] = string(raw)
+		result[ContextKeyProcessList] = string(raw)
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package runtime
 
 import (
 	"context"
@@ -25,7 +25,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+)
+
+const (
+	ContextKeyContainerdGoRoutineCollector = "collector.runtime.containerd.goroutine"
 )
 
 // containerdGoroutineCollector retrives containerd goroutine on the node.
@@ -44,7 +50,7 @@ func NewContainerdGoroutineCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	containerdGoroutineCollectorEnabled bool,
-) Processor {
+) processors.Processor {
 	return &containerdGoroutineCollector{
 		Context:                             ctx,
 		Logger:                              logger,
@@ -82,7 +88,7 @@ func (dc *containerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.R
 		}
 
 		result := make(map[string]string)
-		result["containerd.goroutine"] = dumpTime.String()
+		result[ContextKeyContainerdGoRoutineCollector] = dumpTime.String()
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

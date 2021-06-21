@@ -16,10 +16,10 @@ metadata:
   name: go-profiler
 spec: 
   parameters:
-    goprofiler.expirationseconds: "7200"
-    goprofiler.type: Heap
-    goprofiler.source: https://10.0.2.15:6443
-    goprofiler.tls.secretReference.namespace: kube-diagnoser
-    goprofiler.tls.secretReference.name: apiserver-profiler-sa-token-qz2t9
+    param.diagnoser.runtime.go_profiler.expiration_seconds: "7200"
+    param.diagnoser.runtime.go_profiler.type: Heap
+    param.diagnoser.runtime.go_profiler.source: https://10.0.2.15:6443
+    param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace: kube-diagnoser
+    param.diagnoser.runtime.go_profiler.tls.secret_reference.name: apiserver-profiler-sa-token-qz2t9
   operationSet: go-profiler
   nodeName: my-node

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package system
 
 import (
 	"context"
@@ -24,10 +24,12 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 )
 
 const (
-	contextKeyMountInfo = "collector.node.mountinfo"
+	ContextKeyMountInfo = "collector.system.mountinfo"
 
 	mountinfoPath = "/proc/1/mountinfo"
 )
@@ -48,7 +50,7 @@ func NewMountInfoCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	mountInfoCollectorEnabled bool,
-) Processor {
+) processors.Processor {
 	return &mountInfoCollector{
 		Context:                   ctx,
 		Logger:                    logger,
@@ -73,7 +75,7 @@ func (mic *mountInfoCollector) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := make(map[string]string)
-		result[contextKeyMountInfo] = string(mountInfoData)
+		result[ContextKeyMountInfo] = string(mountInfoData)
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

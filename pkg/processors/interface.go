@@ -40,28 +40,3 @@ type Processor interface {
 	// Handler handles http requests.
 	Handler(http.ResponseWriter, *http.Request)
 }
-
-// CommandExecutorRequest is the request body data struct of command executor.
-type CommandExecutorRequest struct {
-	// Parameter is the parameter for executing a command.
-	Parameter string `json:"parameter"`
-}
-
-// CommandExecutorRequestParameter is the parameter for executing a command.
-type CommandExecutorRequestParameter struct {
-	// Command represents a command being prepared and run.
-	Command string `json:"command"`
-	// Args is arguments to the command.
-	Args []string `json:"args,omitempty"`
-	// Number of seconds after which the command times out.
-	// Defaults to 30 seconds. Minimum value is 1.
-	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
-}
-
-// CommandExecutorResponse is the response body data struct of command executor.
-type CommandExecutorResponse struct {
-	// Stdout is standard output of the command.
-	Stdout string `json:"stdout,omitempty"`
-	// Stderr is standard error of the command.
-	Stderr string `json:"stderr,omitempty"`
-}

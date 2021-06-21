@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package runtime
 
 import (
 	"context"
@@ -30,6 +30,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
 )
 
@@ -40,6 +42,8 @@ const (
 	stacksLogNamePrefix = "goroutine-stacks"
 	// stacksLogSubPath is the subpath for kube diagnoser to store dockerd goroutine stack logs.
 	stacksLogSubPath = "dockerd-goroutine"
+
+	ContextKeyDockerdGoRoutineCollector = "collector.runtime.dockerd.goroutine"
 )
 
 // dockerdGoroutineCollector retrives dockerd goroutine on the node.
@@ -61,7 +65,7 @@ func NewDockerdGoroutineCollector(
 	logger logr.Logger,
 	dataRoot string,
 	dockerdGoroutineCollectorEnabled bool,
-) Processor {
+) processors.Processor {
 	return &dockerdGoroutineCollector{
 		Context:                          ctx,
 		Logger:                           logger,
@@ -138,7 +142,7 @@ func (dc *dockerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.Requ
 		}
 
 		result := make(map[string]string)
-		result["dockerd.goroutine"] = stacksLogPath
+		result[ContextKeyDockerdGoRoutineCollector] = stacksLogPath
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

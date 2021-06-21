@@ -45,7 +45,7 @@ const (
 	// Alpha: 0.2.0
 	KafkaConsumer featuregate.Feature = "KafkaConsumer"
 
-	// PodCollector manages information of all pods on the node.
+	// PodCollector manages information of pods.
 	//
 	// Mode: agent
 	// Owner: @huangjiuyuan
@@ -81,12 +81,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	SignalRecoverer featuregate.Feature = "SignalRecoverer"
-	// CorefileProfiler manages corefiles and supports gdb debugging.
+	// CoreFileProfiler manages corefiles and supports gdb debugging.
 	//
 	// Mode: agent
 	// Owner: @fzu-huang
 	// Alpha: 0.2.0
-	CorefileProfiler featuregate.Feature = "CorefileProfiler"
+	CoreFileProfiler featuregate.Feature = "CoreFileProfiler"
 	// DockerInfoCollector fetches system-wide information on docker.
 	//
 	// Mode: agent
@@ -142,7 +142,7 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	CommandExecutor:              {Default: true, PreRelease: featuregate.Alpha},
 	SystemdCollector:             {Default: true, PreRelease: featuregate.Alpha},
 	SignalRecoverer:              {Default: true, PreRelease: featuregate.Alpha},
-	CorefileProfiler:             {Default: false, PreRelease: featuregate.Alpha},
+	CoreFileProfiler:             {Default: false, PreRelease: featuregate.Alpha},
 	DockerInfoCollector:          {Default: true, PreRelease: featuregate.Alpha},
 	DockerdGoroutineCollector:    {Default: true, PreRelease: featuregate.Alpha},
 	ContainerdGoroutineCollector: {Default: true, PreRelease: featuregate.Alpha},
