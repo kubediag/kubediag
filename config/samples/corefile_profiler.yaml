@@ -1,7 +1,7 @@
 apiVersion: diagnosis.netease.com/v1
 kind: OperationSet
 metadata:
-  name: core-combine-os
+  name: core-file-operationset
 spec:
   adjacencyList:
     - id: 0
@@ -9,13 +9,11 @@ spec:
         - 1
         - 2
     - id: 1
-      operation: corefile-profiler
-    - id: 2
-      operation: pod-collector
+      operation: pod-list-collector
       to:
-        - 3
-    - id: 3
-      operation: corefile-profiler
+        - 2
+    - id: 2
+      operation: core-file-profiler
 
 ---
 
@@ -26,19 +24,11 @@ metadata:
   namespace: default
 spec:
   nodeName: my-node
-  operationSet: core-combine
+  operationSet: core-file-operationset
   parameters:
-    "1": |
-      {
-        "expirationSeconds": 20000,
-        "type": "gcore"
-      }
-    "3": |
-      {
-        "expirationSeconds": 20000,
-        "type": "coredump"
-      }
+    "param.diagnoser.runtime.core_file_profiler.expiration_seconds": "2000"
+    "param.diagnoser.runtime.core_file_profiler.type": "coredump"
   podReference:
     container: test-coredump
-    name: testcore-5b89896b96-d44xl
+    name: testcore-1
     namespace: default

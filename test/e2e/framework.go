@@ -42,8 +42,8 @@ const (
 
 	// selectorKey is the key of lable map.
 	selectorKey = "e2e-test"
-	// podCollectorOperation is the name of pod collector operation.
-	podCollectorOperation = "pod-collector"
+	// podListCollectorOperation is the name of pod list collector operation.
+	podListCollectorOperation = "pod-list-collector"
 )
 
 var (

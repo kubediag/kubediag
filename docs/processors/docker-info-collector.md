@@ -23,7 +23,7 @@ metadata:
   uid: 69c8afa5-f98c-4eb9-adca-f4babbd4ca52
 spec:
   processor:
-    path: /processor/dockerinfocollector
+    path: /processor/dockerInfoCollector
     scheme: http
     timeoutSeconds: 60
 ```
@@ -34,7 +34,7 @@ Docker Info Collector 处理的请求必须为 POST 类型，处理的 HTTP 请�
 
 #### HTTP 请求
 
-POST /processor/dockerinfocollector
+POST /processor/dockerInfoCollector
 
 #### 状态码
 
@@ -46,7 +46,7 @@ POST /processor/dockerinfocollector
 
 #### 返回体参数
 
-JSON 返回体格式为 JSON 对象，对象中包含存有 Containerd 栈信息生成时间戳的 String 键值对。键为 `containerd.goroutine`，值可以被解析为下列数据结构：
+JSON 返回体格式为 JSON 对象，对象中包含存有 Containerd 栈信息生成时间戳的 String 键值对。键为 `collector.kubernetes.docker.info`，值可以被解析为下列数据结构：
 
 | Scheme | Description |
 |-|-|
@@ -58,12 +58,23 @@ JSON 返回体格式为 JSON 对象，对象中包含存有 Containerd 栈信息
 
 1. Kube Diagnoser Agent 向 Docker Info Collector 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
 1. Docker Info Collector 接收到请求后在节点上调用 Docker 客户端获取节点系统信息。
-1. 如果 Docker Info Collector 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
+1. 如果 Docker Info Collector 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含一个 map[string]string  ,记录了 docker 服务信息，该信息将保存到 Diagnosis 对象中，如下：
 
 ```json
-{
-    "docker.info": '{"ID":"LJM3:UWWT:L6L3:J6RJ:QRB2:NPMT:FXNC:WA6A:S2AN:JNKV:XE6V:HL7C","Containers":90,"ContainersRunning":47,"ContainersPaused":0,"ContainersStopped":43,"Images":135,"Driver":"overlay2","DriverStatus":[["Backing Filesystem","\u003cunknown\u003e"],["Supports d_type","true"],["Native Overlay Diff","true"]],"SystemStatus":null,"Plugins":{"Volume":["local"],"Network":["bridge","host","ipvlan","macvlan","null","overlay"],"Authorization":null,"Log":["awslogs","fluentd","gcplogs","gelf","journald","json-file","local","logentries","splunk","syslog"]},"MemoryLimit":true,"SwapLimit":false,"KernelMemory":true,"KernelMemoryTCP":true,"CpuCfsPeriod":true,"CpuCfsQuota":true,"CPUShares":true,"CPUSet":true,"PidsLimit":true,"IPv4Forwarding":true,"BridgeNfIptables":true,"BridgeNfIp6tables":true,"Debug":false,"NFd":272,"OomKillDisable":true,"NGoroutines":227,"SystemTime":"2021-05-18T17:23:36.750559813+08:00","LoggingDriver":"json-file","CgroupDriver":"systemd","NEventsListener":0,"KernelVersion":"4.15.0-143-generic","OperatingSystem":"Ubuntu 18.04.3 LTS","OSType":"linux","Architecture":"x86_64","IndexServerAddress":"https://index.docker.io/v1/","RegistryConfig":{"AllowNondistributableArtifactsCIDRs":[],"AllowNondistributableArtifactsHostnames":[],"InsecureRegistryCIDRs":["127.0.0.0/8"],"IndexConfigs":{"docker.io":{"Name":"docker.io","Mirrors":["https://docker.mirrors.ustc.edu.cn/"],"Secure":true,"Official":true}},"Mirrors":["https://docker.mirrors.ustc.edu.cn/"]},"NCPU":4,"MemTotal":11645636608,"GenericResources":null,"DockerRootDir":"/data","HttpProxy":"","HttpsProxy":"","NoProxy":"","Name":"netease","Labels":[],"ExperimentalBuild":false,"ServerVersion":"19.03.8","ClusterStore":"","ClusterAdvertise":"","Runtimes":{"runc":{"path":"runc"}},"DefaultRuntime":"runc","Swarm":{"NodeID":"","NodeAddr":"","LocalNodeState":"inactive","ControlAvailable":false,"Error":"","RemoteManagers":null},"LiveRestoreEnabled":false,"Isolation":"","InitBinary":"docker-init","ContainerdCommit":{"ID":"7ad184331fa3e55e52b890ea95e65ba581ae3429","Expected":"7ad184331fa3e55e52b890ea95e65ba581ae3429"},"RuncCommit":{"ID":"dc9208a3303feef5b3839f4323d9beb36df0a9dd","Expected":"dc9208a3303feef5b3839f4323d9beb36df0a9dd"},"InitCommit":{"ID":"fec3683","Expected":"fec3683"},"SecurityOptions":["name=apparmor","name=seccomp,profile=default"],"Warnings":["WARNING: No swap limit support"]}'
-}
+  collector.kubernetes.docker.info: |
+    Client:
+     Debug Mode: false
+    
+    Server:
+     Containers: 40
+      Running: 33
+      Paused: 0
+      Stopped: 7
+     Images: 326
+     Server Version: 19.03.15
+     Storage Driver: overlay
+    ...
+
 ```
 
 1. 如果 Docker Info Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码。

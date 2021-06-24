@@ -1,9 +1,9 @@
 apiVersion: diagnosis.netease.com/v1
 kind: Operation
 metadata:
-  name: pod-collector
+  name: pod-list-collector
 spec:
   processor:
-    path: /processor/podcollector
+    path: /processor/podListCollector
     scheme: http
     timeoutSeconds: 60

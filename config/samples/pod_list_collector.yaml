@@ -1,19 +1,19 @@
 apiVersion: diagnosis.netease.com/v1
 kind: OperationSet
 metadata:
-  name: pod-collector
+  name: pod-list-collector
 spec:
   adjacencyList:
   - id: 0
     to:
     - 1
   - id: 1
-    operation: pod-collector
+    operation: pod-list-collector
 ---
 apiVersion: diagnosis.netease.com/v1
 kind: Diagnosis
 metadata:
-  name: pod-collector
+  name: pod-list-collector
 spec: 
-  operationSet: pod-collector
+  operationSet: pod-list-collector
   nodeName: my-node

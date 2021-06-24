@@ -23,7 +23,7 @@ metadata:
   uid: 24c2012e-42c6-4f09-a259-fd10bc924836
 spec:
   processor:
-    path: /processor/nodecordon
+    path: /processor/nodeCordon
     scheme: http
     timeoutSeconds: 60
 ```
@@ -34,7 +34,7 @@ Node Cordon 处理的请求必须为 POST 类型，处理的 HTTP 请求中不�
 
 #### HTTP 请求
 
-POST /processor/nodecordon
+POST /processor/nodeCordon
 
 #### 状态码
 
@@ -46,7 +46,7 @@ POST /processor/nodecordon
 
 #### 返回体参数
 
-JSON 返回体格式为 JSON 对象，对象中包含存有被置为不可调度 Node 的 String 键值对。键为 `node.cordon`，值为节点名。
+JSON 返回体格式为 JSON 对象，对象中包含存有被置为不可调度 Node 的 String 键值对。键为 `recover.kubernetes.node_cordon.result.name`，值为节点名。
 
 ### 举例说明
 
@@ -58,7 +58,7 @@ JSON 返回体格式为 JSON 对象，对象中包含存有被置为不可调度
 
 ```json
 {
-    "node.cordon": "my-node"
+    "recover.kubernetes.node_cordon.result.name": "my-node"
 }
 ```
 

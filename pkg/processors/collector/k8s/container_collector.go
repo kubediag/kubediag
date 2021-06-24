@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package k8s
 
 import (
 	"context"
@@ -25,10 +25,16 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
 )
 
-// dockerInfoCollector fetches system-wide information on docker.
-type dockerInfoCollector struct {
+const (
+	ContextKeyContainerList = "collector.kubernetes.container.list"
+)
+
+// containerCollector manages information of all containers on the node.
+type containerCollector struct {
 	// Context carries values across API boundaries.
 	context.Context
 	// Logger represents the ability to log messages.
@@ -36,54 +42,54 @@ type dockerInfoCollector struct {
 
 	// client is the API client that performs all operations against a docker server.
 	client *client.Client
-	// dockerInfoCollectorEnabled indicates whether dockerInfoCollector is enabled.
-	dockerInfoCollectorEnabled bool
+	// containerCollectorEnabled indicates whether containerCollector is enabled.
+	containerCollectorEnabled bool
 }
 
-// NewDockerInfoCollector creates a new dockerInfoCollector.
-func NewDockerInfoCollector(
+// NewContainerCollector creates a new containerCollector.
+func NewContainerCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	dockerEndpoint string,
-	dockerInfoCollectorEnabled bool,
-) (Processor, error) {
+	containerCollectorEnabled bool,
+) (processors.Processor, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerEndpoint))
 	if err != nil {
 		return nil, err
 	}
 
-	return &dockerInfoCollector{
-		Context:                    ctx,
-		Logger:                     logger,
-		client:                     cli,
-		dockerInfoCollectorEnabled: dockerInfoCollectorEnabled,
+	return &containerCollector{
+		Context:                   ctx,
+		Logger:                    logger,
+		client:                    cli,
+		containerCollectorEnabled: containerCollectorEnabled,
 	}, nil
 }
 
-// Handler handles http requests for docker information.
-func (dc *dockerInfoCollector) Handler(w http.ResponseWriter, r *http.Request) {
-	if !dc.dockerInfoCollectorEnabled {
-		http.Error(w, fmt.Sprintf("docker info collector is not enabled"), http.StatusUnprocessableEntity)
+// Handler handles http requests for container information.
+func (cc *containerCollector) Handler(w http.ResponseWriter, r *http.Request) {
+	if !cc.containerCollectorEnabled {
+		http.Error(w, fmt.Sprintf("container collector is not enabled"), http.StatusUnprocessableEntity)
 		return
 	}
 
 	switch r.Method {
 	case "POST":
-		// Fetch system-wide information on docker.
-		info, err := dc.getDockerInfo()
+		// List all containers on the node.
+		containers, err := cc.listContainers()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to get information about the docker server.: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to list containers: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		raw, err := json.Marshal(info)
+		raw, err := json.Marshal(containers)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal docker info: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal containers: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		result := make(map[string]string)
-		result["docker.info"] = string(raw)
+		result[ContextKeyContainerList] = string(raw)
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
@@ -97,15 +103,15 @@ func (dc *dockerInfoCollector) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getDockerInfo gets information about the docker server.
-func (dc *dockerInfoCollector) getDockerInfo() (dockertypes.Info, error) {
-	dc.Info("getting information about the docker server")
+// listContainers lists all containers on the node.
+func (cc *containerCollector) listContainers() ([]dockertypes.Container, error) {
+	cc.Info("listing containers")
 
-	dc.client.NegotiateAPIVersion(dc)
-	info, err := dc.client.Info(dc)
+	cc.client.NegotiateAPIVersion(cc)
+	containers, err := cc.client.ContainerList(cc, dockertypes.ContainerListOptions{})
 	if err != nil {
-		return dockertypes.Info{}, err
+		return nil, err
 	}
 
-	return info, nil
+	return containers, nil
 }

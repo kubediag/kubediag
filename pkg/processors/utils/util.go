@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package utils
 
 import (
 	"encoding/json"
@@ -67,8 +67,8 @@ func GetAvailablePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// getPodInfoFromContext gets pod information from http json object payload.
-func getPodInfoFromContext(data map[string]string) v1.PodReference {
+// GetPodInfoFromContext gets pod information from http json object payload.
+func GetPodInfoFromContext(data map[string]string) v1.PodReference {
 	return v1.PodReference{
 		NamespacedName: v1.NamespacedName{
 			Namespace: data[executor.PodNamespaceTelemetryKey],

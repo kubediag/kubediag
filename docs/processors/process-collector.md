@@ -23,7 +23,7 @@ metadata:
   uid: a4d4eff3-7059-45f3-9e8d-c3a9280cd224
 spec:
   processor:
-    path: /processor/processcollector
+    path: /processor/processCollector
     scheme: http
     timeoutSeconds: 60
 ```
@@ -34,7 +34,7 @@ Process Collector 处理的请求必须为 POST 类型，处理的 HTTP 请求�
 
 #### HTTP 请求
 
-POST /processor/processcollector
+POST /processor/processCollector
 
 #### 状态码
 
@@ -46,7 +46,7 @@ POST /processor/processcollector
 
 #### 返回体参数
 
-JSON 返回体格式为 JSON 对象，对象中包含存有进程列表的 String 键值对。键为 `process.list`，值可以被解析为下列数据结构：
+JSON 返回体格式为 JSON 对象，对象中包含存有进程列表的 String 键值对。键为 `collector.system.process.list`，值可以被解析为下列数据结构：
 
 | Scheme | Description |
 |-|-|
@@ -62,7 +62,7 @@ JSON 返回体格式为 JSON 对象，对象中包含存有进程列表的 Strin
 
 ```json
 {
-    "process.list": '[{"pid":1,"ppid":0,"tgid":1,"command":["/sbin/init","splash"],"status":"S","createTime":"2021-06-02T01:35:50Z","cpuPercent":1.7139181742323948,"nice":20,"memoryInfo":{"rss":10752000,"vms":165097472,"hwm":0,"data":0,"stack":0,"locked":0,"swap":0}},......]'
+    "collector.system.process.list": '[{"pid":1,"ppid":0,"tgid":1,"command":["/sbin/init","splash"],"status":"S","createTime":"2021-06-02T01:35:50Z","cpuPercent":1.7139181742323948,"nice":20,"memoryInfo":{"rss":10752000,"vms":165097472,"hwm":0,"data":0,"stack":0,"locked":0,"swap":0}},......]'
 }
 ```
 

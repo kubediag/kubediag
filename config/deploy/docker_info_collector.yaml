@@ -4,6 +4,6 @@ metadata:
   name: docker-info-collector
 spec:
   processor:
-    path: /processor/dockerinfocollector
+    path: /processor/dockerInfoCollector
     scheme: http
     timeoutSeconds: 60

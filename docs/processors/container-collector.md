@@ -23,7 +23,7 @@ metadata:
   uid: 82237cde-59bc-4812-93e3-2741bc64476f
 spec:
   processor:
-    path: /processor/containercollector
+    path: /processor/containerCollector
     scheme: http
     timeoutSeconds: 60
 ```
@@ -34,7 +34,7 @@ Container Collector 处理的请求必须为 POST 类型，处理的 HTTP 请求
 
 #### HTTP 请求
 
-POST /processor/containercollector
+POST /processor/containerCollector
 
 #### 状态码
 
@@ -62,8 +62,9 @@ JSON 返回体格式为 JSON 对象，对象中包含存有容器列表的 Strin
 
 ```json
 {
-    "container.list": '[{{"Id":"b29a190d773988689efe3ef7b616e4dd4159f54ac4d131595d442a60d0b0b5ed","Names":["/k8s_POD_coredns-5644d7b6d9-c5tbq_kube-system_caf1aa9e-c2ee-4782-ad6d-98736fa15dd2_13"],"Image":"k8s.gcr.io/pause:3.1","ImageID":"sha256:da86e6ba6ca197bf6bc5e9d900febd906b133eaa4750e6bed647b0fbe50ed43e","Command":"/pause","Created":1622512223,"Ports":[],"Labels":{"annotation.cni.projectcalico.org/podIP":"192.168.236.158/32","annotation.cni.projectcalico.org/podIPs":"192.168.236.158/32","annotation.kubernetes.io/config.seen":"2021-06-01T09:49:50.754123792+08:00","annotation.kubernetes.io/config.source":"api","io.kubernetes.container.name":"POD","io.kubernetes.docker.type":"podsandbox","io.kubernetes.pod.name":"coredns-5644d7b6d9-c5tbq","io.kubernetes.pod.namespace":"kube-system","io.kubernetes.pod.uid":"caf1aa9e-c2ee-4782-ad6d-98736fa15dd2","k8s-app":"kube-dns","pod-template-hash":"5644d7b6d9"},"State":"running","Status":"Up 5 hours","HostConfig":{"NetworkMode":"none"},"NetworkSettings":{"Networks":{"none":{"IPAMConfig":null,"Links":null,"Aliases":null,"NetworkID":"2499f96edd88779350ff37ed240f7466fcbda7825532f8fd868a6c66872d1f4c","EndpointID":"bc34c9eca08ae33e719dfd7acbff65fe83fe55f798f0aeab179865333650c880","Gateway":"","IPAddress":"","IPPrefixLen":0,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"","DriverOpts":null}}},"Mounts":[]},......}]'
+    "collector.kubernetes.container.list": '[{{"Id":"b29a190d773988689efe3ef7b616e4dd4159f54ac4d131595d442a60d0b0b5ed","Names":["/k8s_POD_coredns-5644d7b6d9-c5tbq_kube-system_caf1aa9e-c2ee-4782-ad6d-98736fa15dd2_13"],"Image":"k8s.gcr.io/pause:3.1","ImageID":"sha256:da86e6ba6ca197bf6bc5e9d900febd906b133eaa4750e6bed647b0fbe50ed43e","Command":"/pause","Created":1622512223,"Ports":[],"Labels":{"annotation.cni.projectcalico.org/podIP":"192.168.236.158/32","annotation.cni.projectcalico.org/podIPs":"192.168.236.158/32","annotation.kubernetes.io/config.seen":"2021-06-01T09:49:50.754123792+08:00","annotation.kubernetes.io/config.source":"api","io.kubernetes.container.name":"POD","io.kubernetes.docker.type":"podsandbox","io.kubernetes.pod.name":"coredns-5644d7b6d9-c5tbq","io.kubernetes.pod.namespace":"kube-system","io.kubernetes.pod.uid":"caf1aa9e-c2ee-4782-ad6d-98736fa15dd2","k8s-app":"kube-dns","pod-template-hash":"5644d7b6d9"},"State":"running","Status":"Up 5 hours","HostConfig":{"NetworkMode":"none"},"NetworkSettings":{"Networks":{"none":{"IPAMConfig":null,"Links":null,"Aliases":null,"NetworkID":"2499f96edd88779350ff37ed240f7466fcbda7825532f8fd868a6c66872d1f4c","EndpointID":"bc34c9eca08ae33e719dfd7acbff65fe83fe55f798f0aeab179865333650c880","Gateway":"","IPAddress":"","IPPrefixLen":0,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"","DriverOpts":null}}},"Mounts":[]},......}]'
 }
 ```
 
 1. 如果 Container Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码。
+

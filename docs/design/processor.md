@@ -114,3 +114,67 @@ spec:
 1. Processor 发送信号成功则向 Kube Diagnoser Agent 返回 200 状态码。
 1. Processor 发送信号失败则向 Kube Diagnoser Agent 返回 500 状态码。
 1. Kube Diagnoser Agent 中的 Executor 在请求返回后继续执行诊断逻辑。
+
+
+## 命名与规范
+
+当我们设计实现一个 Processor 时，需要考虑这个 Processor 的 IO ，即如何访问、如何响应。另外还有一些需要命名的地方。在此我们制定一个规范，以便于更直观、更统一地管理和使用 Processor。
+
+所有需要命名的地方，可以分为两类：
+1. 以 `key-value` 格式构建的 Parameters 或 Contexts ，他们分别存在于该 Processor 的调用参数和返回结果中。这部分我们要求使用 `.` 连接成员，使用下划线 `_` 连接词。
+1. 除了 1 以外的场景，我们规定使用驼峰形命名。
+
+下面是设计 Processor 过程中需要命名的地方以及命名范例。
+
+### URL 和 Parameter
+一个 Processor 的访问 URL ，要求满足 `/processor/nameOfProcessor` 的格式。 例如：
+
+* /processor/podListCollector
+* /processor/subpathRemountDiagnoser
+* /processor/nodeCordon
+* /processor/containerdGoroutineCollector
+
+访问 Processor 时，使用 `map[string]string` 结构传参， map 中要求使用 `param` 前缀，使用 `.` 连接成员，使用 `_` 连接词。例如：
+
+* `param.diagnoser.runtime.core_file_profiler.expiration_seconds`
+* `param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace`
+
+key 中成员的设计可以参考[成员设计](#成员设计)
+
+### Response 中的 Context
+Processor 处理请求后会将结果以 `map[string]string` 的格式返回给 Kube Diagnoser Agent 。 我们称这个 map 为 Context 。因为其中的内容会作为后续 Processor 的 Parameters 。
+
+上文提到 Parameter 的格式， 显然，此处 Context 的 key 的命名规范也是一样的。不过为了与 Parameter 区分，所以不需要 `param` 前缀。例如：
+
+* `diagnoser.kubernetes.subpath_remount.original_source_path`
+* `collector.kubernetes.pod.detail`
+* `collector.system.mountinfo`
+* `diagnoser.runtime.core_file_profiler.result.endpoint`
+
+key 中成员的设计可以参考[成员设计](#成员设计)
+
+### Processor 中的日志标题
+
+Processor 的日志标题命名与它的 URL 命名保持一致。也即：
+
+* /processor/podListCollector
+* /processor/subpathRemountDiagnoser
+* /processor/nodeCordon
+* /processor/containerdGoroutineCollector
+
+### 成员设计
+key 中成员的设计没有太多的条件约束，只有一条强制要求： Parameter 中的 key 要以 `param` 为前缀。
+
+但是为了方便阅读，我们还是建议保持一定的规则：
+
+1. 第一成员为 Processor 的分类，如：
+    * collector  即完成信息采集工作的 Processor
+    * diagnoser 即完成信息分析，故障确认工作的 Processor
+    * recover 即完成故障恢复或处理工作的 Processor
+1. 第二成员为工作域的描述， 如：
+    * kubernetes  表示该 Processor 做的工作与 kubernetes / docker 有关
+    * runtime 表示该 Processor 做的工作与进程运行时有关
+    * system  表示该 Processor 做的工作与宿主机系统有关
+1. 第三成员及之后的成员， 表示更细粒度的责任域划分。
+
+这里提供的规则仅是建议。我们不强求设计 Parameter / Context 字段时严格执行这种思路。例如 Processor 可能完成了 kubernetes 信息采集和节点上 system 层面的诊断， 此时我们确实无法将该 Processor 进行合适的分类。将相关的 key 使用 `kubernetes.playbook_20210311.execution_command` 来描述也是可以正常工作的。 但请确保你的其他 Processor  、 或其他人的 Processor  知晓这个 Processor 的 key 的命名和内容结构 (schema)。

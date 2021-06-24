@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package k8s
 
 import (
 	"context"
@@ -24,10 +24,14 @@ import (
 	"os/exec"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/k8s"
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
 )
 
 const (
-	contextKeySubpathRemountRecoverResult = "recover.bug.subpathremount.result"
+	ContextKeySubpathRemountRecoverResult = "recover.kubernetes.subpath_remount.result"
 )
 
 // subPathRemountRecover recover the bug of subpath-remount
@@ -46,7 +50,7 @@ func NewSubPathRemountRecover(
 	ctx context.Context,
 	logger logr.Logger,
 	subPathRemountEnabled bool,
-) Processor {
+) processors.Processor {
 	return &subPathRemountRecover{
 		Context:               ctx,
 		Logger:                logger,
@@ -63,13 +67,13 @@ func (srr *subPathRemountRecover) Handler(w http.ResponseWriter, r *http.Request
 
 	switch r.Method {
 	case "POST":
-		contexts, err := ExtractParametersFromHTTPContext(r)
+		contexts, err := utils.ExtractParametersFromHTTPContext(r)
 		if err != nil {
 			srr.Error(err, "extract contexts failed")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		target := contexts[contextKeySubpathRemountOriginalDestinationPath]
+		target := contexts[k8s.ContextKeySubpathRemountOriginalDestinationPath]
 		if target == "" {
 			srr.Error(err, "extract contexts lack of some value", "key", "diagnosis.kubernetes.bug.subpathremount.firstdestination")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -85,7 +89,7 @@ func (srr *subPathRemountRecover) Handler(w http.ResponseWriter, r *http.Request
 		}
 
 		result := make(map[string]string)
-		result["recover.kubernetes.bug.subpathremount.result"] = "succeed"
+		result[ContextKeySubpathRemountRecoverResult] = fmt.Sprintf("Succeesfully umount %s on host", target)
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)

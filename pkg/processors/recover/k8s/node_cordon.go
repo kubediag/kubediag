@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processors
+package k8s
 
 import (
 	"context"
@@ -25,6 +25,12 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+)
+
+const (
+	ContextKeyNodeCordonResultName = "recover.kubernetes.node_cordon.result.name"
 )
 
 // nodeCordon marks node as unschedulable.
@@ -49,7 +55,7 @@ func NewNodeCordon(
 	client client.Client,
 	nodeName string,
 	nodeCordonEnabled bool,
-) Processor {
+) processors.Processor {
 	return &nodeCordon{
 		Context:           ctx,
 		Logger:            logger,
@@ -75,7 +81,7 @@ func (nc *nodeCordon) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := make(map[string]string)
-		result["node.cordon"] = nc.nodeName
+		result[ContextKeyNodeCordonResultName] = nc.nodeName
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
