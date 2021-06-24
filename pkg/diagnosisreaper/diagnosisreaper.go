@@ -37,6 +37,12 @@ import (
 )
 
 var (
+	diagnosisGarbageCollectionCycleCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "diagnosis_garbage_collection_cycle_count",
+			Help: "Counter of diagnosis garbage collection cycle",
+		},
+	)
 	diagnosisGarbageCollectionSuccessCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "diagnosis_garbage_collection_success_count",
@@ -47,12 +53,6 @@ var (
 		prometheus.CounterOpts{
 			Name: "diagnosis_garbage_collection_error_count",
 			Help: "Counter of erroneous diagnosis garbage collections",
-		},
-	)
-	nodeDiagnosisCount = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "node_diagnosis_count",
-			Help: "Number of diagnoses currently on node",
 		},
 	)
 )
@@ -95,10 +95,11 @@ func NewDiagnosisReaper(
 	maximumDiagnosesPerNode int32,
 	dataRoot string,
 ) *DiagnosisReaper {
+
 	metrics.Registry.MustRegister(
+		diagnosisGarbageCollectionCycleCount,
 		diagnosisGarbageCollectionSuccessCount,
 		diagnosisGarbageCollectionErrorCount,
-		nodeDiagnosisCount,
 	)
 
 	return &DiagnosisReaper{
@@ -126,6 +127,7 @@ func (dr *DiagnosisReaper) Run(stopCh <-chan struct{}) {
 	housekeepingInterval := dr.diagnosisTTL / 4
 	go wait.Until(func() {
 		dr.Info("running garbage collection")
+		diagnosisGarbageCollectionCycleCount.Inc()
 
 		// Garbage collect diagnoses on node.
 		diagnoses, err := dr.listDiagnoses()
@@ -134,8 +136,6 @@ func (dr *DiagnosisReaper) Run(stopCh <-chan struct{}) {
 			dr.Error(err, "failed to list diagnoses")
 			return
 		}
-
-		nodeDiagnosisCount.Set(float64(len(diagnoses)))
 
 		reapedDiagnoses := make([]diagnosisv1.Diagnosis, 0)
 		retainedDiagnoses := make([]diagnosisv1.Diagnosis, 0)

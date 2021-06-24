@@ -107,6 +107,7 @@ func init() {
 	_ = diagnosisv1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+
 }
 
 func main() {
@@ -183,6 +184,8 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "unable to start manager")
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
+		// Collect feature gate metrics
+		features.Collect(featureGate)
 
 		// Channel for queuing kubernetes events and operation sets.
 		eventChainCh := make(chan corev1.Event, 1000)
@@ -260,7 +263,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis, Trigger, OperationSet and Event.
+		// Setup reconcilers for Diagnosis, Trigger, Operation, OperationSet and Event.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
@@ -271,6 +274,14 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
+		}
+		if err = (controllers.NewOperationReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Operation"),
+			mgr.GetScheme(),
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Operation")
+			return fmt.Errorf("unable to create controller for Operation: %v", err)
 		}
 		if err = (controllers.NewTriggerReconciler(
 			mgr.GetClient(),
@@ -325,6 +336,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			setupLog.Error(err, "problem running manager")
 			return fmt.Errorf("problem running manager: %v", err)
 		}
+
 	} else if opts.Mode == "agent" {
 		setupLog.Info("kube diagnoser is running in agent mode")
 
