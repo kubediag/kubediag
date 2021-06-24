@@ -1,0 +1,10 @@
+apiVersion: diagnosis.netease.com/v1
+kind: Diagnosis
+metadata:
+  name: http-operation
+spec:
+  operationSet: http-operation
+  nodeName: my-node
+  parameters:
+    b: "200"
+    f: "6"

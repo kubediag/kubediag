@@ -1,0 +1,11 @@
+apiVersion: diagnosis.netease.com/v1
+kind: OperationSet
+metadata:
+  name: http-operation
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: http-operation
