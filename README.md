@@ -8,16 +8,13 @@ Kube Diagnoser 是一个用于 [Kubernetes](https://kubernetes.io) 集群故障�
 
 ## 部署 Kube Diagnoser
 
-Kube Diagnoser 包括 Master 和 Agent 组件，Master 在集群中以 [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) 的方式部署，Agent 在集群中以 [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) 的方式部署。Kube Diagnoser 要求 Kubernetes 集群版本不低于 `1.15`。
+Kube Diagnoser 包括 Master 和 Agent 组件，Master 在集群中以 [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) 的方式部署，Agent 在集群中以 [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) 的方式部署。Kube Diagnoser 要求 Kubernetes 集群版本不低于 `1.16`。
 
 Kube Diagnoser Master 建议使用 [Cert Manager](https://github.com/jetstack/cert-manager) 管理 Webhook Server 的证书。如果集群中未部署 Cert Manager 可参考[官方文档](https://cert-manager.io/docs/installation/kubernetes/)进行安装，运行以下命令进行快速安装：
 
 ```bash
 # Kubernetes 1.16+
 kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.yaml
-
-# Kubernetes <1.16
-kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager-legacy.yaml
 ```
 
 使用 `kubectl` 命令行工具进行部署：

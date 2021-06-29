@@ -10,10 +10,10 @@
 
 您需要在 Kube Diagnoser Master 启动时指定下列参数以使用该功能：
 
-| 参数 | 描述 | 默认值 | 示例 |
+| 参数 | 类型 | 描述 | 示例 |
 |-|-|-|-|
-| --kafka-brokers strings | 需要连接 Kafka 集群的 Broker 地址列表。 | "" | "my-cluster-kafka-0:9092,my-cluster-kafka-1:9092" |
-| --kafka-topic string | 获取消息的 Topic。 | "" | "my-topic" |
+| --kafka-brokers | strings | 需要连接 Kafka 集群的 Broker 地址列表。 | my-cluster-kafka-0:9092,my-cluster-kafka-1:9092 |
+| --kafka-topic | string | 获取消息的 Topic。 | my-topic |
 
 如果上述参数均未指定，则通过 Kafka 消息触发诊断的功能不开启。
 
