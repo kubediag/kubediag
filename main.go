@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,16 +38,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/alertmanager"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/controllers"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/diagnosisreaper"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/eventer"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/graphbuilder"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/kafka"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/register"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/alertmanager"
+	"github.com/kubediag/kubediag/pkg/controllers"
+	"github.com/kubediag/kubediag/pkg/diagnosisreaper"
+	"github.com/kubediag/kubediag/pkg/eventer"
+	"github.com/kubediag/kubediag/pkg/executor"
+	"github.com/kubediag/kubediag/pkg/features"
+	"github.com/kubediag/kubediag/pkg/graphbuilder"
+	"github.com/kubediag/kubediag/pkg/kafka"
+	"github.com/kubediag/kubediag/pkg/processors/register"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -55,23 +55,23 @@ var (
 	scheme           = runtime.NewScheme()
 	setupLog         = ctrl.Log.WithName("setup")
 	defaultTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	defaultCertDir   = "/etc/kube-diagnoser/serving-certs"
-	defaultDataRoot  = "/var/lib/kube-diagnoser"
+	defaultCertDir   = "/etc/kubediag/serving-certs"
+	defaultDataRoot  = "/var/lib/kubediag"
 )
 
-// KubeDiagnoserOptions is the main context object for the kube diagnoser.
-type KubeDiagnoserOptions struct {
-	// Mode specifies whether the kube diagnoser is running as a master or an agnet.
+// KubeDiagOptions is the main context object for the kubediag.
+type KubeDiagOptions struct {
+	// Mode specifies whether the kubediag is running as a master or an agnet.
 	Mode string
 	// BindAddress is the address on which to advertise.
 	BindAddress string
-	// Port is the port for the kube diagnoser to serve on.
+	// Port is the port for the kubediag to serve on.
 	Port int
 	// NodeName specifies the node name.
 	NodeName string
 	// MetricsPort is the port the metric endpoint to serve on.
 	MetricsPort int
-	// EnableLeaderElection enables leader election for kube diagnoser master.
+	// EnableLeaderElection enables leader election for kubediag master.
 	EnableLeaderElection bool
 	// WebhookPort is the port that the webhook server serves at.
 	WebhookPort int
@@ -95,9 +95,9 @@ type KubeDiagnoserOptions struct {
 	// MaximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
 	MaximumDiagnosesPerNode int32
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
-	// piecemeal the default values from "github.com/kube-diagnoser/kube-diagnoser/pkg/features/features.go".
+	// piecemeal the default values from "github.com/kubediag/kubediag/pkg/features/features.go".
 	FeatureGates map[string]bool
-	// DataRoot is root directory of persistent kube diagnoser data.
+	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
 }
 
@@ -111,22 +111,23 @@ func init() {
 }
 
 func main() {
-	opts, err := NewKubeDiagnoserOptions()
+	opts, err := NewKubeDiagOptions()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
 	cmd := &cobra.Command{
-		Use: "kube-diagnoser",
-		Long: `The Kubernetes diagnoser is a daemon that embeds the core pipeline of
-diagnosis diagnosis and recovery. It could be run in either master mode or
+		Use: "kubediag",
+		// TODO: Rewrite this long message.
+		Long: `The KubeDiag is a daemon that embeds the core pipeline of
+diagnosis and recovery. It could be run in either master mode or
 agent mode. In master mode it processes prometheus alerts and monitors
 cluster health status. In agent mode it watches Diagnoses and executes
 information collection, diagnosis and recovery according to specification
 of an Diagnosis.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			setupLog.Error(opts.Run(), "failed to run kube diagnoser")
+			setupLog.Error(opts.Run(), "failed to run kubediag")
 			os.Exit(1)
 		},
 	}
@@ -139,9 +140,9 @@ of an Diagnosis.`,
 	}
 }
 
-// NewKubeDiagnoserOptions creates a new KubeDiagnoserOptions with a default config.
-func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
-	return &KubeDiagnoserOptions{
+// NewKubeDiagOptions creates a new KubeDiagOptions with a default config.
+func NewKubeDiagOptions() (*KubeDiagOptions, error) {
+	return &KubeDiagOptions{
 		Mode:                        "agent",
 		BindAddress:                 "0.0.0.0",
 		Port:                        8090,
@@ -158,7 +159,7 @@ func NewKubeDiagnoserOptions() (*KubeDiagnoserOptions, error) {
 }
 
 // Run setups all controllers and starts the manager.
-func (opts *KubeDiagnoserOptions) Run() error {
+func (opts *KubeDiagOptions) Run() error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	featureGate := features.NewFeatureGate()
@@ -169,7 +170,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 	}
 
 	if opts.Mode == "master" {
-		setupLog.Info("kube diagnoser is running in master mode")
+		setupLog.Info("kubediag is running in master mode")
 
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
@@ -178,7 +179,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			Host:               opts.Host,
 			CertDir:            opts.CertDir,
 			LeaderElection:     opts.EnableLeaderElection,
-			LeaderElectionID:   "8a2b2861.netease.com",
+			LeaderElectionID:   "8a2b2861.kubediag.org",
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to start manager")
@@ -197,7 +198,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			context.Background(),
 			ctrl.Log.WithName("graphbuilder"),
 			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/graphbuilder"),
+			mgr.GetEventRecorderFor("kubediag/graphbuilder"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			graphBuilderCh,
@@ -338,13 +339,13 @@ func (opts *KubeDiagnoserOptions) Run() error {
 		}
 
 	} else if opts.Mode == "agent" {
-		setupLog.Info("kube diagnoser is running in agent mode")
+		setupLog.Info("kubediag is running in agent mode")
 
 		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 			Scheme:             scheme,
 			MetricsBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.MetricsPort),
 			LeaderElection:     false,
-			LeaderElectionID:   "8a2b2861.netease.com",
+			LeaderElectionID:   "8a2b2861.kubediag.org",
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to start manager")
@@ -360,7 +361,7 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			context.Background(),
 			ctrl.Log.WithName("executor"),
 			mgr.GetClient(),
-			mgr.GetEventRecorderFor("kube-diagnoser/executor"),
+			mgr.GetEventRecorderFor("kubediag/executor"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
@@ -436,20 +437,20 @@ func (opts *KubeDiagnoserOptions) Run() error {
 			return fmt.Errorf("problem running manager: %v", err)
 		}
 	} else {
-		return fmt.Errorf("invalid kube diagnoser mode: %s", opts.Mode)
+		return fmt.Errorf("invalid kubediag mode: %s", opts.Mode)
 	}
 
 	return nil
 }
 
 // AddFlags adds flags to fs and binds them to options.
-func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kube diagnoser is running as a master or an agnet.")
+func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&opts.Mode, "mode", opts.Mode, "Whether the kubediag is running as a master or an agnet.")
 	fs.StringVar(&opts.BindAddress, "bind-address", opts.BindAddress, "The address on which to advertise.")
-	fs.IntVar(&opts.Port, "port", opts.Port, "The port for the kube diagnoser to serve on.")
+	fs.IntVar(&opts.Port, "port", opts.Port, "The port for the kubediag to serve on.")
 	fs.StringVar(&opts.NodeName, "node-name", opts.NodeName, "The node name.")
 	fs.IntVar(&opts.MetricsPort, "metrics-port", opts.MetricsPort, "The port the metric endpoint to serve on.")
-	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kube diagnoser master.")
+	fs.BoolVar(&opts.EnableLeaderElection, "enable-leader-election", opts.EnableLeaderElection, "Enables leader election for kubediag master.")
 	fs.StringVar(&opts.DockerEndpoint, "docker-endpoint", "unix:///var/run/docker.sock", "The docker endpoint.")
 	fs.IntVar(&opts.WebhookPort, "webhook-port", opts.WebhookPort, "The port that the webhook server serves at.")
 	fs.StringVar(&opts.Host, "host", opts.Host, "The hostname that the webhook server binds to.")
@@ -461,7 +462,7 @@ func (opts *KubeDiagnoserOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
-	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kube diagnoser data.")
+	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

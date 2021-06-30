@@ -1,12 +1,12 @@
 # Adds namespace to all resources.
-namespace: kube-diagnoser
+namespace: kubediag
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
 # "wordpress" becomes "alices-wordpress".
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
-# namePrefix: kube-diagnoser-
+# namePrefix: kubediag-
 
 # Labels to add to all resources and selectors.
 #commonLabels:
@@ -26,7 +26,7 @@ bases:
 
 patchesStrategicMerge:
   # Protect the /metrics endpoint by putting it behind auth.
-  # If you want your kube-diagnoser to expose the /metrics
+  # If you want your kubediag to expose the /metrics
   # endpoint w/o any authn/z, please comment the following line.
 # - manager_auth_proxy_patch.yaml
 

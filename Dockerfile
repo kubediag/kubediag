@@ -1,4 +1,4 @@
-# Build the kube-diagnoser binary
+# Build the kubediag binary
 FROM golang:1.14 as builder
 
 WORKDIR /workspace
@@ -13,9 +13,9 @@ COPY pkg/ pkg/
 COPY vendor/ vendor/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -mod vendor -o kube-diagnoser main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -mod vendor -o kubediag main.go
 
-# Use ubuntu as base image to package the kube-diagnoser binary with diagnosing tools
+# Use ubuntu as base image to package the kubediag binary with diagnosing tools
 FROM ubuntu:20.04
 
 # Configure apt data sources.
@@ -50,8 +50,8 @@ COPY tools/ctr .
 COPY tools/docker .
 
 WORKDIR /
-# Copy kube-diagnoser binary
-COPY --from=builder /workspace/kube-diagnoser .
+# Copy kubediag binary
+COPY --from=builder /workspace/kubediag .
 # Add eclipse memory analyzer tool
 ADD tools/MemoryAnalyzer-1.10.0.20200225-linux.gtk.x86_64.tar .
 
@@ -59,4 +59,4 @@ ENV PATH=$PATH:/usr/local/go/bin
 
 USER root:root
 
-ENTRYPOINT ["/kube-diagnoser"]
+ENTRYPOINT ["/kubediag"]

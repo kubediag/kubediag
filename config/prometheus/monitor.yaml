@@ -4,37 +4,37 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-master-metrics-monitor
+  namespace: kubediag
 spec:
   endpoints:
     - path: /metrics
       port: metrics
   namespaceSelector:
     matchNames:
-    - kube-diagnoser
+    - kubediag
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: master
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-master-metrics-monitor
+  namespace: kubediag
 spec:
   ports:
   - name: metrics
     port: 10357
     targetPort: metrics
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
   type: ClusterIP
   clusterIP: None
@@ -43,37 +43,37 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-agent-metrics-monitor
+  namespace: kubediag
 spec:
   endpoints:
     - path: /metrics
       port: metrics
   namespaceSelector:
     matchNames:
-    - kube-diagnoser
+    - kubediag
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: agent
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-agent-metrics-monitor
+  namespace: kubediag
 spec:
   ports:
   - name: metrics
     port: 10355
     targetPort: metrics
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
   type: ClusterIP
   clusterIP: None

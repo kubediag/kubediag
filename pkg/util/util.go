@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 )
 
 const (
@@ -44,8 +44,8 @@ const (
 	KubeletRunDirectory = "/var/lib/kubelet"
 	// KubeletPodDirectory specifies the directory where the kubelet pod information is stored.
 	KubeletPodDirectory = "/var/lib/kubelet/pods"
-	// DefautlNamespace is the default namespace of kube diagnoser.
-	DefautlNamespace = "kube-diagnoser"
+	// DefautlNamespace is the default namespace of kubediag.
+	DefautlNamespace = "kubediag"
 	// PodKillGracePeriodSeconds is the duration in seconds after the pod is forcibly halted
 	// with a kill signal and the time when the pod is taken as an abormal pod.
 	PodKillGracePeriodSeconds = 30
@@ -67,8 +67,8 @@ const (
 	MemoryAnalyzerHomepage = `<h2>Eclipse Memory Analyzer</h2><ul><li><a href="/leaksuspects/">Leak Suspects</a></li><li><a href="/systemoverview/">System Overview</a></li><li><a href="/topcomponents/">Top Components</a></li></ul>`
 	// GoProfilerPathPrefix is the path prefix for go profiler pprof url.
 	GoProfilerPathPrefix = "/debug/pprof/"
-	// KubeDiagnoserPrefix is the key prefix for annotations about kube diagnoser.
-	KubeDiagnoserPrefix = "diagnosis.netease.com/"
+	// KubeDiagPrefix is the key prefix for annotations about kubediag.
+	KubeDiagPrefix = "diagnosis.kubediag.org/"
 	// OperationSetUniqueLabelKey is the default key of the label that is added to existing OperationSets and Diagnoses
 	// to prevent conflicts on changed OperationSets and running Diagnoses.
 	OperationSetUniqueLabelKey = "adjacency-list-hash"

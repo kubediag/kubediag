@@ -2,11 +2,11 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: http-operation
-  namespace: kube-diagnoser
+  namespace: kubediag
   labels:
     operation: cache
     type: http
 spec:
   containers:
   - name: http-operation
-    image: hub.c.163.com/combk8s/http-operation:v0.2.0
+    image: hub.c.163.com/kubediag/http-operation:v0.2.0

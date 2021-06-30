@@ -1,4 +1,4 @@
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   name: container-collector
@@ -10,7 +10,7 @@ spec:
   - id: 1
     operation: container-collector
 ---
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: container-collector

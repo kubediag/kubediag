@@ -7,7 +7,7 @@
 Diagnosis 是用于声明诊断的自定义资源，通过 Diagnosis 您可以定义如何运行一个诊断。下列 Diagnosis 中定义运行之前已注册运维流水线的诊断：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: http-operation
@@ -44,7 +44,7 @@ kubectl apply -f samples/http-operation/manifests/diagnosis.yaml
 
 ```bash
 $ kubectl get diagnosis http-operation -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   labels:
@@ -52,7 +52,7 @@ metadata:
   name: http-operation
   namespace: default
   resourceVersion: "2053976"
-  selfLink: /apis/diagnosis.netease.com/v1/namespaces/default/diagnoses/http-operation
+  selfLink: /apis/diagnosis.kubediag.org/v1/namespaces/default/diagnoses/http-operation
   uid: 59f1aee9-e00c-4680-92c3-d1cee080f8dc
 spec:
   nodeName: my-node
@@ -93,7 +93,7 @@ status:
     operation: http-operation
 ```
 
-您可能已经注意到 `.status.phase` 字段为 `Succeeded` 并且 `.status.succeededPath` 字段中包含一条诊断路径，该状态表示诊断运行成功。诊断运行的结果会被记录到 `.status.operationResults` 字段，即 HTTP 诊断程序返回的缓存在更改后的所有数据。`.status.operationResults` 字段中还出现了一些诊断相关的元数据，这是因为这些元数据和 `.spec.parameters` 字段中传入的参数被 Kube Diagnoser 一起发送至了 HTTP 诊断程序。
+您可能已经注意到 `.status.phase` 字段为 `Succeeded` 并且 `.status.succeededPath` 字段中包含一条诊断路径，该状态表示诊断运行成功。诊断运行的结果会被记录到 `.status.operationResults` 字段，即 HTTP 诊断程序返回的缓存在更改后的所有数据。`.status.operationResults` 字段中还出现了一些诊断相关的元数据，这是因为这些元数据和 `.spec.parameters` 字段中传入的参数被 KubeDiag 一起发送至了 HTTP 诊断程序。
 
 我们通过下列命令可以确定当前诊断程序缓存中的所有数据与 `.status.operationResults` 字段一致：
 

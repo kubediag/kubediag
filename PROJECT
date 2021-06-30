@@ -1,5 +1,5 @@
-domain: netease.com
-repo: github.com/kube-diagnoser/kube-diagnoser
+domain: kubediag.org
+repo: github.com/kubediag/kubediag
 resources:
 - group: diagnosis
   kind: Diagnosis

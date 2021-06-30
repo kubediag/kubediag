@@ -8,16 +8,16 @@ Core File Profiler 是一个 [Processor](../design/processor.md)，用户可以�
 
 ## 实现
 
-Core File Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Core File Profiler，该 Operation 在 Kube Diagnoser Agent 部署时默认注册，但整体功能是关闭的，可以在部署  Kube Diagnoser Agent 时在启动参数中配置：`--feature-gates=CorefileProfiler=true` 打开该功能，执行下列命令可以查看已注册的 Core File Profiler：
+Core File Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Core File Profiler，该 Operation 在 KubeDiag Agent 部署时默认注册，但整体功能是关闭的，可以在部署  KubeDiag Agent 时在启动参数中配置：`--feature-gates=CorefileProfiler=true` 打开该功能，执行下列命令可以查看已注册的 Core File Profiler：
 
 ```bash
 $ kubectl  get operation core-file-profiler -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: core-file-profiler
   resourceVersion: "57862"
-  selfLink: /apis/diagnosis.netease.com/v1/operations/core-file-profiler
+  selfLink: /apis/diagnosis.kubediag.org/v1/operations/core-file-profiler
   uid: 1feb15cc-4000-4934-a2dc-9433bbf6e9da
 spec:
   processor:
@@ -52,7 +52,7 @@ POST /processor/coreFileProfiler
 - type 表示 Core File Profiler 提供的服务类型。 可选值有二：
   - coredump 将启动一个 HTTP 服务，提供 coredump 文件的下载或在线调试
   - gcore 将直接启动一个 websocket 服务，提供指定进程的在线调试
-- filePath 当 type 为 coredump 时，通过此字段，用户可以显式指定 coredump 文件路径或目录，需要注意，该路径或其父目录必须挂载到 Kube Diagnoser Agent 中，否则无法提供访问; 当该字段为空时，Corefile Profiler 会基于相关 pod 的 Namespace 、 Name 、 ContainerName 信息，找到特定的存放 coredump 文件的目录，其中的原理可以参考[下文](#coredump转储原理说明)
+- filePath 当 type 为 coredump 时，通过此字段，用户可以显式指定 coredump 文件路径或目录，需要注意，该路径或其父目录必须挂载到 KubeDiag Agent 中，否则无法提供访问; 当该字段为空时，Corefile Profiler 会基于相关 pod 的 Namespace 、 Name 、 ContainerName 信息，找到特定的存放 coredump 文件的目录，其中的原理可以参考[下文](#coredump转储原理说明)
 - pid 当 type 为 gcore 时，通过此字段，用户可以直接在线调试一个运行中进程。需要注意，此处的 pid 的值必须是宿主机侧的进程号。
 
 #### 状态码
@@ -74,7 +74,7 @@ http://my-node:46765
 并且最终，这部分信息将会记录在 Diagnosis 对象的 status 中， 如下：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: diagnosis-coreprofiler-example
@@ -97,7 +97,7 @@ status:
 1. 创建 Operation 和 OperationSet：
 
    ```yaml
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Operation
    metadata:
      name: core-file-profiler
@@ -107,7 +107,7 @@ status:
        scheme: http
        timeoutSeconds: 60
    ---
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: OperationSet
    metadata:
      name: core-profiler-operationset
@@ -126,7 +126,7 @@ status:
 2. 创建一个测试用的 pod ，该 pod 会在 sleep 3分钟后异常退出 ：
 
    ```bash
-   $ kubectl create deploy testcore --image hub.c.163.com/combk8s/test-coredump:latest
+   $ kubectl create deploy testcore --image hub.c.163.com/kubediag/test-coredump:latest
    $ kubectl get pod -o wide
    NAME                        READY   STATUS    RESTARTS   AGE  IP            NODE      NOMINATED NODE   READINESS GATES
    testcore-5b89896b96-d44xl   1/1     Running   1          2m   10.244.0.31   my-node   <none>           <none>
@@ -137,7 +137,7 @@ status:
 1. 创建一个 Diagnosis  对象， 对这个 pod 进行 coredump 分析:
 
    ```yaml
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: diagnosis-coreprofiler-example
@@ -153,7 +153,7 @@ status:
        container: test-coredump
    ```
    
-   创建后， 该 Diagnosis 将会在指定节点上由 Kube Diagnoser Agent 组件接管执行。Kube Diagnoser Agent  向 Corefile Profiler 发送 HTTP 请求，请求类型为 POST，请求中包含请求体，请求体将包括 `spec.parameters` 中的所有信息，和 `spec.podReference` 中的 Pod 相关信息：
+   创建后， 该 Diagnosis 将会在指定节点上由 KubeDiag Agent 组件接管执行。KubeDiag Agent  向 Corefile Profiler 发送 HTTP 请求，请求类型为 POST，请求中包含请求体，请求体将包括 `spec.parameters` 中的所有信息，和 `spec.podReference` 中的 Pod 相关信息：
    
    ```json
    {
@@ -168,7 +168,7 @@ status:
 2. 等待Corefile Profiler 处理完毕，在 HTTP response 中告知了自己新启动的 HTTP 服务地址，查看 Diagnosis  对象：
 
    ```yaml
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: diagnosis-coreprofiler-example
@@ -211,7 +211,7 @@ status:
 若我们需要指定 pid ， 可以在 Diagnosis 对象中，相应 operation 的 parameter 中追加该参数。如：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: diagnosis-coreprofiler-example
@@ -230,7 +230,7 @@ spec:
 1. 当上述的 pod 运行超过3分钟后， pod 进入了 CrashLoopBackOff 状态， 我们此时将之前的 Diagnosis 对象删除并重新创建一个心的 Diagnosis ：
 
    ```
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: diagnosis-coreprofiler-example
@@ -249,7 +249,7 @@ spec:
    
 
    ```bash
-   $ kubectl create deploy testcore --image hub.c.163.com/combk8s/test-coredump:latest
+   $ kubectl create deploy testcore --image hub.c.163.com/kubediag/test-coredump:latest
    $ kubectl get pod -o wide
    NAME                        READY   STATUS             RESTARTS   AGE     IP            NODE    NOMINATED NODE   READINESS GATES
    testcore-5b89896b96-d44xl   0/1     CrashLoopBackOff   1         5m   10.244.0.31   my-node   <none>           <none>
@@ -261,13 +261,13 @@ spec:
 
    ```bash
    $ kubectl  get diagnosis diagnosis-coreprofiler-example -o yaml
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: diagnosis-coreprofiler-example
      namespace: default
      resourceVersion: "1628675"
-     selfLink: /apis/diagnosis.netease.com/v1/namespaces/default/diagnoses/diagnosis-coreprofiler-example
+     selfLink: /apis/diagnosis.kubediag.org/v1/namespaces/default/diagnoses/diagnosis-coreprofiler-example
      uid: 2a13263e-c1cb-4087-9d1b-e918de2e8fe7
    spec:
      nodeName: my-node
@@ -292,7 +292,7 @@ spec:
 
    可以看到 coredump 分析成功。
 
-   在 coredump 分析中， Kube Diagnoser Agent  向 Corefile Profiler 发起另一个 HTTP POST 请求，body 如下：
+   在 coredump 分析中， KubeDiag Agent  向 Corefile Profiler 发起另一个 HTTP POST 请求，body 如下：
 
    ```json
    {
@@ -321,13 +321,13 @@ spec:
 默认情况下，Core File Profiler 在处理 coredump 类型的请求时， 会从 :
 
 ```
-/var/lib/kube-diagnoser/corefile/k8s/
+/var/lib/kubediag/corefile/k8s/
 ```
 
 目录下开始查找 coredump 文件。查找的具体路径将会是：
 
 ```
-/var/lib/kube-diagnoser/corefile/k8s/$POD_NAMESPACE/$POD_NAME/$CONTAINER_NAME/
+/var/lib/kubediag/corefile/k8s/$POD_NAMESPACE/$POD_NAME/$CONTAINER_NAME/
 ```
 
 在这个目录下， 将会记录某个容器的所有 coredump 文件 。
@@ -335,7 +335,7 @@ spec:
 如果容器总是发生 coredump 并且总是会被重启，那么每次coredump的文件都会记录进去，但是文件名不同， 文件名会以：`$Pid_$Timestamp`的格式。 例如：
 
 ```bash
-#  ls -l /var/lib/kube-diagnoser/corefile/k8s/default/testcore-5b89896b96-d44xl/test-coredump
+#  ls -l /var/lib/kubediag/corefile/k8s/default/testcore-5b89896b96-d44xl/test-coredump
 total 2688
 -rw-rw-rw- 1 root root 393216 Apr  6 10:54 47305_20210406-105419
 -rw-rw-rw- 1 root root 393216 Apr  6 10:59 55276_20210406-105931
@@ -349,7 +349,7 @@ total 2688
 用户也可以自己指定 coredump 文件的存储目录或完整路径。在 Diagnosis 对象中，相应 operation 的 parameter 中追加该参数。如：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: diagnosis-coreprofiler-example
@@ -368,7 +368,7 @@ spec:
 1. 我们在创建 Diagnosis 对象时，写入不完整的 pod 信息， 比如缺少 container 的名字：
 
    ```yaml
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: diagnosis-coreprofiler-example
@@ -383,7 +383,7 @@ spec:
        namespace: default
    ```
    
-   这种情况下，访问 Core File Profiler 时， body 中将会缺少 `container` 参数， Core File Profiler 将会把该 pod 的所有容器的 coredump 文件都列举出来。 也即：`/var/lib/kube-diagnoser/corefile/k8s/default/testcore-5b89896b96-d44xl/`下的所有子目录的所有文件。
+   这种情况下，访问 Core File Profiler 时， body 中将会缺少 `container` 参数， Core File Profiler 将会把该 pod 的所有容器的 coredump 文件都列举出来。 也即：`/var/lib/kubediag/corefile/k8s/default/testcore-5b89896b96-d44xl/`下的所有子目录的所有文件。
    
 2. 访问 operationResult 中记录的 url ：
 
@@ -462,7 +462,7 @@ securityContext:
 
 #### 本文配置使用的存储方式
 
-在 Kube Diagnoser 支持 corefile profiler 的实践中， 我们要求：
+在 KubeDiag 支持 corefile profiler 的实践中， 我们要求：
 
 - 每个节点上设置：
   - /proc/sys/kernel/core_uses_pid  = 1
@@ -474,7 +474,7 @@ securityContext:
 pid=$1
 timestamp=$2
 
-root='/var/lib/kube-diagnoser/corefile/'
+root='/var/lib/kubediag/corefile/'
 ls ${root} || mkdir -p ${root}
 docker_root=`docker info 2>&1|grep "Docker Root Dir"  |awk '{print $NF}'`
 

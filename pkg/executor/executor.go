@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,12 +39,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 const (
-	// MaxDataSize specifies max size of data which could be processed by kube diagnoser.
+	// MaxDataSize specifies max size of data which could be processed by kubediag.
 	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
 	MaxDataSize = 1024 * 1024 * 2
 
@@ -140,9 +140,9 @@ type executor struct {
 	transport *http.Transport
 	// bindAddress is the address on which to advertise.
 	bindAddress string
-	// port is the port for the kube diagnoser to serve on.
+	// port is the port for the kubediag to serve on.
 	port int
-	// dataRoot is root directory of persistent kube diagnoser data.
+	// dataRoot is root directory of persistent kubediag data.
 	dataRoot string
 	// executorCh is a channel for queuing Diagnoses to be processed by executor.
 	executorCh chan diagnosisv1.Diagnosis
@@ -508,7 +508,7 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.
 // It returns a bool, a response body and an error as results.
 func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
-	// Set http request contexts and construct http client. Use kube diagnoser agent bind address as the processor
+	// Set http request contexts and construct http client. Use kubediag agent bind address as the processor
 	// address if external ip and external port not specified.
 	var host string
 	var port int32

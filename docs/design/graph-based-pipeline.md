@@ -1,10 +1,10 @@
 # 基于图的诊断流水线
 
-本文阐述了 Kube Diagnoser 的诊断流水线设计。
+本文阐述了 KubeDiag 的诊断流水线设计。
 
 ## 背景
 
-Kube Diagnoser 早期设计上为了规范和简化流水线的定义，将诊断流程基于链表的设计分成了三个阶段：信息采集、故障诊断、故障恢复。用户可以在每个阶段定义需要处理的操作并对问题进行诊断。在很多情况下，不同问题导致的现象可能是相同的，或着某个现象是多个故障连锁反应导致的。例如导致节点状态由 `Ready` 变为 `NotReady` 的因素非常多，分析时需要需要在多个排查路径上逐个分析来寻找根本原因。基于链表的设计虽然降低了管理复杂性，但是无法适应更加多样化的诊断场景。图数据结构对该场景明显具备更准确的抽象能力。
+KubeDiag 早期设计上为了规范和简化流水线的定义，将诊断流程基于链表的设计分成了三个阶段：信息采集、故障诊断、故障恢复。用户可以在每个阶段定义需要处理的操作并对问题进行诊断。在很多情况下，不同问题导致的现象可能是相同的，或着某个现象是多个故障连锁反应导致的。例如导致节点状态由 `Ready` 变为 `NotReady` 的因素非常多，分析时需要需要在多个排查路径上逐个分析来寻找根本原因。基于链表的设计虽然降低了管理复杂性，但是无法适应更加多样化的诊断场景。图数据结构对该场景明显具备更准确的抽象能力。
 
 ## 设计假设
 
@@ -29,7 +29,7 @@ Kube Diagnoser 早期设计上为了规范和简化流水线的定义，将诊�
 ```go
 // OperationSpec 定义了 Operation 的目标状态。
 type OperationSpec struct {
-    // Processor 描述了如何在 Kube Diagnoser 中注册一个操作处理器。
+    // Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
     Processor Processor `json:"processor"`
     // Dependences 是所有被依赖且必须预先执行的诊断操作列表。
     Dependences []string `json:"dependences,omitempty"`
@@ -38,13 +38,13 @@ type OperationSpec struct {
     Storage *Storage `json:"storage,omitempty"`
 }
 
-// Processor 描述了如何在 Kube Diagnoser 中注册一个操作处理器。
+// Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
 type Processor struct {
     // ExternalIP 是操作处理器的监听 IP。
-    // 如果该字段为空，那么默认为 Kube Diagnoser Agent 的地址。
+    // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
     ExternalIP *string `json:"externalIP,omitempty"`
     // ExternalPort 是操作处理器的服务端口。
-    // 如果该字段为空，那么默认为 Kube Diagnoser Agent 的服务端口。
+    // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
     ExternalPort *int32 `json:"externalPort,omitempty"`
     // Path 是操作处理器服务的 HTTP 路径。
     Path *string `json:"path,omitempty"`
@@ -64,7 +64,7 @@ type Storage struct {
 // HostPath 表示宿主机上的目录。
 type HostPath struct {
     // 宿主机上目录的路径。
-    // 如果该字段为空，那么默认为 Kube Diagnoser Agent 的数据根目录。
+    // 如果该字段为空，那么默认为 KubeDiag Agent 的数据根目录。
     Path string `json:"path"`
 }
 

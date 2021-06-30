@@ -7,7 +7,7 @@
 OperationSet 是用于声明诊断流水线的自定义资源，通过 OperationSet 您可以定义诊断流水线中需要执行的诊断操作。下列 OperationSet 中定义了一个包含之前已注册诊断操作的诊断流水线：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   name: http-operation
@@ -22,7 +22,7 @@ spec:
 
 OperationSet 中的 `.spec.adjacencyList` 字段包含了一个有向无环图，其中 `id` 为 0 的顶点表示诊断流水线的开始，其他顶点表示一个诊断操作。
 
-## 将运维流水线注册到 Kube Diagnoser 中
+## 将运维流水线注册到 KubeDiag 中
 
 通过创建上述 OperationSet 注册诊断流水线：
 
@@ -34,14 +34,14 @@ kubectl apply -f samples/http-operation/manifests/operationset.yaml
 
 ```bash
 $ kubectl get operationset http-operation -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   labels:
     adjacency-list-hash: 864dcbdbfb
   name: http-operation
   resourceVersion: "2002860"
-  selfLink: /apis/diagnosis.netease.com/v1/operationsets/http-operation
+  selfLink: /apis/diagnosis.kubediag.org/v1/operationsets/http-operation
   uid: 34886fc6-4a4f-484c-b965-22e51d12dea0
 spec:
   adjacencyList:
@@ -56,4 +56,4 @@ status:
   ready: true
 ```
 
-您可能已经注意到 `.status.ready` 字段为 `true` 并且 `.status.paths` 字段中包含一条诊断路径，该状态表示 OperationSet 被 Kube Diagnoser 成功接受。
+您可能已经注意到 `.status.ready` 字段为 `true` 并且 `.status.paths` 字段中包含一条诊断路径，该状态表示 OperationSet 被 KubeDiag 成功接受。

@@ -9,14 +9,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
-	k8scollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/k8s"
-	runtimecollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/runtime"
-	systemcollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/system"
-	k8sdiagnoser "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/k8s"
-	runtimediagnoser "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/runtime"
-	executorprocessor "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/executor"
-	k8srecover "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/recover/k8s"
+	"github.com/kubediag/kubediag/pkg/features"
+	k8scollector "github.com/kubediag/kubediag/pkg/processors/collector/k8s"
+	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
+	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
+	k8sdiagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/k8s"
+	runtimediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/runtime"
+	executorprocessor "github.com/kubediag/kubediag/pkg/processors/executor"
+	k8srecover "github.com/kubediag/kubediag/pkg/processors/recover/k8s"
 )
 
 // RegistryOption contains options of all kinds of Processors, it might be append in the future.
@@ -25,7 +25,7 @@ type RegistryOption struct {
 	NodeName string
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
-	// DataRoot is root directory of persistent kube diagnoser data.
+	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
 	// BindAddress is the address on which to advertise.
 	BindAddress string
@@ -34,7 +34,7 @@ type RegistryOption struct {
 // RegisterProcessors will initialize all processors and add into router to provide HTTP service.
 func RegisterProcessors(mgr manager.Manager,
 	opts *RegistryOption,
-	featureGate features.KubeDiagnoserFeatureGate,
+	featureGate features.KubeDiagFeatureGate,
 	router *mux.Router,
 	setupLog logr.Logger) error {
 	// Setup operation processors.

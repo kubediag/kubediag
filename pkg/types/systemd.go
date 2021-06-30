@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 // Unit represents an unit, a job or the manager itself.

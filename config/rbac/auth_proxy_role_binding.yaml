@@ -8,5 +8,5 @@ roleRef:
   name: proxy-role
 subjects:
 - kind: ServiceAccount
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag

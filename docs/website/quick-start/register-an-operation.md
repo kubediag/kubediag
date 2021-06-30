@@ -92,14 +92,14 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: http-operation
-  namespace: kube-diagnoser
+  namespace: kubediag
   labels:
     operation: cache
     type: http
 spec:
   containers:
   - name: http-operation
-    image: hub.c.163.com/combk8s/http-operation:0.2.0
+    image: hub.c.163.com/kubediag/http-operation:0.2.0
 ```
 
 ```yaml
@@ -107,7 +107,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: http-operation
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   selector:
     operation: cache
@@ -139,10 +139,10 @@ kubectl apply -f samples/http-operation/manifests/service.yaml
 查看该程序是否部署成功：
 
 ```bash
-$ kubectl get -n kube-diagnoser pod http-operation
+$ kubectl get -n kubediag pod http-operation
 NAME             READY   STATUS    RESTARTS   AGE
 http-operation   1/1     Running   0          4s
-$ kubectl get -n kube-diagnoser service http-operation
+$ kubectl get -n kubediag service http-operation
 NAME             TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
 http-operation   ClusterIP   10.96.73.28   <none>        80/TCP    18s
 ```
@@ -154,18 +154,18 @@ $ curl -X POST --data '{"a":"100","e":"5"}' http://10.96.73.28:80
 {"a":"100","b":"2","c":"3","d":"4","e":"5"}
 ```
 
-## 将诊断操作注册到 Kube Diagnoser 中
+## 将诊断操作注册到 KubeDiag 中
 
-Operation 中定义了诊断操作的详细信息，通过创建下列 Operation 可以将示例中的操作注册到 Kube Diagnoser 中：
+Operation 中定义了诊断操作的详细信息，通过创建下列 Operation 可以将示例中的操作注册到 KubeDiag 中：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: http-operation
 spec:
   processor:
-    externalIP: http-operation.kube-diagnoser.svc.cluster.local
+    externalIP: http-operation.kubediag.svc.cluster.local
     externalPort: 80
     path: /
     scheme: http

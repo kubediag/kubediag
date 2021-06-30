@@ -1,10 +1,10 @@
 # 垃圾回收
 
-Kube-diagnoser 自动诊断系统运行中会根据集群监测状态或者用户行为生成一些资源或文件，需要实现自主垃圾回收。垃圾回收器每隔固定时长进行一次垃圾回收，清理不需要的 Diagnosis 资源、Java 性能剖析文件、Golang 性能剖析文件。
+KubeDiag 自动诊断系统运行中会根据集群监测状态或者用户行为生成一些资源或文件，需要实现自主垃圾回收。垃圾回收器每隔固定时长进行一次垃圾回收，清理不需要的 Diagnosis 资源、Java 性能剖析文件、Golang 性能剖析文件。
 
 ## Diagnosis 回收
 
-Diagnosis 可以是由用户手动创建，也可以是 Kube-diagnoser 系统自动诊断生成。Diagnosis 的诊断结果可能是 Succeeded、Failed、Unknown。Diagnosis 的回收考虑三种因素，MaximumDiagnosissPerNode、DiagnosisTTL、MinimumDiagnosisTTLDuration。
+Diagnosis 可以是由用户手动创建，也可以是 KubeDiag 系统自动诊断生成。Diagnosis 的诊断结果可能是 Succeeded、Failed、Unknown。Diagnosis 的回收考虑三种因素，MaximumDiagnosissPerNode、DiagnosisTTL、MinimumDiagnosisTTLDuration。
 
 * 如果节点上的 Diagnosis 数量超过节点限额 MaximumDiagnosissPerNode，将 Diagnosis 的数量下调至阈值以下。
 * 如果 Diagnosis 的存活时间超过上限阈值 DiagnosisTTL，触发垃圾回收。

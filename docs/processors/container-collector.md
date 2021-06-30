@@ -8,18 +8,18 @@ Container Collector 是一个 [Processor](../design/processor.md)，用户可以
 
 ## 实现
 
-Container Collector 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Container Collector，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Container Collector：
+Container Collector 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Container Collector，该 Operation 在 KubeDiag 部署时已默认注册，执行下列命令可以查看已注册的 Container Collector：
 
 ```bash
 $ kubectl get operation container-collector -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   creationTimestamp: "2021-03-15T07:09:38Z"
   generation: 1
   name: container-collector
   resourceVersion: "12000039"
-  selfLink: /apis/diagnosis.netease.com/v1/operations/container-collector
+  selfLink: /apis/diagnosis.kubediag.org/v1/operations/container-collector
   uid: 82237cde-59bc-4812-93e3-2741bc64476f
 spec:
   processor:
@@ -56,9 +56,9 @@ JSON 返回体格式为 JSON 对象，对象中包含存有容器列表的 Strin
 
 一次节点上容器信息采集操作执行的流程如下：
 
-1. Kube Diagnoser Agent 向 Container Collector 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
+1. KubeDiag Agent 向 Container Collector 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
 1. Container Collector 接收到请求后在节点上调用 Docker 客户端获取节点上所有容器信息数组。
-1. 如果 Container Collector 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
+1. 如果 Container Collector 完成采集则向 KubeDiag Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
 
 ```json
 {
@@ -66,5 +66,5 @@ JSON 返回体格式为 JSON 对象，对象中包含存有容器列表的 Strin
 }
 ```
 
-1. 如果 Container Collector 采集失败则向 Kube Diagnoser Agent 返回 500 状态码。
+1. 如果 Container Collector 采集失败则向 KubeDiag Agent 返回 500 状态码。
 

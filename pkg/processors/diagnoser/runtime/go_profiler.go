@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/executor"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/processors/utils"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 const (
@@ -63,7 +63,7 @@ type goProfiler struct {
 	logr.Logger
 	// Cache knows how to load Kubernetes objects.
 	cache cache.Cache
-	// DataRoot is root directory of persistent kube diagnoser data.
+	// DataRoot is root directory of persistent kubediag data.
 	dataRoot string
 	// BindAddress is the address on which to advertise.
 	BindAddress string

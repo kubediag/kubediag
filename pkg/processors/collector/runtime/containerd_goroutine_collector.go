@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 const (

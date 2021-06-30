@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/types"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/types"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 var (
@@ -78,7 +78,7 @@ type DiagnosisReaper struct {
 	minimumDiagnosisTTLDuration time.Duration
 	// maximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
 	maximumDiagnosesPerNode int32
-	// dataRoot is root directory of persistent kube diagnoser data.
+	// dataRoot is root directory of persistent kubediag data.
 	dataRoot string
 }
 

@@ -18,10 +18,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/joewalnes/websocketd/libwebsocketd"
 
-	v1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
+	v1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/executor"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/processors/utils"
 )
 
 type CoreFileProfilerType string

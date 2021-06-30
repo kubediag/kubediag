@@ -8,18 +8,18 @@ Node Cordon 是一个 [Processor](../design/processor.md)，用户可以通过 N
 
 ## 实现
 
-Node Cordon 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Node Cordon，该 Operation 在 Kube Diagnoser 部署时已默认注册，执行下列命令可以查看已注册的 Node Cordon：
+Node Cordon 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Node Cordon，该 Operation 在 KubeDiag 部署时已默认注册，执行下列命令可以查看已注册的 Node Cordon：
 
 ```bash
 $ kubectl get operation node-cordon -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   creationTimestamp: "2021-05-17T06:34:21Z"
   generation: 1
   name: node-cordon
   resourceVersion: "35665"
-  selfLink: /apis/diagnosis.netease.com/v1/operations/node-cordon
+  selfLink: /apis/diagnosis.kubediag.org/v1/operations/node-cordon
   uid: 24c2012e-42c6-4f09-a259-fd10bc924836
 spec:
   processor:
@@ -52,9 +52,9 @@ JSON 返回体格式为 JSON 对象，对象中包含存有被置为不可调度
 
 一次节点上 Containerd 栈信息采集操作执行的流程如下：
 
-1. Kube Diagnoser Agent 向 Node Cordon 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
-1. Node Cordon 接收到请求后调用 Kubernetes 客户端将当前 Kube Diagnoser Agent 所在节点置为不可调度。
-1. 如果 Node Cordon 完成采集则向 Kube Diagnoser Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
+1. KubeDiag Agent 向 Node Cordon 发送 HTTP 请求，请求类型为 POST，请求中不包含请求体。
+1. Node Cordon 接收到请求后调用 Kubernetes 客户端将当前 KubeDiag Agent 所在节点置为不可调度。
+1. 如果 Node Cordon 完成采集则向 KubeDiag Agent 返回 200 状态码，返回体中包含如下 JSON 数据：
 
 ```json
 {
@@ -62,4 +62,4 @@ JSON 返回体格式为 JSON 对象，对象中包含存有被置为不可调度
 }
 ```
 
-1. 如果 Node Cordon 采集失败则向 Kube Diagnoser Agent 返回 500 状态码。
+1. 如果 Node Cordon 采集失败则向 KubeDiag Agent 返回 500 状态码。

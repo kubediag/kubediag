@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 

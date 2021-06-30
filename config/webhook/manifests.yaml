@@ -11,12 +11,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-diagnosis-netease-com-v1-diagnosis
+      path: /mutate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
   name: mdiagnosis.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -29,12 +29,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-diagnosis-netease-com-v1-operation
+      path: /mutate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
   name: moperation.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -47,12 +47,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-diagnosis-netease-com-v1-operationset
+      path: /mutate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
   name: moperationset.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -65,12 +65,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-diagnosis-netease-com-v1-trigger
+      path: /mutate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
   name: mtrigger.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -91,12 +91,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-diagnosis-netease-com-v1-diagnosis
+      path: /validate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
   name: vdiagnosis.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -109,12 +109,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-diagnosis-netease-com-v1-operation
+      path: /validate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
   name: voperation.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -127,12 +127,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-diagnosis-netease-com-v1-operationset
+      path: /validate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
   name: voperationset.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -145,12 +145,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-diagnosis-netease-com-v1-trigger
+      path: /validate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
   name: vtrigger.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:

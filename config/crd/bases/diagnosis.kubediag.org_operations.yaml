@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: operations.diagnosis.netease.com
+  name: operations.diagnosis.kubediag.org
 spec:
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: Operation
     listKind: OperationList
@@ -42,15 +42,15 @@ spec:
               type: array
             processor:
               description: Processor describes how to register a operation processor
-                into kube diagnoser.
+                into kubediag.
               properties:
                 externalIP:
                   description: ExternalIP is the external serving ip of the processor.
-                    Defaults to kube diagnoser agent advertised address if not specified.
+                    Defaults to kubediag agent advertised address if not specified.
                   type: string
                 externalPort:
                   description: ExternalPort is the external serving port of the processor.
-                    Defaults to kube diagnoser agent serving port if not specified.
+                    Defaults to kubediag agent serving port if not specified.
                   format: int32
                   type: integer
                 path:
@@ -74,7 +74,7 @@ spec:
                   properties:
                     path:
                       description: Path of the directory on the host. Defaults to
-                        kube diagnoser agent data root if not specified.
+                        kubediag agent data root if not specified.
                       type: string
                   required:
                   - path

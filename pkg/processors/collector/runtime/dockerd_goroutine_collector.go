@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 const (
@@ -40,7 +40,7 @@ const (
 	defaultExecRoot = "/var/run/docker"
 	// stacksLogNamePrefix is the prefix for dockerd to generate goroutine stack logs.
 	stacksLogNamePrefix = "goroutine-stacks"
-	// stacksLogSubPath is the subpath for kube diagnoser to store dockerd goroutine stack logs.
+	// stacksLogSubPath is the subpath for kubediag to store dockerd goroutine stack logs.
 	stacksLogSubPath = "dockerd-goroutine"
 
 	ContextKeyDockerdGoRoutineCollector = "collector.runtime.dockerd.goroutine"
@@ -53,7 +53,7 @@ type dockerdGoroutineCollector struct {
 	// Logger represents the ability to log messages.
 	logr.Logger
 
-	// dataRoot is root directory of persistent kube diagnoser data.
+	// dataRoot is root directory of persistent kubediag data.
 	dataRoot string
 	// dockerdGoroutineCollectorEnabled indicates whether dockerdGoroutineCollector is enabled.
 	dockerdGoroutineCollectorEnabled bool
@@ -113,7 +113,7 @@ func (dc *dockerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		// Sort all files by modification time and move the latest goroutine log to kube diagnoser data path.
+		// Sort all files by modification time and move the latest goroutine log to kubediag data path.
 		var stacksLogPath string
 		sort.Slice(files, func(i, j int) bool {
 			return files[i].ModTime().After(files[j].ModTime())
@@ -130,7 +130,7 @@ func (dc *dockerdGoroutineCollector) Handler(w http.ResponseWriter, r *http.Requ
 					}
 				}
 
-				// Move dockerd stack log to kube diagnoser data path.
+				// Move dockerd stack log to kubediag data path.
 				stacksLogPath = filepath.Join(stacksLogDir, file.Name())
 				_, err := util.BlockingRunCommandWithTimeout([]string{"mv", filepath.Join(defaultExecRoot, file.Name()), stacksLogPath}, 30)
 				if err != nil {

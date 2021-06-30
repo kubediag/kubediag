@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ var (
 	)
 )
 
-var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
+var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
 	KafkaConsumer:                {Default: true, PreRelease: featuregate.Alpha},
@@ -164,8 +164,8 @@ var defaultKubeDiagnoserFeatureGates = map[featuregate.Feature]featuregate.Featu
 	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 }
 
-// KubeDiagnoserFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.
-type KubeDiagnoserFeatureGate interface {
+// KubeDiagFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.
+type KubeDiagFeatureGate interface {
 	// Enabled returns true if the key is enabled.
 	Enabled(featuregate.Feature) bool
 	// KnownFeatures returns a slice of strings describing the known features.
@@ -174,8 +174,8 @@ type KubeDiagnoserFeatureGate interface {
 	SetFromMap(map[string]bool) error
 }
 
-// kubeDiagnoserFeatureGate manages features of kube diagnoser.
-type kubeDiagnoserFeatureGate struct {
+// kubediagFeatureGate manages features of kubediag.
+type kubediagFeatureGate struct {
 	// lock guards writes to known and enabled.
 	lock sync.Mutex
 	// known holds a map[featuregate.Feature]featuregate.FeatureSpec.
@@ -186,12 +186,12 @@ type kubeDiagnoserFeatureGate struct {
 
 var metricRegistry sync.Once
 
-// NewFeatureGate creates a new KubeDiagnoserFeatureGate.
-func NewFeatureGate() KubeDiagnoserFeatureGate {
+// NewFeatureGate creates a new KubeDiagFeatureGate.
+func NewFeatureGate() KubeDiagFeatureGate {
 	metricRegistry.Do(func() { metrics.Registry.MustRegister(featureGateInfo) })
 	// Set default known features.
 	knownMap := make(map[featuregate.Feature]featuregate.FeatureSpec)
-	for key, value := range defaultKubeDiagnoserFeatureGates {
+	for key, value := range defaultKubeDiagFeatureGates {
 		knownMap[key] = value
 	}
 	known := new(atomic.Value)
@@ -199,20 +199,20 @@ func NewFeatureGate() KubeDiagnoserFeatureGate {
 
 	// Set default enabled features.
 	enabledMap := make(map[featuregate.Feature]bool)
-	for key, value := range defaultKubeDiagnoserFeatureGates {
+	for key, value := range defaultKubeDiagFeatureGates {
 		enabledMap[key] = value.Default
 	}
 	enabled := new(atomic.Value)
 	enabled.Store(enabledMap)
 
-	return &kubeDiagnoserFeatureGate{
+	return &kubediagFeatureGate{
 		known:   known,
 		enabled: enabled,
 	}
 }
 
 // Enabled returns true if the key is enabled.
-func (kf *kubeDiagnoserFeatureGate) Enabled(key featuregate.Feature) bool {
+func (kf *kubediagFeatureGate) Enabled(key featuregate.Feature) bool {
 	if value, ok := kf.enabled.Load().(map[featuregate.Feature]bool)[key]; ok {
 		return value
 	}
@@ -225,7 +225,7 @@ func (kf *kubeDiagnoserFeatureGate) Enabled(key featuregate.Feature) bool {
 
 // KnownFeatures returns a slice of strings describing the known features.
 // Deprecated and GA features are hidden from the list.
-func (kf *kubeDiagnoserFeatureGate) KnownFeatures() []string {
+func (kf *kubediagFeatureGate) KnownFeatures() []string {
 	var known []string
 	for key, value := range kf.known.Load().(map[featuregate.Feature]featuregate.FeatureSpec) {
 		if value.PreRelease == featuregate.GA || value.PreRelease == featuregate.Deprecated {
@@ -239,7 +239,7 @@ func (kf *kubeDiagnoserFeatureGate) KnownFeatures() []string {
 }
 
 // SetFromMap stores flag gates for known features from a map[string]bool or returns an error.
-func (kf *kubeDiagnoserFeatureGate) SetFromMap(featureMap map[string]bool) error {
+func (kf *kubediagFeatureGate) SetFromMap(featureMap map[string]bool) error {
 	kf.lock.Lock()
 	defer kf.lock.Unlock()
 
@@ -274,9 +274,9 @@ func (kf *kubeDiagnoserFeatureGate) SetFromMap(featureMap map[string]bool) error
 }
 
 // Collect feature gate metrics.
-func Collect(features KubeDiagnoserFeatureGate) {
+func Collect(features KubeDiagFeatureGate) {
 	featureGateInfo.Reset()
-	for key := range defaultKubeDiagnoserFeatureGates {
+	for key := range defaultKubeDiagFeatureGates {
 		if features.Enabled(key) {
 			featureGateInfo.WithLabelValues(string(key), "true").Set(1)
 		} else {

@@ -1,4 +1,4 @@
-module github.com/kube-diagnoser/kube-diagnoser
+module github.com/kubediag/kubediag
 
 go 1.14
 

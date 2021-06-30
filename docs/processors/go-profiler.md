@@ -8,18 +8,18 @@ Go Profiler 是一个 [Processor](../design/processor.md)，用户可以通过 G
 
 ## 实现
 
-Go Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 Kube Diagnoser 中注册 Go Profiler，该 Operation 在 Kube Diagnoser Agent 部署时已默认注册，执行下列命令可以查看已注册的 Go Profiler：
+Go Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Go Profiler，该 Operation 在 KubeDiag Agent 部署时已默认注册，执行下列命令可以查看已注册的 Go Profiler：
 
 ```bash
 $ kubectl get operation go-profiler -o yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   creationTimestamp: "2021-04-14T08:28:12Z"
   generation: 1
   name: go-profiler
   resourceVersion: "3613010"
-  selfLink: /apis/diagnosis.netease.com/v1/operations/go-profiler
+  selfLink: /apis/diagnosis.kubediag.org/v1/operations/go-profiler
   uid: 933bb82d-4b54-49fa-8035-7dafd2b2ffe5
 spec:
   processor:
@@ -43,7 +43,7 @@ POST /processor/goProfiler
   "param.diagnoser.runtime.go_profiler.source": "https://10.0.2.15:6443",                // 指定要剖析的地址
   "param.diagnoser.runtime.go_profiler.type": "Heap",                                    // 指定要剖析的类型
   "param.diagnoser.runtime.go_profiler.tls.secret_reference.name": "apiserver-profiler-sa-token-gj9x8",
-  "param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace": "kube-diagnoser",
+  "param.diagnoser.runtime.go_profiler.tls.secret_reference.namespace": "kubediag",
   "param.diagnoser.runtime.go_profiler.expiration_seconds": 300                           // 过期时间
 }
 ```
@@ -79,7 +79,7 @@ Visit http://10.0.2.15:35869, this server will expire in 300 seconds.
 这部分信息将会记录在 Diagnosis 对象的 status 中， 如下：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: go-profiler
@@ -96,10 +96,10 @@ status:
 
 ### 举例说明
 
-1. 以访问 Kube Diagnoser 自身的8090端口为例，创建 OperationSet 和 Diagnosis:
+1. 以访问 KubeDiag 自身的8090端口为例，创建 OperationSet 和 Diagnosis:
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   name: go-profiler
@@ -111,7 +111,7 @@ spec:
   - id: 1
     operation: go-profiler
 ---
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: go-profiler

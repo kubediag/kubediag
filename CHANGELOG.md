@@ -84,7 +84,7 @@
 #### Other
 
 - Set abnormal `NodeName` if `NodeName` is empty and `PodReference` is not nil.
-- Add options to set kube diagnoser address and port.
+- Add options to set kubediag address and port.
 - Validate java profiler in webhook.
 - Garbage collect java profiler data.
 
@@ -115,7 +115,7 @@ _Nothing has changed._
 
 #### Bug or Regression
 
-- Resolves abnormal resource version conflict issue `Operation cannot be fulfilled on abnormals.diagnosis.netease.com "${POD_NAME}": the object has been modified; please apply your changes to the latest version and try again` by fetching the latest abnormal and checking the abnormal phase before synchronization.
+- Resolves abnormal resource version conflict issue `Operation cannot be fulfilled on abnormals.diagnosis.kubediag.org "${POD_NAME}": the object has been modified; please apply your changes to the latest version and try again` by fetching the latest abnormal and checking the abnormal phase before synchronization.
 - Use `.Spec.Replicas` instead of `.Status.Replicas` as desired replicas reference on the health evaluation of deployment and statefulset.
 
 #### Other
@@ -125,7 +125,7 @@ _Nothing has changed._
 - An abnormal will be generated if a pod has not been killed 30 seconds after its grace period.
 - Implement prometheus metrics.
 - Extract apiserver access token from `/var/run/secrets/kubernetes.io/serviceaccount/token`.
-- Implement `--feature-gates` command line argument for configurable kube diagnoser features.
+- Implement `--feature-gates` command line argument for configurable kubediag features.
 - Implement health evaluations for deployment, statefulset and daemonset.
 
 ### Dependencies
@@ -152,7 +152,7 @@ _Nothing has changed._
 #### API Change
 
 - Remove `SkipInformationCollection`, `SkipDiagnosis` and `SkipRecovery` fields in Abnormal and skips unassigned information collectors, diagnosers and recoverers to reduce risks in running uncensored information collectors, diagnosers and recoverers.
-- Implement kube diagnoser master with webhook server.
+- Implement kubediag master with webhook server.
 
 #### Bug or Regression
 
@@ -190,7 +190,7 @@ _Nothing has changed._
 
 #### Bug or Regression
 
-- Implement abnormal reaper ticker with `k8s.io/apimachinery/pkg/util/wait` package. It will work on kube-diagnoser started without waiting for the first tick.
+- Implement abnormal reaper ticker with `k8s.io/apimachinery/pkg/util/wait` package. It will work on kubediag started without waiting for the first tick.
 
 #### Other
 

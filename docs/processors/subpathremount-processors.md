@@ -41,7 +41,7 @@ subpath remount processors 包括了四个 Processor ：
 
 
 ```bash
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: pod-detail-collector
@@ -52,7 +52,7 @@ spec:
     timeoutSeconds: 60
 
 ---
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: mount-info-collector
@@ -64,7 +64,7 @@ spec:
 
 ---
 
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: subpath-remount-diagnoser
@@ -76,7 +76,7 @@ spec:
 
 ---
 
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: subpath-remount-recover
@@ -88,7 +88,7 @@ spec:
 
 ---
 
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   name: subpath-remount-op-set
@@ -205,7 +205,7 @@ spec:
 5. 创建上文提供的 Operation 和 OperationSet 对象。 然后创建一个 Diagnosis 对象开始分析：
 
    ```
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: subpath-remount-diagnosis
@@ -220,7 +220,7 @@ spec:
 6. 查看 diagnosis 的进展（此处为了方便阅读对输出内容做了省略）：
 
    ```
-   apiVersion: diagnosis.netease.com/v1
+   apiVersion: diagnosis.kubediag.org/v1
    kind: Diagnosis
    metadata:
      name: subpath-remount-diagnosis
@@ -253,9 +253,9 @@ spec:
          37 26 0:33 / /sys/fs/cgroup/pids rw,nosuid,nodev,noexec,relatime shared:21 - cgroup cgroup rw,pids
          216 22 254:1 /var/lib/kubelet/pods/29da79e5-386c-4e0d-82c1-215f93ff955d/volumes/kubernetes.io~configmap/logrotateconf/..2021_06_02_06_01_21.244319292/nginx.log//deleted /var/lib/kubelet/pods/29da79e5-386c-4e0d-82c1-215f93ff955d/volume-subpaths/logrotateconf/nginx-ingress-controller/1 rw,relatime shared:1 - ext4 /dev/vda1 rw,errors=remount-ro,data=ordered
          201 70 0:76 / /var/lib/docker/overlay/2bfc1017017a6707aa66bb47a78f25aae5cd54ee50d0a06f33608349267158e2/merged rw,relatime shared:108 - overlay overlay rw,lowerdir=/var/lib/docker/overlay/b6636b86514105ef1d73c7b2d63a7be21e835214e7cbe1de0ccbf7d4a6b3724e/root,upperdir=/var/lib/docker/overlay/2bfc1017017a6707aa66bb47a78f25aae5cd54ee50d0a06f33608349267158e2/upper,workdir=/var/lib/docker/overlay/2bfc1017017a6707aa66bb47a78f25aae5cd54ee50d0a06f33608349267158e2/work
-       collector.kubernetes.pod.detail: '{"kind":"Pod","apiVersion":"v1","metadata":{"name":"ingress-nginx-ttbms","generateName":"ingress-nginx-","namespace":"kube-system","selfLink":"/api/v1/namespaces/kube-system/pods/ingress-nginx-ttbms","uid":"29da79e5-386c-4e0d-82c1-215f93ff955d","resourceVersion":"21829399","creationTimestamp":"2021-06-01T09:50:26Z","labels":{"app":"ingress-nginx","controller-revision-hash":"77c587db8","pod-template-generation":"2"},"annotations":{"prometheus.io/port":"10254","prometheus.io/scrape":"true"},"ownerReferences":[{"apiVersion":"apps/v1","kind":"DaemonSet","name":"ingress-nginx","uid":"7b9164a0-efe4-44b5-96c8-00c181912643","controller":true,"blockOwnerDeletion":true}]},"spec":{"volumes":[{"name":"logdir","hostPath":{"path":"/data/log/nginx_ingress_controller","type":""}},{"name":"logrotateconf","configMap":{"name":"nginx-ingress-logrotate","items":[{"key":"nginx.log","path":"nginx.log"}],"defaultMode":420}},{"name":"nginx-ingress-serviceaccount-token-2fplq","secret":{"secretName":"nginx-ingress-serviceaccount-token-2fplq","defaultMode":420}}],"initContainers":[{"name":"adddirperm","image":"hub.c.163.com/combk8s/adddirperm:1.0.0","env":[{"name":"LOG_DIR","value":"/var/log/nginx_ingress_controller"},{"name":"USER_ID","value":"33"}],"resources":{},"volumeMounts":[{"name":"logdir","mountPath":"/var/log/nginx_ingress_controller"},{"name":"nginx-ingress-serviceaccount-token-2fplq","readOnly":true,"mountPath":"/var/run/secrets/kubernetes.io/serviceaccount"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}],"containers":[{"name":"nginx-ingress-controller","image":"quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.22.0","args":["/nginx-ingress-controller","--default-backend-service=$(POD_NAMESPACE)/default-http-backend","--configmap=$(POD_NAMESPACE)/nginx-configuration","--publish-service=$(POD_NAMESPACE)/ingress-nginx","--annotations-prefix=nginx.ingress.kubernetes.io","--log_dir=/var/log/nginx_ingress_controller","--logtostderr=false"],"ports":[{"name":"http","hostPort":80,"containerPort":80,"protocol":"TCP"},{"name":"https","hostPort":443,"containerPort":443,"protocol":"TCP"}],"env":[{"name":"POD_NAME","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.name"}}},{"name":"POD_NAMESPACE","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.namespace"}}}],"resources":{},"volumeMounts":[{"name":"logdir","mountPath":"/var/log/nginx_ingress_controller"},{"name":"logrotateconf","mountPath":"/etc/logrotate.d/nginx.log","subPath":"nginx.log"},{"name":"nginx-ingress-serviceaccount-token-2fplq","readOnly":true,"mountPath":"/var/run/secrets/kubernetes.io/serviceaccount"}],"readinessProbe":{"httpGet":{"path":"/healthz","port":10254,"scheme":"HTTP"},"timeoutSeconds":1,"periodSeconds":10,"successThreshold":1,"failureThreshold":3},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent","securityContext":{"capabilities":{"add":["NET_BIND_SERVICE"],"drop":["ALL"]},"runAsUser":33}}],"restartPolicy":"Always","terminationGracePeriodSeconds":30,"dnsPolicy":"ClusterFirst","serviceAccountName":"nginx-ingress-serviceaccount","serviceAccount":"nginx-ingress-serviceaccount","nodeName":"my-node","hostNetwork":true,"securityContext":{},"affinity":{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchFields":[{"key":"metadata.name","operator":"In","values":["my-node"]}]}]}}},"schedulerName":"default-scheduler","priority":0,"enableServiceLinks":true,"preemptionPolicy":"PreemptLowerPriority"},"status":{"phase":"Running","conditions":[{"type":"Initialized","status":"True","lastProbeTime":null,"lastTransitionTime":"2021-06-01T09:50:30Z"},{"type":"Ready","status":"False","lastProbeTime":null,"lastTransitionTime":"2021-06-02T07:28:01Z","reason":"ContainersNotReady","message":"containers
+       collector.kubernetes.pod.detail: '{"kind":"Pod","apiVersion":"v1","metadata":{"name":"ingress-nginx-ttbms","generateName":"ingress-nginx-","namespace":"kube-system","selfLink":"/api/v1/namespaces/kube-system/pods/ingress-nginx-ttbms","uid":"29da79e5-386c-4e0d-82c1-215f93ff955d","resourceVersion":"21829399","creationTimestamp":"2021-06-01T09:50:26Z","labels":{"app":"ingress-nginx","controller-revision-hash":"77c587db8","pod-template-generation":"2"},"annotations":{"prometheus.io/port":"10254","prometheus.io/scrape":"true"},"ownerReferences":[{"apiVersion":"apps/v1","kind":"DaemonSet","name":"ingress-nginx","uid":"7b9164a0-efe4-44b5-96c8-00c181912643","controller":true,"blockOwnerDeletion":true}]},"spec":{"volumes":[{"name":"logdir","hostPath":{"path":"/data/log/nginx_ingress_controller","type":""}},{"name":"logrotateconf","configMap":{"name":"nginx-ingress-logrotate","items":[{"key":"nginx.log","path":"nginx.log"}],"defaultMode":420}},{"name":"nginx-ingress-serviceaccount-token-2fplq","secret":{"secretName":"nginx-ingress-serviceaccount-token-2fplq","defaultMode":420}}],"initContainers":[{"name":"adddirperm","image":"hub.c.163.com/kubediag/adddirperm:1.0.0","env":[{"name":"LOG_DIR","value":"/var/log/nginx_ingress_controller"},{"name":"USER_ID","value":"33"}],"resources":{},"volumeMounts":[{"name":"logdir","mountPath":"/var/log/nginx_ingress_controller"},{"name":"nginx-ingress-serviceaccount-token-2fplq","readOnly":true,"mountPath":"/var/run/secrets/kubernetes.io/serviceaccount"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}],"containers":[{"name":"nginx-ingress-controller","image":"quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.22.0","args":["/nginx-ingress-controller","--default-backend-service=$(POD_NAMESPACE)/default-http-backend","--configmap=$(POD_NAMESPACE)/nginx-configuration","--publish-service=$(POD_NAMESPACE)/ingress-nginx","--annotations-prefix=nginx.ingress.kubernetes.io","--log_dir=/var/log/nginx_ingress_controller","--logtostderr=false"],"ports":[{"name":"http","hostPort":80,"containerPort":80,"protocol":"TCP"},{"name":"https","hostPort":443,"containerPort":443,"protocol":"TCP"}],"env":[{"name":"POD_NAME","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.name"}}},{"name":"POD_NAMESPACE","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.namespace"}}}],"resources":{},"volumeMounts":[{"name":"logdir","mountPath":"/var/log/nginx_ingress_controller"},{"name":"logrotateconf","mountPath":"/etc/logrotate.d/nginx.log","subPath":"nginx.log"},{"name":"nginx-ingress-serviceaccount-token-2fplq","readOnly":true,"mountPath":"/var/run/secrets/kubernetes.io/serviceaccount"}],"readinessProbe":{"httpGet":{"path":"/healthz","port":10254,"scheme":"HTTP"},"timeoutSeconds":1,"periodSeconds":10,"successThreshold":1,"failureThreshold":3},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent","securityContext":{"capabilities":{"add":["NET_BIND_SERVICE"],"drop":["ALL"]},"runAsUser":33}}],"restartPolicy":"Always","terminationGracePeriodSeconds":30,"dnsPolicy":"ClusterFirst","serviceAccountName":"nginx-ingress-serviceaccount","serviceAccount":"nginx-ingress-serviceaccount","nodeName":"my-node","hostNetwork":true,"securityContext":{},"affinity":{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchFields":[{"key":"metadata.name","operator":"In","values":["my-node"]}]}]}}},"schedulerName":"default-scheduler","priority":0,"enableServiceLinks":true,"preemptionPolicy":"PreemptLowerPriority"},"status":{"phase":"Running","conditions":[{"type":"Initialized","status":"True","lastProbeTime":null,"lastTransitionTime":"2021-06-01T09:50:30Z"},{"type":"Ready","status":"False","lastProbeTime":null,"lastTransitionTime":"2021-06-02T07:28:01Z","reason":"ContainersNotReady","message":"containers
          with unready status: [nginx-ingress-controller]"},{"type":"ContainersReady","status":"False","lastProbeTime":null,"lastTransitionTime":"2021-06-02T07:28:01Z","reason":"ContainersNotReady","message":"containers
-         with unready status: [nginx-ingress-controller]"},{"type":"PodScheduled","status":"True","lastProbeTime":null,"lastTransitionTime":"2021-06-01T09:50:26Z"}],"hostIP":"10.173.32.4","podIP":"10.173.32.4","podIPs":[{"ip":"10.173.32.4"}],"startTime":"2021-06-01T09:50:26Z","initContainerStatuses":[{"name":"adddirperm","state":{"terminated":{"exitCode":0,"reason":"Completed","startedAt":"2021-06-01T09:50:29Z","finishedAt":"2021-06-01T09:50:29Z","containerID":"docker://580d8ebccb7fd1832b773a55a039b5d539b8b282878350d1813e19df9c26278d"}},"lastState":{},"ready":true,"restartCount":0,"image":"hub.c.163.com/combk8s/adddirperm:1.0.0","imageID":"docker-pullable://hub.c.163.com/combk8s/adddirperm@sha256:b15a147b946e4f9602b01c4770a7a2d3622dd4a6abc18b313d6c89ae37d8d401","containerID":"docker://580d8ebccb7fd1832b773a55a039b5d539b8b282878350d1813e19df9c26278d"}],"containerStatuses":[{"name":"nginx-ingress-controller","state":{"waiting":{"reason":"CrashLoopBackOff","message":"back-off
+         with unready status: [nginx-ingress-controller]"},{"type":"PodScheduled","status":"True","lastProbeTime":null,"lastTransitionTime":"2021-06-01T09:50:26Z"}],"hostIP":"10.173.32.4","podIP":"10.173.32.4","podIPs":[{"ip":"10.173.32.4"}],"startTime":"2021-06-01T09:50:26Z","initContainerStatuses":[{"name":"adddirperm","state":{"terminated":{"exitCode":0,"reason":"Completed","startedAt":"2021-06-01T09:50:29Z","finishedAt":"2021-06-01T09:50:29Z","containerID":"docker://580d8ebccb7fd1832b773a55a039b5d539b8b282878350d1813e19df9c26278d"}},"lastState":{},"ready":true,"restartCount":0,"image":"hub.c.163.com/kubediag/adddirperm:1.0.0","imageID":"docker-pullable://hub.c.163.com/kubediag/adddirperm@sha256:b15a147b946e4f9602b01c4770a7a2d3622dd4a6abc18b313d6c89ae37d8d401","containerID":"docker://580d8ebccb7fd1832b773a55a039b5d539b8b282878350d1813e19df9c26278d"}],"containerStatuses":[{"name":"nginx-ingress-controller","state":{"waiting":{"reason":"CrashLoopBackOff","message":"back-off
          40s restarting failed container=nginx-ingress-controller pod=ingress-nginx-ttbms_kube-system(29da79e5-386c-4e0d-82c1-215f93ff955d)"}},"lastState":{"terminated":{"exitCode":128,"reason":"ContainerCannotRun","message":"OCI
          runtime create failed: container_linux.go:370: starting container process caused:
          process_linux.go:459: container init caused: rootfs_linux.go:59: mounting \"/var/lib/kubelet/pods/29da79e5-386c-4e0d-82c1-215f93ff955d/volume-subpaths/logrotateconf/nginx-ingress-controller/1\"

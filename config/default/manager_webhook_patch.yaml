@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kube-diagnoser-master
-  namespace: kube-diagnoser
+  name: kubediag-master
+  namespace: kubediag
 spec:
   template:
     spec:
       containers:
-      - name: kube-diagnoser
+      - name: kubediag
         ports:
         - containerPort: 9443
           name: webhook-server
           protocol: TCP
         volumeMounts:
-        - mountPath: /etc/kube-diagnoser/serving-certs
+        - mountPath: /etc/kubediag/serving-certs
           name: cert
           readOnly: true
       volumes:

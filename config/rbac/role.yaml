@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: kube-diagnoser-role
+  name: kubediag-role
 rules:
 - apiGroups:
   - apps
@@ -77,7 +77,27 @@ rules:
   - list
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
+  resources:
+  - Operations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - Operations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.kubediag.org
   resources:
   - diagnoses
   verbs:
@@ -89,7 +109,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - diagnoses/status
   verbs:
@@ -97,7 +117,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operations
   verbs:
@@ -109,7 +129,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets
   verbs:
@@ -121,7 +141,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets/status
   verbs:
@@ -129,7 +149,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - triggers
   verbs:
@@ -141,7 +161,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - triggers/status
   verbs:

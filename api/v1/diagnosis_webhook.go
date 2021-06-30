@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ func (r *Diagnosis) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-diagnosis-netease-com-v1-diagnosis,mutating=true,failurePolicy=fail,groups=diagnosis.netease.com,resources=diagnoses,verbs=create;update,versions=v1,name=mdiagnosis.kb.io
+// +kubebuilder:webhook:path=/mutate-diagnosis-kubediag-org-v1-diagnosis,mutating=true,failurePolicy=fail,groups=diagnosis.kubediag.org,resources=diagnoses,verbs=create;update,versions=v1,name=mdiagnosis.kb.io
 
 var _ webhook.Defaulter = &Diagnosis{}
 
@@ -49,7 +49,7 @@ func (r *Diagnosis) Default() {
 	})
 }
 
-// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-diagnosis,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=diagnoses,versions=v1,name=vdiagnosis.kb.io
+// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-kubediag-org-v1-diagnosis,mutating=false,failurePolicy=fail,groups=diagnosis.kubediag.org,resources=diagnoses,versions=v1,name=vdiagnosis.kb.io
 
 var _ webhook.Validator = &Diagnosis{}
 
@@ -100,6 +100,6 @@ func (r *Diagnosis) validateDiagnosis() error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "diagnosis.netease.com", Kind: "Diagnosis"},
+		schema.GroupKind{Group: "diagnosis.kubediag.org", Kind: "Diagnosis"},
 		r.Name, allErrs)
 }

@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: operationsets.diagnosis.netease.com
+  name: operationsets.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.ready
@@ -15,7 +15,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: OperationSet
     listKind: OperationSetList

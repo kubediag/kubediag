@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ const (
 	// to an error in communicating with the host of the diagnosis.
 	DiagnosisUnknown DiagnosisPhase = "Unknown"
 
-	// DiagnosisAccepted means that the diagnosis has been accepted by kube diagnoser agent.
+	// DiagnosisAccepted means that the diagnosis has been accepted by kubediag agent.
 	DiagnosisAccepted DiagnosisConditionType = "Accepted"
 	// DiagnosisComplete means the diagnosis has completed its execution.
 	DiagnosisComplete DiagnosisConditionType = "Complete"

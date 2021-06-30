@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 )
 
 var (
@@ -61,8 +61,8 @@ func NewOperationReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=Operations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=Operations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=Operations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=Operations/status,verbs=get;update;patch
 
 func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
