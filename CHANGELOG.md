@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.2.0](#v020)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.1.6](#v016)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -63,6 +72,63 @@
     - [Added](#added)
     - [Changed](#changed)
     - [Removed](#removed)
+
+## v0.2.0
+
+### Changes by Kind
+
+#### API Change
+
+- Change API name from Abnormal to Diagnosis. ([#14](https://github.com/kubediag/kubediag/pull/14))
+- Remove unused APIs in Diagnosis. ([#17](https://github.com/kubediag/kubediag/pull/17))
+- Implement go profiler. ([#18](https://github.com/kubediag/kubediag/pull/18), [#20](https://github.com/kubediag/kubediag/pull/20), [#45](https://github.com/kubediag/kubediag/pull/45), [#66](https://github.com/kubediag/kubediag/pull/66))
+- Add API definitions for Operation, OperationSet and Trigger. ([#21](https://github.com/kubediag/kubediag/pull/21))
+- Implement command executor. ([#30](https://github.com/kubediag/kubediag/pull/30))
+- Support corefile profiler. ([#32](https://github.com/kubediag/kubediag/pull/32))
+- Set Diagnosis phase to failed if referenced OperationSet hash is changed. ([#46](https://github.com/kubediag/kubediag/pull/46))
+- Add Operations to debug Docker. ([#49](https://github.com/kubediag/kubediag/pull/49))
+- Use key value pattern for context propagation of `.spec.parameters`. The agent sends all parameters and operation results to operation processors. ([#53](https://github.com/kubediag/kubediag/pull/53))
+- Prometheus alert could be used to generate Diagnosis. The master sets Diagnosis fields according to Prometheus labels. ([#54](https://github.com/kubediag/kubediag/pull/54))
+- Implement kafka consumer. Kafka message could be used to generate Diagnosis. ([#57](https://github.com/kubediag/kubediag/pull/57))
+- Add prometheus metrics for components. ([#60](https://github.com/kubediag/kubediag/pull/60))
+- Support diagnosis and recovery of kuibernetes subpath remount bug. ([#62](https://github.com/kubediag/kubediag/pull/62))
+
+#### Bug or Regression
+
+- Refactor code and implement operation executor. ([#25](https://github.com/kubediag/kubediag/pull/25))
+- Implement webhook server for Operation, OperationSet and Trigger. ([#52](https://github.com/kubediag/kubediag/pull/52))
+- Reorganize code of processors and add parameter naming convetion. ([#67](https://github.com/kubediag/kubediag/pull/67))
+- Transfer Kube Diagnoser project to KubeDiag. ([#72](https://github.com/kubediag/kubediag/pull/72))
+
+#### Other
+
+- Add CI pipelines. ([#12](https://github.com/kubediag/kubediag/pull/12), [#13](https://github.com/kubediag/kubediag/pull/13))
+- Change repository host from NetEase internal GitLab to GitHub. ([#15](https://github.com/kubediag/kubediag/pull/15))
+- Update documents for graph based diagnosis pipeline. ([#22](https://github.com/kubediag/kubediag/pull/22))
+- Add contribution document. ([#23](https://github.com/kubediag/kubediag/pull/23))
+- Add graph based API documents and remove outdated documents. ([#26](https://github.com/kubediag/kubediag/pull/26))
+- Update processor parameter extension. ([#29](https://github.com/kubediag/kubediag/pull/29))
+- Add e2e test. ([#36](https://github.com/kubediag/kubediag/pull/36), [#48](https://github.com/kubediag/kubediag/pull/48), [#68](https://github.com/kubediag/kubediag/pull/68))
+- Add `printcolumn` in CRD definitions. ([#38](https://github.com/kubediag/kubediag/pull/38), [#42](https://github.com/kubediag/kubediag/pull/42))
+
+### Dependencies
+
+#### Added
+
+- golang.org/x/exp [v0.0.0-20210220032938-85be41e4509f](https://github.com/golang/exp/tree/85be41e4509f417cbf99006a027aef75deb8afd1)
+- golang.org/x/tools [v0.1.0](https://github.com/golang/tools/tree/v0.1.0)
+- gonum.org/v1/gonum [v0.9.0](https://github.com/gonum/gonum/tree/v0.9.0)
+- github.com/joewalnes/websocketd [v0.4.1](https://github.com/joewalnes/websocketd/tree/v0.4.1)
+- github.com/davecgh/go-spew [v1.1.1](https://github.com/davecgh/go-spew/tree/v1.1.1)
+- github.com/segmentio/kafka-go [v0.4.16](https://github.com/segmentio/kafka-go/tree/v0.4.16)
+
+#### Changed
+
+- github.com/stretchr/testify [v1.5.1 -> v1.6.1](https://github.com/stretchr/testify/compare/v1.5.1...v1.6.1)
+
+#### Removed
+
+_Nothing has changed._
 
 ## v0.1.6
 
