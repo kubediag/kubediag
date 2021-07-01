@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"context"
@@ -25,19 +25,17 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 const (
-	ContextKeyPodDetail = "collector.kubernetes.pod.detail"
+	ContextKeyPodList = "collector.kubernetes.pod.list"
 )
 
-// podDetailCollector manages detail of a pod.
-type podDetailCollector struct {
+// podListCollector manages information of all pods on the node.
+type podListCollector struct {
 	// Context carries values across API boundaries.
 	context.Context
 	// Logger represents the ability to log messages.
@@ -45,28 +43,31 @@ type podDetailCollector struct {
 
 	// cache knows how to load Kubernetes objects.
 	cache cache.Cache
+	// nodeName specifies the node name.
+	nodeName string
 	// podCollectorEnabled indicates whether podListCollector and podDetailCollector is enabled.
 	podCollectorEnabled bool
 }
 
-// NewPodDetailCollector creates a new podDetailCollector.
-func NewPodDetailCollector(
+// NewPodListCollector creates a new podListCollector.
+func NewPodListCollector(
 	ctx context.Context,
 	logger logr.Logger,
 	cache cache.Cache,
 	nodeName string,
 	podCollectorEnabled bool,
 ) processors.Processor {
-	return &podDetailCollector{
+	return &podListCollector{
 		Context:             ctx,
 		Logger:              logger,
 		cache:               cache,
+		nodeName:            nodeName,
 		podCollectorEnabled: podCollectorEnabled,
 	}
 }
 
 // Handler handles http requests for pod information.
-func (pc *podDetailCollector) Handler(w http.ResponseWriter, r *http.Request) {
+func (pc *podListCollector) Handler(w http.ResponseWriter, r *http.Request) {
 	if !pc.podCollectorEnabled {
 		http.Error(w, fmt.Sprintf("pod collector is not enabled"), http.StatusUnprocessableEntity)
 		return
@@ -74,37 +75,21 @@ func (pc *podDetailCollector) Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "POST":
-		contexts, err := utils.ExtractParametersFromHTTPContext(r)
+		// List all pods on the node.
+		pods, err := pc.listPods()
 		if err != nil {
-			pc.Error(err, "extract contexts failed")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if contexts[executor.PodNamespaceTelemetryKey] == "" ||
-			contexts[executor.PodNameTelemetryKey] == "" {
-			pc.Error(err, "extract contexts lack of pod namespace and name")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		pod := corev1.Pod{}
-		err = pc.cache.Get(pc.Context,
-			client.ObjectKey{
-				Namespace: contexts[executor.PodNamespaceTelemetryKey],
-				Name:      contexts[executor.PodNameTelemetryKey],
-			}, &pod)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to get pod: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to list pods: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		raw, err := json.Marshal(pod)
+		raw, err := json.Marshal(pods)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal pod: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to marshal pods: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		result := make(map[string]string)
-		result[ContextKeyPodDetail] = string(raw)
+		result[ContextKeyPodList] = string(raw)
 		data, err := json.Marshal(result)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to marshal result: %v", err), http.StatusInternalServerError)
@@ -116,4 +101,18 @@ func (pc *podDetailCollector) Handler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, fmt.Sprintf("method %s is not supported", r.Method), http.StatusMethodNotAllowed)
 	}
+}
+
+// listPods lists Pods from cache.
+func (pc *podListCollector) listPods() ([]corev1.Pod, error) {
+	pc.Info("listing Pods on node")
+
+	var podList corev1.PodList
+	if err := pc.cache.List(pc, &podList); err != nil {
+		return nil, err
+	}
+
+	podsOnNode := util.RetrievePodsOnNode(podList.Items, pc.nodeName)
+
+	return podsOnNode, nil
 }

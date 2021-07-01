@@ -1,4 +1,4 @@
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: pod-detail-collector

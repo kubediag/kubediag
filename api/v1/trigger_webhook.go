@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ func (r *Trigger) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-diagnosis-netease-com-v1-trigger,mutating=true,failurePolicy=fail,groups=diagnosis.netease.com,resources=triggers,verbs=create;update,versions=v1,name=mtrigger.kb.io
+// +kubebuilder:webhook:path=/mutate-diagnosis-kubediag-org-v1-trigger,mutating=true,failurePolicy=fail,groups=diagnosis.kubediag.org,resources=triggers,verbs=create;update,versions=v1,name=mtrigger.kb.io
 
 var _ webhook.Defaulter = &Trigger{}
 
@@ -45,7 +45,7 @@ func (r *Trigger) Default() {
 	triggerlog.Info("defaulting Trigger", "trigger", r.Name)
 }
 
-// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-netease-com-v1-trigger,mutating=false,failurePolicy=fail,groups=diagnosis.netease.com,resources=triggers,versions=v1,name=vtrigger.kb.io
+// +kubebuilder:webhook:verbs=create;update,path=/validate-diagnosis-kubediag-org-v1-trigger,mutating=false,failurePolicy=fail,groups=diagnosis.kubediag.org,resources=triggers,versions=v1,name=vtrigger.kb.io
 
 var _ webhook.Validator = &Trigger{}
 
@@ -87,6 +87,6 @@ func (r *Trigger) validateTrigger() error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "diagnosis.netease.com", Kind: "Trigger"},
+		schema.GroupKind{Group: "diagnosis.kubediag.org", Kind: "Trigger"},
 		r.Name, allErrs)
 }

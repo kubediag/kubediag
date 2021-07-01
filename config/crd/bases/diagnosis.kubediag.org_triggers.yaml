@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: triggers.diagnosis.netease.com
+  name: triggers.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.operationSet
@@ -18,7 +18,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: Trigger
     listKind: TriggerList

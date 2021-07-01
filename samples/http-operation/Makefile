@@ -1,4 +1,4 @@
-IMG ?= hub.c.163.com/combk8s/http-operation
+IMG ?= hub.c.163.com/kubediag/http-operation
 TAG ?= $(shell git rev-parse --short HEAD)
 
 all: http-operation

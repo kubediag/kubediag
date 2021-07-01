@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"context"
@@ -28,10 +28,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/k8s"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/system"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
+	"github.com/kubediag/kubediag/pkg/processors/collector/system"
+	"github.com/kubediag/kubediag/pkg/processors/utils"
 )
 
 const (
@@ -87,13 +87,13 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if contexts[k8s.ContextKeyPodDetail] == "" || contexts[system.ContextKeyMountInfo] == "" {
-			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", k8s.ContextKeyPodDetail, system.ContextKeyMountInfo))
+		if contexts[kubernetes.ContextKeyPodDetail] == "" || contexts[system.ContextKeyMountInfo] == "" {
+			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", kubernetes.ContextKeyPodDetail, system.ContextKeyMountInfo))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		pod := corev1.Pod{}
-		err = json.Unmarshal([]byte(contexts[k8s.ContextKeyPodDetail]), &pod)
+		err = json.Unmarshal([]byte(contexts[kubernetes.ContextKeyPodDetail]), &pod)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to unmarshal pod: %v", err), http.StatusInternalServerError)
 			return

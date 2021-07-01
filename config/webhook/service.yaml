@@ -3,11 +3,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: webhook-service
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   ports:
     - port: 443
       targetPort: 9443
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master

@@ -5,7 +5,7 @@ metadata:
   name: operationset-viewer-role
 rules:
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets/status
   verbs:

@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 // Kubediag master metrics
@@ -136,9 +136,9 @@ func NewDiagnosisReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=diagnoses/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=diagnoses/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;update;patch
@@ -195,7 +195,7 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 				diagnosisMasterAssignNodeCount.Inc()
 			} else {
-				log.Info("diagnosis accepted by kube diagnoser master", "diagnosis", client.ObjectKey{
+				log.Info("diagnosis accepted by kubediag master", "diagnosis", client.ObjectKey{
 					Name:      diagnosis.Name,
 					Namespace: diagnosis.Namespace,
 				})
@@ -220,7 +220,7 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		switch diagnosis.Status.Phase {
 		case diagnosisv1.DiagnosisPending:
-			log.Info("diagnosis accepted by kube diagnoser agent", "diagnosis", client.ObjectKey{
+			log.Info("diagnosis accepted by kubediag agent", "diagnosis", client.ObjectKey{
 				Name:      diagnosis.Name,
 				Namespace: diagnosis.Namespace,
 			})

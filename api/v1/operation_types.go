@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 
 // OperationSpec defines the desired state of Operation.
 type OperationSpec struct {
-	// Processor describes how to register a operation processor into kube diagnoser.
+	// Processor describes how to register a operation processor into kubediag.
 	Processor Processor `json:"processor"`
 	// Dependences is the list of all depended operations required to be precedently executed.
 	// +optional
@@ -33,14 +33,14 @@ type OperationSpec struct {
 	Storage *Storage `json:"storage,omitempty"`
 }
 
-// Processor describes how to register a operation processor into kube diagnoser.
+// Processor describes how to register a operation processor into kubediag.
 type Processor struct {
 	// ExternalIP is the external serving ip of the processor.
-	// Defaults to kube diagnoser agent advertised address if not specified.
+	// Defaults to kubediag agent advertised address if not specified.
 	// +optional
 	ExternalIP *string `json:"externalIP,omitempty"`
 	// ExternalPort is the external serving port of the processor.
-	// Defaults to kube diagnoser agent serving port if not specified.
+	// Defaults to kubediag agent serving port if not specified.
 	// +optional
 	ExternalPort *int32 `json:"externalPort,omitempty"`
 	// Path is the serving http path of processor.
@@ -65,7 +65,7 @@ type Storage struct {
 // HostPath represents a directory on the host.
 type HostPath struct {
 	// Path of the directory on the host.
-	// Defaults to kube diagnoser agent data root if not specified.
+	// Defaults to kubediag agent data root if not specified.
 	Path string `json:"path"`
 }
 

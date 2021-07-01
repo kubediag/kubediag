@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/util"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/util"
 )
 
 var (
@@ -67,8 +67,8 @@ func NewOperationSetReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operationsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.netease.com,resources=operationsets/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operationsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operationsets/status,verbs=get;update;patch
 
 // Reconcile synchronizes a OperationSet object.
 func (r *OperationSetReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

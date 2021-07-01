@@ -9,14 +9,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/features"
-	k8scollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/k8s"
-	runtimecollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/runtime"
-	systemcollector "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/collector/system"
-	k8sdiagnoser "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/k8s"
-	runtimediagnoser "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/runtime"
-	executorprocessor "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/executor"
-	k8srecover "github.com/kube-diagnoser/kube-diagnoser/pkg/processors/recover/k8s"
+	"github.com/kubediag/kubediag/pkg/features"
+	kubecollector "github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
+	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
+	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
+	kubediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
+	runtimediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/runtime"
+	executorprocessor "github.com/kubediag/kubediag/pkg/processors/executor"
+	kuberecover "github.com/kubediag/kubediag/pkg/processors/recover/kubernetes"
 )
 
 // RegistryOption contains options of all kinds of Processors, it might be append in the future.
@@ -25,7 +25,7 @@ type RegistryOption struct {
 	NodeName string
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
-	// DataRoot is root directory of persistent kube diagnoser data.
+	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
 	// BindAddress is the address on which to advertise.
 	BindAddress string
@@ -34,25 +34,25 @@ type RegistryOption struct {
 // RegisterProcessors will initialize all processors and add into router to provide HTTP service.
 func RegisterProcessors(mgr manager.Manager,
 	opts *RegistryOption,
-	featureGate features.KubeDiagnoserFeatureGate,
+	featureGate features.KubeDiagFeatureGate,
 	router *mux.Router,
 	setupLog logr.Logger) error {
 	// Setup operation processors.
-	podListCollector := k8scollector.NewPodListCollector(
+	podListCollector := kubecollector.NewPodListCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/podListCollector"),
 		mgr.GetCache(),
 		opts.NodeName,
 		featureGate.Enabled(features.PodCollector),
 	)
-	podDetailCollector := k8scollector.NewPodDetailCollector(
+	podDetailCollector := kubecollector.NewPodDetailCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/podDetailCollector"),
 		mgr.GetCache(),
 		opts.NodeName,
 		featureGate.Enabled(features.PodCollector),
 	)
-	containerCollector, err := k8scollector.NewContainerCollector(
+	containerCollector, err := kubecollector.NewContainerCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/containerCollector"),
 		opts.DockerEndpoint,
@@ -67,7 +67,7 @@ func RegisterProcessors(mgr manager.Manager,
 		ctrl.Log.WithName("processor/processCollector"),
 		featureGate.Enabled(features.ProcessCollector),
 	)
-	dockerInfoCollector, err := k8scollector.NewDockerInfoCollector(
+	dockerInfoCollector, err := kubecollector.NewDockerInfoCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/dockerInfoCollector"),
 		opts.DockerEndpoint,
@@ -99,7 +99,7 @@ func RegisterProcessors(mgr manager.Manager,
 		ctrl.Log.WithName("processor/commandExecutor"),
 		featureGate.Enabled(features.CommandExecutor),
 	)
-	nodeCordon := k8srecover.NewNodeCordon(
+	nodeCordon := kuberecover.NewNodeCordon(
 		context.Background(),
 		ctrl.Log.WithName("processor/nodeCordon"),
 		mgr.GetClient(),
@@ -126,14 +126,14 @@ func RegisterProcessors(mgr manager.Manager,
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
 
-	subpathRemountDiagnoser := k8sdiagnoser.NewSubPathRemountDiagnoser(
+	subpathRemountDiagnoser := kubediagnoser.NewSubPathRemountDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("processor/subpathRemountDiagnoser"),
 		mgr.GetCache(),
 		featureGate.Enabled(features.SubpathRemountDiagnoser),
 	)
 
-	subpathRemountRecover := k8srecover.NewSubPathRemountRecover(
+	subpathRemountRecover := kuberecover.NewSubPathRemountRecover(
 		context.Background(),
 		ctrl.Log.WithName("processor/subpathRemountRecover"),
 		featureGate.Enabled(features.SubpathRemountDiagnoser),

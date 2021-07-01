@@ -54,23 +54,23 @@
 | graphbuilder_sync_skip_count | Graphbuilder 跳过同步 Operationset 的次数 | Counter |
 | graphbuilder_sync_error_count | Graphbuilder 同步 Operationset 错误的次数。 | Counter |
 
-## Kube Diagnoser Master
+## KubeDiag Master
 
 | Name | Description | Type |
 | ---- | ----------- | ---- |
-| diagnosis_master_skip_count | Kube Diagnoser Master 跳过同步 Diagnosis 的次数 | Counter |
-| diagnosis_master_assign_node_count | Kube Diagnoser Master 指定 Diagnosis 到节点的次数 | Counter |
+| diagnosis_master_skip_count | KubeDiag Master 跳过同步 Diagnosis 的次数 | Counter |
+| diagnosis_master_assign_node_count | KubeDiag Master 指定 Diagnosis 到节点的次数 | Counter |
 | diagnosis_total_count | 集群中创建过的 Diagnosis 的数量。 | Counter |
 | diagnosis_total_success_count | 集群中创建过的成功的 Diagnosis 的数量。 | Counter |
 | diagnosis_total_fail_count | 集群中创建过的失败的 Diagnosis 的数量。 | Counter |
 | diagnosis_info | Diagnosis 的信息。 | Gauge |
 
-## Kube Diagnoser Agent
+## KubeDiag Agent
 
 | Name | Description | Type |
 | ---- | ----------- | ---- |
-| diagnosis_agent_skip_count | Kube Diagnoser Agent 跳过同步 Diagnosis 的次数 | Counter |
-| diagnosis_agent_queued_count | Kube Diagnoser Agent 指派 Diagnosis 进入同步队列的次数 | Counter |
+| diagnosis_agent_skip_count | KubeDiag Agent 跳过同步 Diagnosis 的次数 | Counter |
+| diagnosis_agent_queued_count | KubeDiag Agent 指派 Diagnosis 进入同步队列的次数 | Counter |
 
 ## Feature Gate
 

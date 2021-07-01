@@ -5,7 +5,7 @@ metadata:
   name: diagnosis-editor-role
 rules:
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - diagnoses
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - diagnoses/status
   verbs:

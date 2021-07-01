@@ -10,4 +10,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: apiserver-profiler-sa
-  namespace: kube-diagnoser
+  namespace: kubediag

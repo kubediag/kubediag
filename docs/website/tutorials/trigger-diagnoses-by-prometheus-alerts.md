@@ -4,13 +4,13 @@
 
 ## 开始之前
 
-在教程开始前，您需要确定 Kubernetes 集群中已经正确安装 Kube Diagnoser。
+在教程开始前，您需要确定 Kubernetes 集群中已经正确安装 KubeDiag。
 
-## 将 Kube Diagnoser Master 注册到 Prometheus 的 Alertmanager 列表
+## 将 KubeDiag Master 注册到 Prometheus 的 Alertmanager 列表
 
-通过配置 Prometheus 可以将 Kube Diagnoser Master 注册到 Prometheus 的 Alertmanager 列表。Kube Diagnoser Master 在接收到报警后会匹配报警消息和 Trigger 中定义的模板，如果匹配成功则根据报警消息中的数据创建 Diagnosis 对象并触发诊断工作流。Prometheus 配置项详情可参考[官方文档](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)。
+通过配置 Prometheus 可以将 KubeDiag Master 注册到 Prometheus 的 Alertmanager 列表。KubeDiag Master 在接收到报警后会匹配报警消息和 Trigger 中定义的模板，如果匹配成功则根据报警消息中的数据创建 Diagnosis 对象并触发诊断工作流。Prometheus 配置项详情可参考[官方文档](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)。
 
-[Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) 为用户提供了在 Kubernetes 集群中对 Prometheus 以及其相关监控组件的管理能力。通过配置 [Prometheus](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#prometheus) 自定义资源中的 [`.spec.alerting`](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#alertingspec) 字段可以将 Kube Diagnoser Master 注册到 Prometheus 的 Alertmanager 列表，部分配置如下所示：
+[Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) 为用户提供了在 Kubernetes 集群中对 Prometheus 以及其相关监控组件的管理能力。通过配置 [Prometheus](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#prometheus) 自定义资源中的 [`.spec.alerting`](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#alertingspec) 字段可以将 KubeDiag Master 注册到 Prometheus 的 Alertmanager 列表，部分配置如下所示：
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -21,12 +21,12 @@ spec:
   alerting:
     alertmanagers:
     # ......
-    - name: kube-diagnoser-master
-      namespace: kube-diagnoser
+    - name: kubediag-master
+      namespace: kubediag
       port: http
 ```
 
-如果您没有使用 Prometheus Operator 来管理 Prometheus，还可以通过直接修改配置文件的方式注册 Kube Diagnoser Master，部分配置如下所示：
+如果您没有使用 Prometheus Operator 来管理 Prometheus，还可以通过直接修改配置文件的方式注册 KubeDiag Master，部分配置如下所示：
 
 ```yaml
 alerting:
@@ -37,7 +37,7 @@ alerting:
     - role: endpoints
       namespaces:
         names:
-        - kube-diagnoser
+        - kubediag
     scheme: http
     path_prefix: /
     timeout: 10s
@@ -45,7 +45,7 @@ alerting:
     relabel_configs:
     - source_labels: [__meta_kubernetes_service_name]
       separator: ;
-      regex: kube-diagnoser-master
+      regex: kubediag-master
       replacement: $1
       action: keep
     - source_labels: [__meta_kubernetes_endpoint_port_name]
@@ -57,10 +57,10 @@ alerting:
 
 ## 为 Prometheus 报警项创建 Trigger 对象
 
-您可以通过 Trigger 对象来定义 Kube Diagnoser 根据接收到的报警信息自动创建 Diagnosis 的方式。下列 Trigger 在 NodeClockNotSynchronising 报警触发时创建 Diagnosis 来触发诊断流程：
+您可以通过 Trigger 对象来定义 KubeDiag 根据接收到的报警信息自动创建 Diagnosis 的方式。下列 Trigger 在 NodeClockNotSynchronising 报警触发时创建 Diagnosis 来触发诊断流程：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Trigger
 metadata:
   name: node-clock-not-synchronising
@@ -94,16 +94,16 @@ service="node-exporter"
 severity="warning"
 ```
 
-Kube Diagnoser 接收到 NodeClockNotSynchronising 报警消息时会创建下列 Diagnosis：
+KubeDiag 接收到 NodeClockNotSynchronising 报警消息时会创建下列 Diagnosis：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   labels:
     adjacency-list-hash: 57db4479b7
   name: prometheus-alert.nodeclocknotsynchronising.94df165
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   nodeName: my-node
   operationSet: node-clock-debugger

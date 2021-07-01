@@ -4,13 +4,13 @@ jobs:
   compile_and_test:
     machine: 
       image: ubuntu-2004:202010-01
-    working_directory: ~/go/src/github.com/kube-diagnoser/kube-diagnoser
+    working_directory: ~/go/src/github.com/kubediag/kubediag
     steps:
       - checkout
       - run:
           name: Compile code
           command: |
-            make kube-diagnoser
+            make kubediag
       - run:
           name: Run unit tests
           command: |
@@ -40,7 +40,7 @@ jobs:
             kubectl wait deployment/cert-manager --for=condition=available --timeout=120s -n cert-manager
             kubectl wait deployment/cert-manager-cainjector --for=condition=available --timeout=120s -n cert-manager
             kubectl wait deployment/cert-manager-webhook --for=condition=available --timeout=120s -n cert-manager
-            kubectl create ns kube-diagnoser
+            kubectl create ns kubediag
             make install
             # disable prometheus in e2e test
             sed -i '25d' config/default/kustomization.yaml
@@ -48,8 +48,8 @@ jobs:
             make docker-build
             # build deployment and service first
             kubectl apply -f config/deploy/manifests.yaml
-            kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=agent
-            kubectl --namespace kube-diagnoser wait --for=condition=ready  --timeout=600s pod -l mode=master
+            kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=agent
+            kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=master
             # wait for webhook service ready
             for (( c=1; c<=5; c++ )); do if( kubectl apply -f config/deploy/ ); then break ;fi ;sleep 10; done
             make e2e
@@ -57,7 +57,7 @@ jobs:
   build_and_push:
     environment:
       DOCKER_REGISTRY: hub.c.163.com
-      REPO_NAME: hub.c.163.com/combk8s/ci-test
+      REPO_NAME: hub.c.163.com/kubediag/ci-test
     docker:
       - image: circleci/buildpack-deps:stretch
     steps:

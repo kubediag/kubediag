@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	"github.com/stretchr/testify/assert"
 )
 

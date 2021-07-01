@@ -1,4 +1,4 @@
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: OperationSet
 metadata:
   name: docker-debugger
@@ -22,7 +22,7 @@ spec:
   - id: 4
     operation: node-cordon
 ---
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: docker-debugger

@@ -4,14 +4,14 @@ Processor 是处理用户诊断请求的实体，通常通过 Operation 资源�
 
 ## 背景和动机
 
-Kube Diagnoser 内置实现了部分收集信息或分析数据的操作。通过在 Kube Diagnoser 的代码中实现诊断操作可以对诊断能力进行扩展，但是这种方式存在许多弊端：
+KubeDiag 内置实现了部分收集信息或分析数据的操作。通过在 KubeDiag 的代码中实现诊断操作可以对诊断能力进行扩展，但是这种方式存在许多弊端：
 
-* 诊断操作功能与 Kube Diagnoser 的版本耦合。
-* Kube Diagnoser 项目的维护者需要维护所有的诊断操作而不是只维护一个标准的插件接口。
-* 诊断操作插件的开发者需要熟悉 Kube Diagnoser 的代码来扩展自己的诊断操作并公开自己插件的源代码。
-* 复杂诊断操作插件的引入可能导致 Kube Diagnoser 项目维护成本骤增。
+* 诊断操作功能与 KubeDiag 的版本耦合。
+* KubeDiag 项目的维护者需要维护所有的诊断操作而不是只维护一个标准的插件接口。
+* 诊断操作插件的开发者需要熟悉 KubeDiag 的代码来扩展自己的诊断操作并公开自己插件的源代码。
+* 复杂诊断操作插件的引入可能导致 KubeDiag 项目维护成本骤增。
 
-Processor 是 Kube Diagnoser 维护者与诊断操作插件维护者之间的接口，该接口可以帮助开发者将新实现的诊断操作插件注册到 Kube Diagnoser 中。
+Processor 是 KubeDiag 维护者与诊断操作插件维护者之间的接口，该接口可以帮助开发者将新实现的诊断操作插件注册到 KubeDiag 中。
 
 ## 设计细节
 
@@ -22,13 +22,13 @@ Processor 通过 [Operation](./graph-based-pipeline.md#operation) API 进行注�
 `Processor` API 对象的数据结构如下：
 
 ```go
-// Processor 描述了如何在 Kube Diagnoser 中注册一个操作处理器。
+// Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
 type Processor struct {
     // ExternalIP 是操作处理器的监听 IP。
-    // 如果该字段为空，那么默认为 Kube Diagnoser Agent 的地址。
+    // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
     ExternalIP *string `json:"externalIP,omitempty"`
     // ExternalPort 是操作处理器的服务端口。
-    // 如果该字段为空，那么默认为 Kube Diagnoser Agent 的服务端口。
+    // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
     ExternalPort *int32 `json:"externalPort,omitempty"`
     // Path 是操作处理器服务的 HTTP 路径。
     Path *string `json:"path,omitempty"`
@@ -42,7 +42,7 @@ type Processor struct {
 
 ### 通过 HTTP 请求让 Processor 执行诊断操作
 
-Kube Diagnoser Agent 中的 Executor 负责向 Processor 发送 HTTP 请求让 Processor 执行诊断操作。HTTP 请求必须满足以下条件：
+KubeDiag Agent 中的 Executor 负责向 Processor 发送 HTTP 请求让 Processor 执行诊断操作。HTTP 请求必须满足以下条件：
 
 * 必须是 POST 请求。
 * HTTP 请求中一般会包含请求体，请求体必须是 JSON 对象。
@@ -63,10 +63,10 @@ Processor 的实现必须满足以下条件：
 
 ### 举例说明
 
-通过创建下列 Operation 可以在 Kube Diagnoser 中注册向进程发送信号的 Processor：
+通过创建下列 Operation 可以在 KubeDiag 中注册向进程发送信号的 Processor：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: signal-sender
@@ -77,10 +77,10 @@ spec:
     timeoutSeconds: 60
 ```
 
-该 Operation 注册了一个向进程发送信号的 Processor，其监听地址与 Kube Diagnoser Agent 一致，HTTP 访问路径为 /processor/signalsender，请求超时时间为 60 秒。如果 Processor 是由诊断操作插件的开发者自行维护的，需要在创建时声明监听的地址以及端口号：
+该 Operation 注册了一个向进程发送信号的 Processor，其监听地址与 KubeDiag Agent 一致，HTTP 访问路径为 /processor/signalsender，请求超时时间为 60 秒。如果 Processor 是由诊断操作插件的开发者自行维护的，需要在创建时声明监听的地址以及端口号：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: custom-operation
@@ -96,7 +96,7 @@ spec:
 以向进程 27065 发送信号为例，一次操作执行的流程如下：
 
 1. 创建一个 Diagnosis 对象如: `defalt/kill-process` ，在对象中描述了要诊断的 Pod 和使用的 OperationSet，其中就包括发送信号的 Processor。
-1. Kube Diagnoser Agent 中的 Executor 向发送信号的 Processor 执行 HTTP 请求，请求类型为 POST，请求体中包含如下 JSON 对象：
+1. KubeDiag Agent 中的 Executor 向发送信号的 Processor 执行 HTTP 请求，请求类型为 POST，请求体中包含如下 JSON 对象：
 
    ```json
    {
@@ -111,9 +111,9 @@ spec:
    ```
 
 1. Processor 接收到请求后解析请求体中的 JSON 对象，向进程 27065 发送 SIGTERM 信号，如果这个 Processor 需要 Pod 的相关信息，可以通过 `pod.name` 和 `pod.namespace` 字段获取。
-1. Processor 发送信号成功则向 Kube Diagnoser Agent 返回 200 状态码。
-1. Processor 发送信号失败则向 Kube Diagnoser Agent 返回 500 状态码。
-1. Kube Diagnoser Agent 中的 Executor 在请求返回后继续执行诊断逻辑。
+1. Processor 发送信号成功则向 KubeDiag Agent 返回 200 状态码。
+1. Processor 发送信号失败则向 KubeDiag Agent 返回 500 状态码。
+1. KubeDiag Agent 中的 Executor 在请求返回后继续执行诊断逻辑。
 
 
 ## 命名与规范
@@ -142,7 +142,7 @@ spec:
 key 中成员的设计可以参考[成员设计](#成员设计)
 
 ### Response 中的 Context
-Processor 处理请求后会将结果以 `map[string]string` 的格式返回给 Kube Diagnoser Agent 。 我们称这个 map 为 Context 。因为其中的内容会作为后续 Processor 的 Parameters 。
+Processor 处理请求后会将结果以 `map[string]string` 的格式返回给 KubeDiag Agent 。 我们称这个 map 为 Context 。因为其中的内容会作为后续 Processor 的 Parameters 。
 
 上文提到 Parameter 的格式， 显然，此处 Context 的 key 的命名规范也是一样的。不过为了与 Parameter 区分，所以不需要 `param` 前缀。例如：
 

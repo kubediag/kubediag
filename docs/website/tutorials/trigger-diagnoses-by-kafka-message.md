@@ -4,11 +4,11 @@
 
 ## 开始之前
 
-在教程开始前，您需要确定 Kubernetes 集群中已经正确安装 Kube Diagnoser。
+在教程开始前，您需要确定 Kubernetes 集群中已经正确安装 KubeDiag。
 
-## 在 Kube Diagnoser Master 参数中指定需要消费的 Kafka 和 Topic
+## 在 KubeDiag Master 参数中指定需要消费的 Kafka 和 Topic
 
-您需要在 Kube Diagnoser Master 启动时指定下列参数以使用该功能：
+您需要在 KubeDiag Master 启动时指定下列参数以使用该功能：
 
 | 参数 | 类型 | 描述 | 示例 |
 |-|-|-|-|
@@ -33,7 +33,7 @@ JSON 对象中的所有键值对会被注入到生成 Diagnosis 的 `.spec.param
 
 ## 举例说明
 
-当 Kube Diagnoser 接收到包含下列 Value 的 Kafka 消息时会根据 JSON 对象创建 Diagnosis：
+当 KubeDiag 接收到包含下列 Value 的 Kafka 消息时会根据 JSON 对象创建 Diagnosis：
 
 ```json
 {
@@ -50,19 +50,19 @@ JSON 对象中的所有键值对会被注入到生成 Diagnosis 的 `.spec.param
 通过该 Kafka 消息创建出的 Diagnosis 如下所示：
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   annotations:
-    diagnosis.netease.com/kafka-message-headers: ""
-    diagnosis.netease.com/kafka-message-key: ""
-    diagnosis.netease.com/kafka-message-offset: "7"
-    diagnosis.netease.com/kafka-message-partition: "0"
-    diagnosis.netease.com/kafka-message-time: "20210603085224"
-    diagnosis.netease.com/kafka-message-topic: my-topic
-    diagnosis.netease.com/kafka-message-value: '{"operationset":"my-operationset","node":"my-node","pod":"my-pod","namespace":"default","container":"my-container","key1":"value1","key2":"value2"}'
+    diagnosis.kubediag.org/kafka-message-headers: ""
+    diagnosis.kubediag.org/kafka-message-key: ""
+    diagnosis.kubediag.org/kafka-message-offset: "7"
+    diagnosis.kubediag.org/kafka-message-partition: "0"
+    diagnosis.kubediag.org/kafka-message-time: "20210603085224"
+    diagnosis.kubediag.org/kafka-message-topic: my-topic
+    diagnosis.kubediag.org/kafka-message-value: '{"operationset":"my-operationset","node":"my-node","pod":"my-pod","namespace":"default","container":"my-container","key1":"value1","key2":"value2"}'
   name: kafka-message.20210603085224
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   nodeName: my-node
   operationSet: my-operationset

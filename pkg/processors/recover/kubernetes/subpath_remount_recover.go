@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"context"
@@ -25,9 +25,9 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/diagnoser/k8s"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors/utils"
+	"github.com/kubediag/kubediag/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
+	"github.com/kubediag/kubediag/pkg/processors/utils"
 )
 
 const (
@@ -73,7 +73,7 @@ func (srr *subPathRemountRecover) Handler(w http.ResponseWriter, r *http.Request
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		target := contexts[k8s.ContextKeySubpathRemountOriginalDestinationPath]
+		target := contexts[kubernetes.ContextKeySubpathRemountOriginalDestinationPath]
 		if target == "" {
 			srr.Error(err, "extract contexts lack of some value", "key", "diagnosis.kubernetes.bug.subpathremount.firstdestination")
 			http.Error(w, err.Error(), http.StatusInternalServerError)

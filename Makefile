@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= hub.c.163.com/combk8s/kube-diagnoser
+IMG ?= hub.c.163.com/kubediag/kubediag
 # Image tag to use all building/pushing image targets
 TAG ?= $(shell git rev-parse --short HEAD)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -18,7 +18,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: kube-diagnoser
+all: kubediag
 
 # Run e2e tests
 e2e: 
@@ -28,10 +28,10 @@ e2e:
 test: generate fmt vet manifests
 	go test ./pkg/... -coverprofile cover.out
 
-# Build kube-diagnoser binary
-kube-diagnoser: generate fmt vet
+# Build kubediag binary
+kubediag: generate fmt vet
 	go mod vendor
-	go build -mod vendor -o bin/kube-diagnoser main.go
+	go build -mod vendor -o bin/kubediag main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
@@ -39,11 +39,11 @@ run: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	kustomize build config/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	kustomize build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
@@ -51,9 +51,9 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=kube-diagnoser-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	cd config/manager && $(KUSTOMIZE) edit set image hub.c.163.com/combk8s/kube-diagnoser=${IMG}:${TAG}
-	$(KUSTOMIZE) build config/default > config/deploy/manifests.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=kubediag-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd config/manager && kustomize edit set image hub.c.163.com/kubediag/kubediag=${IMG}:${TAG}
+	kustomize build config/default > config/deploy/manifests.yaml
 
 # Run go fmt against code
 fmt:

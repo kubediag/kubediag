@@ -3,8 +3,8 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kube-diagnoser-agent
-  namespace: kube-diagnoser
+  name: kubediag-agent
+  namespace: kubediag
 spec:
   template:
     spec:

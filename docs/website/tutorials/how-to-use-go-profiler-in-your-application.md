@@ -32,10 +32,10 @@ func main() {
 }
 ```
 
-运行这个应用，然后使用如下示例创建一个 Diagnosis 进行性能剖析。注意创建前修改你的 `<source-ip>` 与 `<node-name>`，其中 `<source-ip>` 是你的 Go 应用访问 IP，`<node-name>` 是运行了 Kube-diagnoser Agent的节点 Name。
+运行这个应用，然后使用如下示例创建一个 Diagnosis 进行性能剖析。注意创建前修改你的 `<source-ip>` 与 `<node-name>`，其中 `<source-ip>` 是你的 Go 应用访问 IP，`<node-name>` 是运行了 KubeDiag Agent的节点 Name。
 
 ```yaml
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: go-profiler

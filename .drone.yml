@@ -7,7 +7,7 @@ steps:
   - name: compile_and_test
     image: golang:1.14
     commands:
-      - go build -mod vendor -o bin/kube-diagnoser main.go
+      - go build -mod vendor -o bin/kubediag main.go
       - go test ./... -coverprofile cover.out
 
 trigger:
@@ -23,7 +23,7 @@ steps:
   - name: compile_and_test
     image: golang:1.14
     commands:
-      - go build -mod vendor -o bin/kube-diagnoser main.go
+      - go build -mod vendor -o bin/kubediag main.go
       - go test ./... -coverprofile cover.out
   # Build and push docker image.
   - name: build_and_push
@@ -32,7 +32,7 @@ steps:
       # Run docker plugin container with escalated privileges.
       privileged: true
       registry: hub.c.163.com
-      repo: hub.c.163.com/combk8s/ci-test
+      repo: hub.c.163.com/kubediag/ci-test
       # Set docker image tag.
       tags: ${DRONE_TAG}
       # Set USTC mirror registry.

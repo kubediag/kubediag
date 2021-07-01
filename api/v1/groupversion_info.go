@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kube Diagnoser Authors.
+Copyright 2020 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1 contains API Schema definitions for the diagnosis v1 API group
 // +kubebuilder:object:generate=true
-// +groupName=diagnosis.netease.com
+// +groupName=diagnosis.kubediag.org
 package v1
 
 import (
@@ -26,7 +26,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "diagnosis.netease.com", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "diagnosis.kubediag.org", Version: "v1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

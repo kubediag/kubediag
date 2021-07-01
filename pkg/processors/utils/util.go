@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import (
 	"net"
 	"net/http"
 
-	v1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/executor"
+	v1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/executor"
 )
 
 // DecodeOperationContext unmarshals json encoding into a map[string][]byte, which is the format of operation context.

@@ -4,7 +4,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: diagnoses.diagnosis.netease.com
+  name: diagnoses.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.operationSet
@@ -28,7 +28,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: Diagnosis
     listKind: DiagnosisList
@@ -245,9 +245,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: operations.diagnosis.netease.com
+  name: operations.diagnosis.kubediag.org
 spec:
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: Operation
     listKind: OperationList
@@ -281,15 +281,15 @@ spec:
               type: array
             processor:
               description: Processor describes how to register a operation processor
-                into kube diagnoser.
+                into kubediag.
               properties:
                 externalIP:
                   description: ExternalIP is the external serving ip of the processor.
-                    Defaults to kube diagnoser agent advertised address if not specified.
+                    Defaults to kubediag agent advertised address if not specified.
                   type: string
                 externalPort:
                   description: ExternalPort is the external serving port of the processor.
-                    Defaults to kube diagnoser agent serving port if not specified.
+                    Defaults to kubediag agent serving port if not specified.
                   format: int32
                   type: integer
                 path:
@@ -313,7 +313,7 @@ spec:
                   properties:
                     path:
                       description: Path of the directory on the host. Defaults to
-                        kube diagnoser agent data root if not specified.
+                        kubediag agent data root if not specified.
                       type: string
                   required:
                   - path
@@ -341,7 +341,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: operationsets.diagnosis.netease.com
+  name: operationsets.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.ready
@@ -350,7 +350,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: OperationSet
     listKind: OperationSetList
@@ -470,7 +470,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: triggers.diagnosis.netease.com
+  name: triggers.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.operationSet
@@ -482,7 +482,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: diagnosis.netease.com
+  group: diagnosis.kubediag.org
   names:
     kind: Trigger
     listKind: TriggerList
@@ -660,19 +660,19 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: apiserver-profiler-sa
-  namespace: kube-diagnoser
+  namespace: kubediag
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: leader-election-role
-  namespace: kube-diagnoser
+  namespace: kubediag
 rules:
 - apiGroups:
   - ""
@@ -716,7 +716,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: kube-diagnoser-role
+  name: kubediag-role
 rules:
 - apiGroups:
   - apps
@@ -789,7 +789,27 @@ rules:
   - list
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
+  resources:
+  - Operations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - Operations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.kubediag.org
   resources:
   - diagnoses
   verbs:
@@ -801,7 +821,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - diagnoses/status
   verbs:
@@ -809,7 +829,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operations
   verbs:
@@ -821,7 +841,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets
   verbs:
@@ -833,7 +853,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - operationsets/status
   verbs:
@@ -841,7 +861,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - triggers
   verbs:
@@ -853,7 +873,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - diagnosis.netease.com
+  - diagnosis.kubediag.org
   resources:
   - triggers/status
   verbs:
@@ -893,15 +913,15 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: leader-election-rolebinding
-  namespace: kube-diagnoser
+  namespace: kubediag
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -914,20 +934,20 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: apiserver-profiler-sa
-  namespace: kube-diagnoser
+  namespace: kubediag
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kube-diagnoser-rolebinding
+  name: kubediag-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kube-diagnoser-role
+  name: kubediag-role
 subjects:
 - kind: ServiceAccount
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -939,17 +959,17 @@ roleRef:
   name: proxy-role
 subjects:
 - kind: ServiceAccount
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-agent-metrics-monitor
+  namespace: kubediag
 spec:
   clusterIP: None
   ports:
@@ -957,7 +977,7 @@ spec:
     port: 10355
     targetPort: metrics
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
   type: ClusterIP
 ---
@@ -965,34 +985,34 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent-metrics-service
-  namespace: kube-diagnoser
+  name: kubediag-agent-metrics-service
+  namespace: kubediag
 spec:
   ports:
   - name: https
     port: 8443
     targetPort: https
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master
-  namespace: kube-diagnoser
+  name: kubediag-master
+  namespace: kubediag
 spec:
   ports:
   - name: http
     port: 8089
     targetPort: http
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
   type: ClusterIP
 ---
@@ -1000,10 +1020,10 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-master-metrics-monitor
+  namespace: kubediag
 spec:
   clusterIP: None
   ports:
@@ -1011,7 +1031,7 @@ spec:
     port: 10357
     targetPort: metrics
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
   type: ClusterIP
 ---
@@ -1019,27 +1039,27 @@ apiVersion: v1
 kind: Service
 metadata:
   name: webhook-service
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   ports:
   - port: 443
     targetPort: 9443
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master
-  namespace: kube-diagnoser
+  name: kubediag-master
+  namespace: kubediag
 spec:
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: master
   strategy:
     rollingUpdate:
@@ -1049,7 +1069,7 @@ spec:
   template:
     metadata:
       labels:
-        control-plane: kube-diagnoser
+        control-plane: kubediag
         mode: master
     spec:
       containers:
@@ -1060,14 +1080,14 @@ spec:
         - --metrics-port=10357
         - --enable-leader-election=true
         command:
-        - /kube-diagnoser
+        - /kubediag
         env:
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:6eb044a
-        name: kube-diagnoser
+        image: hub.c.163.com/kubediag/kubediag:v0.1.6
+        name: kubediag
         ports:
         - containerPort: 9443
           name: webhook-server
@@ -1087,7 +1107,7 @@ spec:
           privileged: true
         terminationMessagePolicy: FallbackToLogsOnError
         volumeMounts:
-        - mountPath: /etc/kube-diagnoser/serving-certs
+        - mountPath: /etc/kubediag/serving-certs
           name: cert
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
@@ -1096,7 +1116,7 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-      serviceAccountName: kube-diagnoser
+      serviceAccountName: kubediag
       terminationGracePeriodSeconds: 10
       tolerations:
       - operator: Exists
@@ -1110,19 +1130,19 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent
-  namespace: kube-diagnoser
+  name: kubediag-agent
+  namespace: kubediag
 spec:
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: agent
   template:
     metadata:
       labels:
-        control-plane: kube-diagnoser
+        control-plane: kubediag
         mode: agent
     spec:
       containers:
@@ -1131,10 +1151,10 @@ spec:
         - --bind-address=$(POD_IP)
         - --port=8090
         - --metrics-port=10355
-        - --data-root=/var/lib/kube-diagnoser
+        - --data-root=/var/lib/kubediag
         - --node-name=$(NODE_NAME)
         command:
-        - /kube-diagnoser
+        - /kubediag
         env:
         - name: NODE_NAME
           valueFrom:
@@ -1144,8 +1164,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/combk8s/kube-diagnoser:6eb044a
-        name: kube-diagnoser
+        image: hub.c.163.com/kubediag/kubediag:v0.1.6
+        name: kubediag
         ports:
         - containerPort: 10355
           name: metrics
@@ -1170,8 +1190,8 @@ spec:
           name: docker-data-root
         - mountPath: /var/lib/kubelet
           name: kubelet-data
-        - mountPath: /var/lib/kube-diagnoser
-          name: kube-diagnoser-data
+        - mountPath: /var/lib/kubediag
+          name: kubediag-data
         - mountPath: /usr/local/bin/
           name: usr-local-bin
       dnsPolicy: ClusterFirstWithHostNet
@@ -1180,7 +1200,7 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-      serviceAccountName: kube-diagnoser
+      serviceAccountName: kubediag
       terminationGracePeriodSeconds: 10
       tolerations:
       - operator: Exists
@@ -1202,9 +1222,9 @@ spec:
           type: Directory
         name: kubelet-data
       - hostPath:
-          path: /var/lib/kube-diagnoser
+          path: /var/lib/kubediag
           type: DirectoryOrCreate
-        name: kube-diagnoser-data
+        name: kubediag-data
       - hostPath:
           path: /usr/local/bin
           type: DirectoryOrCreate
@@ -1218,11 +1238,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: serving-cert
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   dnsNames:
-  - webhook-service.kube-diagnoser.svc
-  - webhook-service.kube-diagnoser.svc.cluster.local
+  - webhook-service.kubediag.svc
+  - webhook-service.kubediag.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: selfsigned-issuer
@@ -1232,7 +1252,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: selfsigned-issuer
-  namespace: kube-diagnoser
+  namespace: kubediag
 spec:
   selfSigned: {}
 ---
@@ -1240,60 +1260,60 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
-  name: kube-diagnoser-agent-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-agent-metrics-monitor
+  namespace: kubediag
 spec:
   endpoints:
   - path: /metrics
     port: metrics
   namespaceSelector:
     matchNames:
-    - kube-diagnoser
+    - kubediag
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: agent
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master-metrics-monitor
-  namespace: kube-diagnoser
+  name: kubediag-master-metrics-monitor
+  namespace: kubediag
 spec:
   endpoints:
   - path: /metrics
     port: metrics
   namespaceSelector:
     matchNames:
-    - kube-diagnoser
+    - kubediag
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: master
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
+    cert-manager.io/inject-ca-from: kubediag/serving-cert
   name: mutating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-diagnosis
+      namespace: kubediag
+      path: /mutate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
   name: mdiagnosis.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1305,13 +1325,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-operation
+      namespace: kubediag
+      path: /mutate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
   name: moperation.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1323,13 +1343,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-operationset
+      namespace: kubediag
+      path: /mutate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
   name: moperationset.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1341,13 +1361,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /mutate-diagnosis-netease-com-v1-trigger
+      namespace: kubediag
+      path: /mutate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
   name: mtrigger.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1360,20 +1380,20 @@ apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: kube-diagnoser/serving-cert
+    cert-manager.io/inject-ca-from: kubediag/serving-cert
   name: validating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /validate-diagnosis-netease-com-v1-diagnosis
+      namespace: kubediag
+      path: /validate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
   name: vdiagnosis.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1385,13 +1405,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /validate-diagnosis-netease-com-v1-operation
+      namespace: kubediag
+      path: /validate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
   name: voperation.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1403,13 +1423,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /validate-diagnosis-netease-com-v1-operationset
+      namespace: kubediag
+      path: /validate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
   name: voperationset.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:
@@ -1421,13 +1441,13 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: kube-diagnoser
-      path: /validate-diagnosis-netease-com-v1-trigger
+      namespace: kubediag
+      path: /validate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
   name: vtrigger.kb.io
   rules:
   - apiGroups:
-    - diagnosis.netease.com
+    - diagnosis.kubediag.org
     apiVersions:
     - v1
     operations:

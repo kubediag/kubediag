@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	diagnosisv1 "github.com/kube-diagnoser/kube-diagnoser/api/v1"
+	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -34,7 +34,7 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var cfg *rest.Config
-var k8sClient client.Client
+var kubeClient client.Client
 var testEnv *envtest.Environment
 
 func TestE2E(t *testing.T) {
@@ -61,10 +61,10 @@ var _ = BeforeSuite(func(done Done) {
 
 	// +kubebuilder:scaffold:scheme
 
-	By("bootstrapping k8sClient")
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	By("bootstrapping kubeClient")
+	kubeClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
+	Expect(kubeClient).ToNot(BeNil())
 
 	close(done)
 }, 60)

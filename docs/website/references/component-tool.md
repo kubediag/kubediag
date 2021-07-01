@@ -1,9 +1,9 @@
 # 命令行工具
 
-命令行工具 `kube-diagnoser` 可以用于启动 Master 和 Agent 组件。Master 在整个框架中负责控制诊断运维流水线的生成以及诊断的触发。Agent 负责诊断的实际执行。
+命令行工具 `kubediag` 可以用于启动 Master 和 Agent 组件。Master 在整个框架中负责控制诊断运维流水线的生成以及诊断的触发。Agent 负责诊断的实际执行。
 
 ```bash
-kube-diagnoser [flags]
+kubediag [flags]
 ```
 
 ## 参数
@@ -27,4 +27,4 @@ kube-diagnoser [flags]
 | --minimum-diagnosis-ttl-duration | duration | 已完成 Diagnosis 的最小保留时间。 | 30m |
 | --maximum-diagnoses-per-node | int32 | 每台节点上已完成 Diagnosis 的最大保留个数。 | 20 |
 | --feature-gates | mapStringBool | 表示特性关闭或打开的键值对列表。 | Alertmanager=true,ContainerCollector=true,ContainerdGoroutineCollector=true,CorefileProfiler=false,DockerInfoCollector=true,DockerdGoroutineCollector=true,Eventer=false,GoProfiler=true,KafkaConsumer=true,MountInfoCollector=true,NodeCordon=true,PodCollector=true,ProcessCollector=true,SubpathRemountDiagnoser=true,SystemdCollector=true |
-| --data-root | string | 存储 Kube Diagnoser 数据的根目录。 | /var/lib/kube-diagnoser |
+| --data-root | string | 存储 KubeDiag 数据的根目录。 | /var/lib/kubediag |

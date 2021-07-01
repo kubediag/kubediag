@@ -1,10 +1,10 @@
-apiVersion: diagnosis.netease.com/v1
+apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
   name: http-operation
 spec:
   processor:
-    externalIP: http-operation.kube-diagnoser.svc.cluster.local
+    externalIP: http-operation.kubediag.svc.cluster.local
     externalPort: 80
     path: /
     scheme: http

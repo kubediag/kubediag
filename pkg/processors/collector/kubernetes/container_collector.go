@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kube Diagnoser Authors.
+Copyright 2021 The KubeDiag Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/go-logr/logr"
 
-	"github.com/kube-diagnoser/kube-diagnoser/pkg/processors"
+	"github.com/kubediag/kubediag/pkg/processors"
 )
 
 const (

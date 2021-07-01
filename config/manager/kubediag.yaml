@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kube-diagnoser-master
-  namespace: kube-diagnoser
+  name: kubediag-master
+  namespace: kubediag
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
 spec:
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: master
   strategy:
     rollingUpdate:
@@ -19,25 +19,25 @@ spec:
   template:
     metadata:
       labels:
-        control-plane: kube-diagnoser
+        control-plane: kubediag
         mode: master
     spec:
       containers:
       - command:
-        - /kube-diagnoser
+        - /kubediag
         args:
         - --mode=master
         - --bind-address=$(POD_IP)
         - --port=8089
         - --metrics-port=10357
         - --enable-leader-election=true
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
+        image: hub.c.163.com/kubediag/kubediag:v0.1.6
         env:
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        name: kube-diagnoser
+        name: kubediag
         ports:
         - containerPort: 10357
           name: metrics
@@ -59,7 +59,7 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-      serviceAccountName: kube-diagnoser
+      serviceAccountName: kubediag
       terminationGracePeriodSeconds: 10
       tolerations:
       - operator: Exists
@@ -68,32 +68,32 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
-  name: kube-diagnoser-master
-  namespace: kube-diagnoser
+  name: kubediag-master
+  namespace: kubediag
 spec:
   ports:
   - name: http
     port: 8089
     targetPort: http
   selector:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: master
   type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kube-diagnoser-agent
-  namespace: kube-diagnoser
+  name: kubediag-agent
+  namespace: kubediag
   labels:
-    control-plane: kube-diagnoser
+    control-plane: kubediag
     mode: agent
 spec:
   selector:
     matchLabels:
-      control-plane: kube-diagnoser
+      control-plane: kubediag
       mode: agent
   updateStrategy:
     rollingUpdate:
@@ -102,20 +102,20 @@ spec:
   template:
     metadata:
       labels:
-        control-plane: kube-diagnoser
+        control-plane: kubediag
         mode: agent
     spec:
       containers:
       - command:
-        - /kube-diagnoser
+        - /kubediag
         args:
         - --mode=agent
         - --bind-address=$(POD_IP)
         - --port=8090
         - --metrics-port=10355
-        - --data-root=/var/lib/kube-diagnoser
+        - --data-root=/var/lib/kubediag
         - --node-name=$(NODE_NAME)
-        image: hub.c.163.com/combk8s/kube-diagnoser:v0.1.6
+        image: hub.c.163.com/kubediag/kubediag:v0.1.6
         env:
         - name: NODE_NAME
           valueFrom:
@@ -125,7 +125,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        name: kube-diagnoser
+        name: kubediag
         ports:
         - containerPort: 10355
           name: metrics
@@ -149,8 +149,8 @@ spec:
           name: docker-data-root
         - mountPath: /var/lib/kubelet
           name: kubelet-data
-        - mountPath: /var/lib/kube-diagnoser
-          name: kube-diagnoser-data
+        - mountPath: /var/lib/kubediag
+          name: kubediag-data
         - mountPath: /usr/local/bin/
           name: usr-local-bin
         terminationMessagePolicy: FallbackToLogsOnError
@@ -171,9 +171,9 @@ spec:
         hostPath:
           path: /var/lib/kubelet
           type: Directory
-      - name: kube-diagnoser-data
+      - name: kubediag-data
         hostPath:
-          path: /var/lib/kube-diagnoser
+          path: /var/lib/kubediag
           type: DirectoryOrCreate
       - name: usr-local-bin
         hostPath:
@@ -185,7 +185,7 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-      serviceAccountName: kube-diagnoser
+      serviceAccountName: kubediag
       terminationGracePeriodSeconds: 10
       tolerations:
       - operator: Exists
@@ -193,5 +193,5 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kube-diagnoser
-  namespace: kube-diagnoser
+  name: kubediag
+  namespace: kubediag

@@ -1,6 +1,6 @@
-# 为 Kube Diagnoser 做贡献
+# 为 KubeDiag 做贡献
 
-欢迎你加入 Kube Diagnoser！请阅读关于如何建立一个开发环境与提交贡献的开发指南。
+欢迎你加入 KubeDiag！请阅读关于如何建立一个开发环境与提交贡献的开发指南。
 
 ## 环境准备
 
@@ -8,7 +8,7 @@
 * `docker` 版本 17.03+
 * `kubenetes` 版本 v1.16+
 
-## 如何在本地部署 Kube Diagnoser
+## 如何在本地部署 KubeDiag
 
 通过源代码进行安装部署可以方便我们在本地测试所做的修改。
 
@@ -22,22 +22,22 @@
    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager-legacy.yaml
    ```
 
-1. 安装 Kube Diagnoser，下面介绍两种安装方式
+1. 安装 KubeDiag，下面介绍两种安装方式
 
-   * 以 Kubectl 的方式安装 Kube Diagnoser
+   * 以 Kubectl 的方式安装 KubeDiag
 
    ```bash
-   kubectl create namespace kube-diagnoser
+   kubectl create namespace kubediag
    kubectl apply -f config/deploy
    ```
 
-   查看是否所有运行 Kube Diagnoser 的 Pod 处于 Running 状态：
+   查看是否所有运行 KubeDiag 的 Pod 处于 Running 状态：
 
    ```bash
-   kubectl get -n kube-diagnoser pod -o wide
+   kubectl get -n kubediag pod -o wide
    ```
 
-   * 以 Kustomize 方式安装 Kube Diagnoser
+   * 以 Kustomize 方式安装 KubeDiag
 
    在开发环境进行调试时，如果安装了 [`kustomize`](https://github.com/kubernetes-sigs/kustomize) 工具，运行以下命令可以将当前分支上的代码打包成镜像并进行部署：
 
@@ -46,9 +46,9 @@
    make deploy
    ```
 
-## 快速测试你的 Kube Diagnoser
+## 快速测试你的 KubeDiag
 
-只有当你的修改通过代码编译与所有的单元测试后，Kube Diagnoser 才会合入你的 PR。此段落帮助你快速开始测试你的修改。
+只有当你的修改通过代码编译与所有的单元测试后，KubeDiag 才会合入你的 PR。此段落帮助你快速开始测试你的修改。
 
 * 编译你的代码进行本地测试
 
@@ -67,7 +67,7 @@
    make test
    ```
 
-* 卸载你的 Kube Diagnoser
+* 卸载你的 KubeDiag
 
    ```bash
    make uninstall
@@ -77,7 +77,7 @@
 
 当你在此项目中遇到问题时，我们非常乐意接受你反馈的意见。我们非常感激你能够提交一个高可读性的问题报告。
 
-在提交你的问题报告前请事先在 [Issues](https://github.com/kube-diagnoser/kube-diagnoser/issues) 中查找是否已经有类似的问题与建议。如果已有类似的问题，你可以点击 `subscribe` 来跟踪此问题。
+在提交你的问题报告前请事先在 [Issues](https://github.com/kubediag/kubediag/issues) 中查找是否已经有类似的问题与建议。如果已有类似的问题，你可以点击 `subscribe` 来跟踪此问题。
 
 在提交你的问题报告时，请附加上可以重现问题的所有必要步骤。这些信息能够方便我们快速复现与修复你的问题。
 
@@ -106,17 +106,17 @@ GitHub Issue 是追踪 Bug 报告、改善需求，或者反馈例如测试失�
 
 本段介绍当你从本地提交代码到 GitHub 时遵循的工作流程。
 
-1. 打开 `https://github.com/kube-diagnoser/kube-diagnoser`。
-1. 点击 `fork` 按钮，建立你个人账户下的 Kube Diagnoser 代码库 `https://github.com/<YOUR_ACCOUNT>/kube-diagnoser`。
-1. 复制你的个人账户下的 Kube Diagnoser 代码库的 `clone URL`
+1. 打开 `https://github.com/kubediag/kubediag`。
+1. 点击 `fork` 按钮，建立你个人账户下的 KubeDiag 代码库 `https://github.com/<YOUR_ACCOUNT>/kubediag`。
+1. 复制你的个人账户下的 KubeDiag 代码库的 `clone URL`
 1. 在你的本地终端窗口使用 `git` 命令将代码库 `clone` 到本地。
 
    ```bash
-   git clone https://github.com/<YOUR_ACCOUNT>/kube-diagnoser   
+   git clone https://github.com/<YOUR_ACCOUNT>/kubediag   
 
-   # 进入你的本地 Kube Diagnoser 项目目录，关联远程分支。
-   cd kube-diagnoser
-   git remote add upstream https://github.com/kube-diagnoser/kube-diagnoser
+   # 进入你的本地 KubeDiag 项目目录，关联远程分支。
+   cd kubediag
+   git remote add upstream https://github.com/kubediag/kubediag
    git remote set-url --push upstream no-pushing
    ```
 
@@ -157,7 +157,7 @@ GitHub Issue 是追踪 Bug 报告、改善需求，或者反馈例如测试失�
 
 1. 创建 Pull Request
 
-   1. 打开你个人 GitHub 账户下的代码库：`https://github.com/<YOUR_ACCOUNT>/kube-diagnoser`。
+   1. 打开你个人 GitHub 账户下的代码库：`https://github.com/<YOUR_ACCOUNT>/kubediag`。
    1. 在你的 `myfeature` 分支下点击 `Compare & Pull request`。
    1. 检查你的修改内容并添加相应的说明，最后点击 `Create pull request` 完成 PR 的提交。
 
@@ -179,7 +179,7 @@ GitHub Issue 是追踪 Bug 报告、改善需求，或者反馈例如测试失�
 * Commit 信息的描写必须是一句完整的、简明扼要的语句，并且首字母大写。请阅读关于 Commit 的描述规则：[How to Write a Git Commit Message](https://chris.beams.io/posts/git-commit/)。
 * 在你的 PR 中尽量详细的描述这次修改的内容与原因，方便项目维护者理解你的修改内容。
 * 项目维护者在 Review 过程中可能会在你的 Pull Request 下添加评论，你可以考虑采纳维护者的建议或者进行进一步的讨论。在根据建议进行修改后再次提交，并且回复维护者的评论，以便维护者快速感知到你的新提交。
-* Kube Diagnoser 项目维护者在 Review 阶段使用 `LGTM` 标签，即表示你的提交将很快被 Merge。
+* KubeDiag 项目维护者在 Review 阶段使用 `LGTM` 标签，即表示你的提交将很快被 Merge。
 
 ## 代码准则
 
