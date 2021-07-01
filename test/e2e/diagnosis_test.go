@@ -40,12 +40,12 @@ var _ = Describe("Diagnosis", func() {
 		// Operationset can not be deleted in framework.AfterEach, it is not a namespace scoped resource.
 		if operationset != nil {
 			By(fmt.Sprintf("Deleting operationset %s", operationset.Name))
-			err := f.K8sClient.Get(f, types.NamespacedName{Name: operationset.Name}, operationset)
+			err := f.KubeClient.Get(f, types.NamespacedName{Name: operationset.Name}, operationset)
 			if err != nil && apierrs.IsNotFound(err) {
 				return
 			}
 			ExpectNoError(err)
-			err = f.K8sClient.Delete(f, operationset)
+			err = f.KubeClient.Delete(f, operationset)
 			ExpectNoError(err)
 		}
 	})
@@ -54,16 +54,16 @@ var _ = Describe("Diagnosis", func() {
 		It("Should run a diagnosis successful", func() {
 			By("Creating a pod list collector operationset")
 			operationset = f.NewSimpleOperationset("operationset-pod-list-collector", f.Namespace.Name, podListCollectorOperation)
-			err = f.K8sClient.Create(f, operationset)
+			err = f.KubeClient.Create(f, operationset)
 			ExpectNoError(err, "failed to create operationset %s", operationset.Name)
-			err = WaitForOperationsetPath(f.K8sClient, operationset.Name, 1, poll, pollShortTimeout)
+			err = WaitForOperationsetPath(f.KubeClient, operationset.Name, 1, poll, pollShortTimeout)
 			ExpectNoError(err)
 
 			By("Creating a pod collector diagnosis")
 			diagnosis = f.NewDiagnosisWithRandomNode("diagnosis-pod-list-collector", f.Namespace.Name, operationset.Name)
-			err = f.K8sClient.Create(f, diagnosis)
+			err = f.KubeClient.Create(f, diagnosis)
 			ExpectNoError(err, "failed to create diagnosis %s in namespace: %s", diagnosis.Name, f.Namespace.Name)
-			err = WaitForDiagnosisPhaseSucceeded(f.K8sClient, diagnosis.Name, diagnosis.Namespace, poll, pollLongTimeout)
+			err = WaitForDiagnosisPhaseSucceeded(f.KubeClient, diagnosis.Name, diagnosis.Namespace, poll, pollLongTimeout)
 			ExpectNoError(err)
 
 		})

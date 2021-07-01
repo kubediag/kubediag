@@ -56,7 +56,7 @@ var (
 type Framework struct {
 	BaseName string
 	context.Context
-	K8sClient   client.Client
+	KubeClient  client.Client
 	Namespace   *corev1.Namespace // Every test has at least one namespace unless creation is skipped
 	SelectorKey string            // selectorKey is the key of lable map.
 }
@@ -85,13 +85,13 @@ func NewFramework(baseName string) *Framework {
 
 // BeforeEach gets a client and makes a namespace.
 func (f *Framework) BeforeEach() {
-	if f.K8sClient == nil {
+	if f.KubeClient == nil {
 		ginkgo.By("Creating a kubernetes client")
-		f.K8sClient = k8sClient
+		f.KubeClient = kubeClient
 	}
 
 	ginkgo.By(fmt.Sprintf("Building a namespace api object, basename %s", f.BaseName))
-	namespace, err := CreateTestingNS(strings.ToLower(f.BaseName), f.K8sClient, map[string]string{
+	namespace, err := CreateTestingNS(strings.ToLower(f.BaseName), f.KubeClient, map[string]string{
 		"e2e-framework": f.BaseName,
 	})
 	ExpectNoError(err)
@@ -102,7 +102,7 @@ func (f *Framework) BeforeEach() {
 // AfterEach deletes the namespace.
 func (f *Framework) AfterEach() {
 	ginkgo.By(fmt.Sprintf("Destory the namespace, basename %s", f.BaseName))
-	err := f.K8sClient.Delete(context.Background(), f.Namespace)
+	err := f.KubeClient.Delete(context.Background(), f.Namespace)
 	ExpectNoError(err)
 }
 
@@ -210,7 +210,7 @@ func (f *Framework) NewDiagnosis(name, ns, nodeName, operationSet string) *diagn
 // GetRandomNode Chooses a random node
 func (f *Framework) GetRandomNode() (*corev1.Node, error) {
 	var nodeList corev1.NodeList
-	err := f.K8sClient.List(f, &nodeList)
+	err := f.KubeClient.List(f, &nodeList)
 	ExpectNoError(err)
 	if len(nodeList.Items) == 0 {
 		return nil, fmt.Errorf("Could not find an available node")

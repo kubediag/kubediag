@@ -35,7 +35,7 @@ const (
 	ContextKeyCoreFileProfilerResultEndpoint = "diagnoser.runtime.core_file_profiler.result.endpoint"
 
 	l1CoreFileSubPath      = "corefile/"
-	l2CoreFileSubPathOfPod = "k8s/"
+	l2CoreFileSubPathOfPod = "kubernetes/"
 )
 
 var (
@@ -285,11 +285,11 @@ containerinfo=$(fgrep -h  -r "\"Pid\":${pid},"  ${docker_root}/containers/*/conf
 if [ "$containerinfo"x == ""x ] ; then
 	realfile="${root}/${pid}_$(date -d @${timestamp} "+%Y%m%d-%H%M%S")"
 else
-	k8sinfo=$(echo  $containerinfo | python -c "import sys,json;data=json.loads(sys.stdin.read());k8sinfo=data['Config']['Labels']['io.kubernetes.pod.namespace'] + '/' + data['Config']['Labels']['io.kubernetes.pod.name'] + '/' + data['Config']['Labels']['io.kubernetes.container.name'] ; print k8sinfo")
-	realfile="${podCorefilePath}/${k8sinfo}/${pid}_$(date -d @${timestamp} "+%Y%m%d-%H%M%S")"
-	mkdir -p ${podCorefilePath}/${k8sinfo}/
+	kube_info=$(echo $containerinfo | python -c "import sys,json;data=json.loads(sys.stdin.read());kube_info=data['Config']['Labels']['io.kubernetes.pod.namespace'] + '/' + data['Config']['Labels']['io.kubernetes.pod.name'] + '/' + data['Config']['Labels']['io.kubernetes.container.name'] ; print kube_info")
+	realfile="${podCorefilePath}/${kube_info}/${pid}_$(date -d @${timestamp} "+%Y%m%d-%H%M%S")"
+	mkdir -p ${podCorefilePath}/${kube_info}/
 fi
-cat  /dev/stdin > $realfile
+cat /dev/stdin > $realfile
 `
 	ioutil.WriteFile("/usr/local/bin/core_file_naming.sh", []byte(namingScript), 0777)
 	return ioutil.WriteFile("/proc/sys/kernel/core_pattern", patternShell, 0644)
