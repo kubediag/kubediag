@@ -882,34 +882,6 @@ rules:
   - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: proxy-role
-rules:
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: metrics-reader
-rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: leader-election-rolebinding
@@ -949,19 +921,6 @@ subjects:
   name: kubediag
   namespace: kubediag
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: proxy-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: proxy-role
-subjects:
-- kind: ServiceAccount
-  name: kubediag
-  namespace: kubediag
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -980,23 +939,6 @@ spec:
     control-plane: kubediag
     mode: agent
   type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    control-plane: kubediag
-    mode: agent
-  name: kubediag-agent-metrics-service
-  namespace: kubediag
-spec:
-  ports:
-  - name: https
-    port: 8443
-    targetPort: https
-  selector:
-    control-plane: kubediag
-    mode: agent
 ---
 apiVersion: v1
 kind: Service
@@ -1173,7 +1115,7 @@ spec:
           name: http
         resources:
           limits:
-            cpu: 4
+            cpu: 2000m
             memory: 4Gi
           requests:
             cpu: 100m
