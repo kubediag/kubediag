@@ -40,9 +40,9 @@ type OperationSpec struct {
 
 // Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
 type Processor struct {
-    // ExternalIP 是操作处理器的监听 IP。
+    // ExternalAddress 是操作处理器的监听地址。
     // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
-    ExternalIP *string `json:"externalIP,omitempty"`
+    ExternalAddress *string `json:"externalAddress,omitempty"`
     // ExternalPort 是操作处理器的服务端口。
     // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
     ExternalPort *int32 `json:"externalPort,omitempty"`

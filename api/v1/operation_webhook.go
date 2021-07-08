@@ -19,6 +19,7 @@ package v1
 import (
 	"net"
 
+	"github.com/asaskevich/govalidator"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -85,28 +86,28 @@ func (r *Operation) ValidateDelete() error {
 func (r *Operation) validateOperation() error {
 	var allErrs field.ErrorList
 
-	if r.Spec.Processor.ExternalIP != nil {
-		if net.ParseIP(*r.Spec.Processor.ExternalIP) == nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("externalIP"),
-				r.Spec.Processor.ExternalIP, "must be a valid ip address"))
+	if r.Spec.Processor.ExternalAddress != nil {
+		if net.ParseIP(*r.Spec.Processor.ExternalAddress) == nil && !govalidator.IsDNSName(*r.Spec.Processor.ExternalAddress) {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("externalAddress"),
+				r.Spec.Processor.ExternalAddress, "must be a valid ip or dns address"))
 		}
 	}
 	if r.Spec.Processor.ExternalPort != nil {
 		if *r.Spec.Processor.ExternalPort <= 0 || *r.Spec.Processor.ExternalPort > 65535 {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("externalPort"),
-				r.Spec.Processor.ExternalIP, "must be greater than 0 and less equal to 65535"))
+				r.Spec.Processor.ExternalPort, "must be greater than 0 and less equal to 65535"))
 		}
 	}
 	if r.Spec.Processor.Scheme != nil {
 		if *r.Spec.Processor.Scheme != "http" && *r.Spec.Processor.Scheme != "https" {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("scheme"),
-				r.Spec.Processor.ExternalIP, "must be either http or https"))
+				r.Spec.Processor.Scheme, "must be either http or https"))
 		}
 	}
 	if r.Spec.Processor.TimeoutSeconds != nil {
 		if *r.Spec.Processor.TimeoutSeconds <= 0 {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("timeoutSeconds"),
-				r.Spec.Processor.ExternalIP, "must be greater than 0"))
+				r.Spec.Processor.TimeoutSeconds, "must be greater than 0"))
 		}
 	}
 	if len(allErrs) == 0 {

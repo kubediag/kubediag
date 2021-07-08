@@ -4,7 +4,7 @@ metadata:
   name: http-operation
 spec:
   processor:
-    externalIP: http-operation.kubediag.svc.cluster.local
+    externalAddress: http-operation.kubediag.svc.cluster.local
     externalPort: 80
     path: /
     scheme: http

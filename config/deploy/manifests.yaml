@@ -283,9 +283,10 @@ spec:
               description: Processor describes how to register a operation processor
                 into kubediag.
               properties:
-                externalIP:
-                  description: ExternalIP is the external serving ip of the processor.
-                    Defaults to kubediag agent advertised address if not specified.
+                externalAddress:
+                  description: ExternalAddress is the external serving address of
+                    the processor. It must be either an ip or a dns address. Defaults
+                    to kubediag agent advertised address if not specified.
                   type: string
                 externalPort:
                   description: ExternalPort is the external serving port of the processor.
@@ -296,7 +297,8 @@ spec:
                   description: Path is the serving http path of processor.
                   type: string
                 scheme:
-                  description: Scheme is the serving scheme of processor.
+                  description: Scheme is the serving scheme of processor. It must
+                    be either http or https.
                   type: string
                 timeoutSeconds:
                   description: Number of seconds after which the processor times out.
