@@ -24,9 +24,9 @@ Processor 通过 [Operation](./graph-based-pipeline.md#operation) API 进行注�
 ```go
 // Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
 type Processor struct {
-    // ExternalIP 是操作处理器的监听 IP。
+    // ExternalAddress 是操作处理器的监听地址。
     // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
-    ExternalIP *string `json:"externalIP,omitempty"`
+    ExternalAddress *string `json:"externalAddress,omitempty"`
     // ExternalPort 是操作处理器的服务端口。
     // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
     ExternalPort *int32 `json:"externalPort,omitempty"`
@@ -86,7 +86,7 @@ metadata:
   name: custom-operation
 spec:
   processor:
-    externalIP: 10.0.2.15
+    externalAddress: 10.0.2.15
     externalPort: 6060
     path: /customoperation
     scheme: http
@@ -121,12 +121,14 @@ spec:
 当我们设计实现一个 Processor 时，需要考虑这个 Processor 的 IO ，即如何访问、如何响应。另外还有一些需要命名的地方。在此我们制定一个规范，以便于更直观、更统一地管理和使用 Processor。
 
 所有需要命名的地方，可以分为两类：
+
 1. 以 `key-value` 格式构建的 Parameters 或 Contexts ，他们分别存在于该 Processor 的调用参数和返回结果中。这部分我们要求使用 `.` 连接成员，使用下划线 `_` 连接词。
 1. 除了 1 以外的场景，我们规定使用驼峰形命名。
 
 下面是设计 Processor 过程中需要命名的地方以及命名范例。
 
 ### URL 和 Parameter
+
 一个 Processor 的访问 URL ，要求满足 `/processor/nameOfProcessor` 的格式。 例如：
 
 * /processor/podListCollector
@@ -142,6 +144,7 @@ spec:
 key 中成员的设计可以参考[成员设计](#成员设计)
 
 ### Response 中的 Context
+
 Processor 处理请求后会将结果以 `map[string]string` 的格式返回给 KubeDiag Agent 。 我们称这个 map 为 Context 。因为其中的内容会作为后续 Processor 的 Parameters 。
 
 上文提到 Parameter 的格式， 显然，此处 Context 的 key 的命名规范也是一样的。不过为了与 Parameter 区分，所以不需要 `param` 前缀。例如：
@@ -163,6 +166,7 @@ Processor 的日志标题命名与它的 URL 命名保持一致。也即：
 * /processor/containerdGoroutineCollector
 
 ### 成员设计
+
 key 中成员的设计没有太多的条件约束，只有一条强制要求： Parameter 中的 key 要以 `param` 为前缀。
 
 但是为了方便阅读，我们还是建议保持一定的规则：

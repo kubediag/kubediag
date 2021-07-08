@@ -512,8 +512,8 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 	// address if external ip and external port not specified.
 	var host string
 	var port int32
-	if operation.Spec.Processor.ExternalIP != nil {
-		host = *operation.Spec.Processor.ExternalIP
+	if operation.Spec.Processor.ExternalAddress != nil {
+		host = *operation.Spec.Processor.ExternalAddress
 	} else {
 		host = ex.bindAddress
 	}

@@ -35,10 +35,10 @@ type OperationSpec struct {
 
 // Processor describes how to register a operation processor into kubediag.
 type Processor struct {
-	// ExternalIP is the external serving ip of the processor.
+	// ExternalAddress is the external serving address of the processor. It must be either an ip or a dns address.
 	// Defaults to kubediag agent advertised address if not specified.
 	// +optional
-	ExternalIP *string `json:"externalIP,omitempty"`
+	ExternalAddress *string `json:"externalAddress,omitempty"`
 	// ExternalPort is the external serving port of the processor.
 	// Defaults to kubediag agent serving port if not specified.
 	// +optional
@@ -46,7 +46,7 @@ type Processor struct {
 	// Path is the serving http path of processor.
 	// +optional
 	Path *string `json:"path,omitempty"`
-	// Scheme is the serving scheme of processor.
+	// Scheme is the serving scheme of processor. It must be either http or https.
 	// +optional
 	Scheme *string `json:"scheme,omitempty"`
 	// Number of seconds after which the processor times out.

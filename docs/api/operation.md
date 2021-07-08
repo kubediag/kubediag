@@ -21,7 +21,7 @@ Operation 是用于定义诊断操作的 API 对象。
 
 | Field | Description | Scheme | Required |
 |-|-|-|-|
-| externalIP | 诊断操作处理器的监听地址。如果该字段为空，那么默认为 KubeDiag Agent 的地址。 | *string | false |
+| externalAddress | 诊断操作处理器的监听地址。如果该字段为空，那么默认为 KubeDiag Agent 的地址。 | *string | false |
 | externalPort | 诊断操作处理器的服务端口。如果该字段为空，那么默认为 KubeDiag Agent 的端口。 | *int32 | false |
 | path | 服务的 HTTP 路径。如果该字段为空，那么默认为 `/`。 | *string | false |
 | scheme | 处理请求的协议。默认为 `http`，可以是 `http` 或 `https`。 | *string | false |
