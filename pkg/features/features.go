@@ -65,12 +65,6 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	ProcessCollector featuregate.Feature = "ProcessCollector"
-	// CommandExecutor handles request for running specified command and respond with command result.
-	//
-	// Mode: agent
-	// Owner: @huangjiuyuan
-	// Alpha: 0.1.6
-	CommandExecutor featuregate.Feature = "CommandExecutor"
 	// SystemdCollector manages information of systemd on the node.
 	//
 	// Mode: agent
@@ -151,7 +145,6 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},
 	ContainerCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	ProcessCollector:             {Default: true, PreRelease: featuregate.Alpha},
-	CommandExecutor:              {Default: true, PreRelease: featuregate.Alpha},
 	SystemdCollector:             {Default: true, PreRelease: featuregate.Alpha},
 	SignalRecoverer:              {Default: true, PreRelease: featuregate.Alpha},
 	CoreFileProfiler:             {Default: false, PreRelease: featuregate.Alpha},
