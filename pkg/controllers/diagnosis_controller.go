@@ -274,7 +274,7 @@ func (r *DiagnosisReconciler) collectDiagnosisMetricsWithPhase(ctx context.Conte
 
 	var diagnosisList diagnosisv1.DiagnosisList
 	if err := r.List(ctx, &diagnosisList); err != nil {
-		log.Error(err, "Error in collect diagnosis metrics")
+		log.Error(err, "error in collect diagnosis metrics")
 		return
 	}
 
@@ -282,5 +282,4 @@ func (r *DiagnosisReconciler) collectDiagnosisMetricsWithPhase(ctx context.Conte
 	for _, diag := range diagnosisList.Items {
 		diagnosisInfo.WithLabelValues(diag.Name, diag.Spec.OperationSet, string(diag.Status.Phase)).Set(1)
 	}
-	return
 }

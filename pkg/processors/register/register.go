@@ -15,7 +15,6 @@ import (
 	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
 	kubediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
 	runtimediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/runtime"
-	executorprocessor "github.com/kubediag/kubediag/pkg/processors/executor"
 	kuberecover "github.com/kubediag/kubediag/pkg/processors/recover/kubernetes"
 )
 
@@ -94,11 +93,6 @@ func RegisterProcessors(mgr manager.Manager,
 		featureGate.Enabled(features.MountInfoCollector),
 	)
 
-	commandExecutor := executorprocessor.NewCommandExecutor(
-		context.Background(),
-		ctrl.Log.WithName("processor/commandExecutor"),
-		featureGate.Enabled(features.CommandExecutor),
-	)
 	nodeCordon := kuberecover.NewNodeCordon(
 		context.Background(),
 		ctrl.Log.WithName("processor/nodeCordon"),
@@ -149,7 +143,6 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/containerdGoroutineCollector", containerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
 	// Handlers for executing specified command.
-	router.HandleFunc("/processor/commandExecutor", commandExecutor.Handler)
 	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
 	// Handlers for profiling programs.
 	router.HandleFunc("/processor/coreFileProfiler", coreFileProfiler.Handler)

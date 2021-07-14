@@ -46,6 +46,7 @@ type TriggerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// NewTriggerReconciler creates a new TriggerReconciler.
 func NewTriggerReconciler(
 	cli client.Client,
 	log logr.Logger,
@@ -62,6 +63,7 @@ func NewTriggerReconciler(
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=triggers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=triggers/status,verbs=get;update;patch
 
+// Reconcile synchronizes a Trigger object.
 func (r *TriggerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("trigger", req.NamespacedName)
@@ -70,6 +72,7 @@ func (r *TriggerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager setups TriggerReconciler with the provided manager.
 func (r *TriggerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&diagnosisv1.Trigger{}).
@@ -80,7 +83,7 @@ func (r *TriggerReconciler) collectTriggerMetrics(ctx context.Context, log logr.
 	var triggerList diagnosisv1.TriggerList
 	err := r.Client.List(ctx, &triggerList)
 	if err != nil {
-		log.Error(err, "Error in collect trigger metrics")
+		log.Error(err, "error in collect trigger metrics")
 		return
 	}
 
@@ -88,5 +91,5 @@ func (r *TriggerReconciler) collectTriggerMetrics(ctx context.Context, log logr.
 	for _, tg := range triggerList.Items {
 		triggerInfo.WithLabelValues(tg.Name).Set(1)
 	}
-	log.Info("Collected trigger metrics.")
+	log.Info("collected trigger metrics.")
 }
