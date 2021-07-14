@@ -47,9 +47,15 @@ var _ webhook.Defaulter = &Operation{}
 func (r *Operation) Default() {
 	operationlog.Info("defaulting Operation", "operation", r.Name)
 
-	if r.Spec.Processor.Scheme == nil {
-		var scheme string = "http"
-		r.Spec.Processor.Scheme = &scheme
+	if r.Spec.Processor.HTTPServer != nil {
+		if r.Spec.Processor.HTTPServer.Scheme == nil {
+			var scheme string = "http"
+			r.Spec.Processor.HTTPServer.Scheme = &scheme
+		}
+		if r.Spec.Processor.HTTPServer.Path == nil {
+			var path string = "/"
+			r.Spec.Processor.HTTPServer.Path = &path
+		}
 	}
 	if r.Spec.Processor.TimeoutSeconds == nil {
 		var timeoutSeconds int32 = 30
@@ -86,22 +92,30 @@ func (r *Operation) ValidateDelete() error {
 func (r *Operation) validateOperation() error {
 	var allErrs field.ErrorList
 
-	if r.Spec.Processor.ExternalAddress != nil {
-		if net.ParseIP(*r.Spec.Processor.ExternalAddress) == nil && !govalidator.IsDNSName(*r.Spec.Processor.ExternalAddress) {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("externalAddress"),
-				r.Spec.Processor.ExternalAddress, "must be a valid ip or dns address"))
+	if r.Spec.Processor.HTTPServer == nil && r.Spec.Processor.ScriptRunner == nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor"),
+			r.Spec.Processor, "must specify either http server or script runner"))
+	} else if r.Spec.Processor.HTTPServer != nil && r.Spec.Processor.ScriptRunner != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor"),
+			r.Spec.Processor, "one and only one processor should be specified."))
+	} else if r.Spec.Processor.HTTPServer != nil {
+		if r.Spec.Processor.HTTPServer.Address != nil {
+			if net.ParseIP(*r.Spec.Processor.HTTPServer.Address) == nil && !govalidator.IsDNSName(*r.Spec.Processor.HTTPServer.Address) {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("httpServer").Child("address"),
+					r.Spec.Processor.HTTPServer.Address, "must be a valid ip or dns address"))
+			}
 		}
-	}
-	if r.Spec.Processor.ExternalPort != nil {
-		if *r.Spec.Processor.ExternalPort <= 0 || *r.Spec.Processor.ExternalPort > 65535 {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("externalPort"),
-				r.Spec.Processor.ExternalPort, "must be greater than 0 and less equal to 65535"))
+		if r.Spec.Processor.HTTPServer.Port != nil {
+			if *r.Spec.Processor.HTTPServer.Port <= 0 || *r.Spec.Processor.HTTPServer.Port > 65535 {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("httpServer").Child("port"),
+					r.Spec.Processor.HTTPServer.Port, "must be greater than 0 and less equal to 65535"))
+			}
 		}
-	}
-	if r.Spec.Processor.Scheme != nil {
-		if *r.Spec.Processor.Scheme != "http" && *r.Spec.Processor.Scheme != "https" {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("scheme"),
-				r.Spec.Processor.Scheme, "must be either http or https"))
+		if r.Spec.Processor.HTTPServer.Scheme != nil {
+			if *r.Spec.Processor.HTTPServer.Scheme != "http" && *r.Spec.Processor.HTTPServer.Scheme != "https" {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("httpServer").Child("scheme"),
+					r.Spec.Processor.HTTPServer.Scheme, "must be either http or https"))
+			}
 		}
 	}
 	if r.Spec.Processor.TimeoutSeconds != nil {

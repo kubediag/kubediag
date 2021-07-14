@@ -35,20 +35,13 @@ type OperationSpec struct {
 
 // Processor describes how to register a operation processor into kubediag.
 type Processor struct {
-	// ExternalAddress is the external serving address of the processor. It must be either an ip or a dns address.
-	// Defaults to kubediag agent advertised address if not specified.
+	// One and only one of the following processor should be specified.
+	// HTTPServer specifies the http server to do operations.
 	// +optional
-	ExternalAddress *string `json:"externalAddress,omitempty"`
-	// ExternalPort is the external serving port of the processor.
-	// Defaults to kubediag agent serving port if not specified.
+	HTTPServer *HTTPServer `json:"httpServer,omitempty"`
+	// ScriptRunner contains the information to run a script.
 	// +optional
-	ExternalPort *int32 `json:"externalPort,omitempty"`
-	// Path is the serving http path of processor.
-	// +optional
-	Path *string `json:"path,omitempty"`
-	// Scheme is the serving scheme of processor. It must be either http or https.
-	// +optional
-	Scheme *string `json:"scheme,omitempty"`
+	ScriptRunner *ScriptRunner `json:"scriptRunner,omitempty"`
 	// Number of seconds after which the processor times out.
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
@@ -67,6 +60,39 @@ type HostPath struct {
 	// Path of the directory on the host.
 	// Defaults to kubediag agent data root if not specified.
 	Path string `json:"path"`
+}
+
+// HTTPServer specifies the http server to do operations.
+type HTTPServer struct {
+	// Address is the serving address of the processor. It must be either an ip or a dns address.
+	// Defaults to kubediag agent advertised address if not specified.
+	// +optional
+	Address *string `json:"address,omitempty"`
+	// Port is the serving port of the processor.
+	// Defaults to kubediag agent serving port if not specified.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+	// Path is the serving http path of processor.
+	// +optional
+	Path *string `json:"path,omitempty"`
+	// Scheme is the serving scheme of processor. It must be either http or https.
+	// +optional
+	Scheme *string `json:"scheme,omitempty"`
+}
+
+// ScriptRunner contains the information to run a script.
+type ScriptRunner struct {
+	// Script is the content of shell script.
+	Script string `json:"script"`
+	// ArgKeys contains a slice of keys in parameters or operationResults. The script arguments are generated
+	// from specified key value pairs.
+	// No argument will be passed to the script if not specified.
+	// +optional
+	ArgKeys []string `json:"argKeys,omitempty"`
+	// OperationResultKey is the prefix of keys to store script stdout, stderr or error message in operationResults.
+	// Execution results will not be updated if not specified.
+	// +optional
+	OperationResultKey *string `json:"operationResultKey,omitempty"`
 }
 
 // +kubebuilder:object:root=true
