@@ -4,6 +4,7 @@ metadata:
   name: dockerd-goroutine-collector
 spec:
   processor:
-    path: /processor/dockerdGoroutineCollector
-    scheme: http
+    httpServer:
+      path: /processor/dockerdGoroutineCollector
+      scheme: http
     timeoutSeconds: 60

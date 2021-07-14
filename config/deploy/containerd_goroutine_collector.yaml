@@ -4,6 +4,7 @@ metadata:
   name: containerd-goroutine-collector
 spec:
   processor:
-    path: /processor/containerdGoroutineCollector
-    scheme: http
+    httpServer:
+      path: /processor/containerdGoroutineCollector
+      scheme: http
     timeoutSeconds: 60

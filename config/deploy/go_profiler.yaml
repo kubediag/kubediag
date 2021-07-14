@@ -4,6 +4,7 @@ metadata:
   name: go-profiler
 spec:
   processor:
-    path: /processor/goProfiler
-    scheme: http
+    httpServer:
+      path: /processor/goProfiler
+      scheme: http
     timeoutSeconds: 60

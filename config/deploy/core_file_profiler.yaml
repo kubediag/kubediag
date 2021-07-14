@@ -4,6 +4,7 @@ metadata:
   name: core-file-profiler
 spec:
   processor:
-    path: /processor/coreFileProfiler
-    scheme: http
+    httpServer:
+      path: /processor/coreFileProfiler
+      scheme: http
     timeoutSeconds: 60

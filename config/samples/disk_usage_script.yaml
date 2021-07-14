@@ -1,0 +1,36 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: disk-usage-script
+spec:
+  processor:
+    scriptRunner:
+      script: |
+        #!/usr/bin/env bash
+        du -sh $1
+      argKeys:
+      - param.operation.disk_usage.path
+      operationResultKey: "disk_usage"
+    timeoutSeconds: 60
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: disk-usage-script
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: disk-usage-script
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: disk-usage-script
+spec: 
+  operationSet: disk-usage-script
+  nodeName: my-node
+  parameters:
+    "param.operation.disk_usage.path": "/var/lib/kubediag"

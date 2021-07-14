@@ -4,6 +4,7 @@ metadata:
   name: process-collector
 spec:
   processor:
-    path: /processor/processCollector
-    scheme: http
+    httpServer:
+      path: /processor/processCollector
+      scheme: http
     timeoutSeconds: 120

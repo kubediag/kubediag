@@ -4,6 +4,7 @@ metadata:
   name: node-cordon
 spec:
   processor:
-    path: /processor/nodeCordon
-    scheme: http
+    httpServer:
+      path: /processor/nodeCordon
+      scheme: http
     timeoutSeconds: 60
