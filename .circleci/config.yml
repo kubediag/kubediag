@@ -14,6 +14,8 @@ jobs:
       - run:
           name: Run unit tests
           command: |
+            curl -sLo /tmp/kustomize_v4.0.5_linux_amd64.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.0.5/kustomize_v4.0.5_linux_amd64.tar.gz
+            sudo tar -C /usr/local/bin -xzf /tmp/kustomize_v4.0.5_linux_amd64.tar.gz
             make test
       # run e2e test
       - run:

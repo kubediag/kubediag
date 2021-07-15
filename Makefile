@@ -6,11 +6,6 @@ TAG ?= $(shell git rev-parse --short HEAD)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-# Use local kustomize (version v4.0.5)
-MKFILE_PATH = $(abspath $(lastword $(MAKEFILE_LIST)))
-MKFILE_DIR = $(dir $(MKFILE_PATH))
-KUSTOMIZE = "$(MKFILE_DIR)tools/kustomize"
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
