@@ -78,7 +78,7 @@ The execution process of Elasticsearch Collector operation on elasticsearch is a
 
    ```json
    {
-     "collector.log.elasticsearch": {
+     "collector.log.elasticsearch.hits": {
       "took": 4,
       "timed_out": false,
       "_shards": {

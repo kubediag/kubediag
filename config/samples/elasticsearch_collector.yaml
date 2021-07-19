@@ -1,0 +1,28 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: elasticsearch-collector
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: elasticsearch-collector
+
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: elasticsearch-collector
+spec: 
+  parameters:
+    param.collector.log.elasticsearch.address: https://10.105.12.92:9200
+    param.collector.log.elasticsearch.username: elastic
+    param.collector.log.elasticsearch.password: 123456
+    param.collector.log.elasticsearch.index: filebeat-*
+    param.collector.log.elasticsearch.match: "keyword1 keyword2 keyword3"
+    param.collector.log.elasticsearch.timeFrom: "2021-07-15T02:43:45"
+    param.collector.log.elasticsearch.timeTo: "2021-07-15T06:43:45"
+  operationSet: elasticsearch-collector
+  nodeName: my-node

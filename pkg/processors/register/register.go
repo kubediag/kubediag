@@ -11,6 +11,7 @@ import (
 
 	"github.com/kubediag/kubediag/pkg/features"
 	kubecollector "github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
+	logcollector "github.com/kubediag/kubediag/pkg/processors/collector/log"
 	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
 	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
 	kubediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
@@ -138,6 +139,11 @@ func RegisterProcessors(mgr manager.Manager,
 		ctrl.Log.WithName("processor/subpathRemountRecover"),
 		featureGate.Enabled(features.SubpathRemountDiagnoser),
 	)
+	elasticsearchCollector := logcollector.NewElasticsearchCollector(
+		context.Background(),
+		ctrl.Log.WithName("processor/elasticsearchCollector"),
+		featureGate.Enabled(features.ElasticsearchCollector),
+	)
 
 	// Handlers for collecting information.
 	router.HandleFunc("/processor/podListCollector", podListCollector.Handler)
@@ -148,6 +154,7 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/dockerdGoroutineCollector", dockerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/containerdGoroutineCollector", containerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
+	router.HandleFunc("/processor/elasticsearchCollector", elasticsearchCollector.Handler)
 	// Handlers for executing specified command.
 	router.HandleFunc("/processor/commandExecutor", commandExecutor.Handler)
 	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
