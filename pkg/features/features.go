@@ -132,6 +132,12 @@ const (
 	// Owner: @fzu-huang
 	// Alpha: 0.2.0
 	SubpathRemountDiagnoser featuregate.Feature = "SubpathRemountDiagnoser"
+	// ElasticsearchCollector retrieves log info from elasticsearch.
+	//
+	// Mode: agent
+	// Owner: @April-Q
+	// Alpha: 0.2.0
+	ElasticsearchCollector featuregate.Feature = "ElasticsearchCollector"
 )
 
 var (
@@ -162,6 +168,7 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	GoProfiler:                   {Default: true, PreRelease: featuregate.Alpha},
 	MountInfoCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
+	ElasticsearchCollector:       {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.
