@@ -14,9 +14,7 @@ spec:
         - 2
     - id: 2
       operation: core-file-profiler
-
 ---
-
 apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:

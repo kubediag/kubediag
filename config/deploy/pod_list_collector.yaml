@@ -4,6 +4,7 @@ metadata:
   name: pod-list-collector
 spec:
   processor:
-    path: /processor/podListCollector
-    scheme: http
+    httpServer:
+      path: /processor/podListCollector
+      scheme: http
     timeoutSeconds: 60

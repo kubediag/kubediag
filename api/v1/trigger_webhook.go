@@ -80,7 +80,10 @@ func (r *Trigger) validateTrigger() error {
 	}
 	if r.Spec.SourceTemplate.PrometheusAlertTemplate == nil && r.Spec.SourceTemplate.KubernetesEventTemplate == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate"),
-			r.Spec.OperationSet, "must specify either prometheus alert template or kubernetes event template"))
+			r.Spec.SourceTemplate, "must specify either prometheus alert template or kubernetes event template"))
+	} else if r.Spec.SourceTemplate.PrometheusAlertTemplate != nil && r.Spec.SourceTemplate.KubernetesEventTemplate != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate"),
+			r.Spec.SourceTemplate, "one and only one template should be specified."))
 	}
 	if len(allErrs) == 0 {
 		return nil

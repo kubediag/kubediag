@@ -283,23 +283,50 @@ spec:
               description: Processor describes how to register a operation processor
                 into kubediag.
               properties:
-                externalAddress:
-                  description: ExternalAddress is the external serving address of
-                    the processor. It must be either an ip or a dns address. Defaults
-                    to kubediag agent advertised address if not specified.
-                  type: string
-                externalPort:
-                  description: ExternalPort is the external serving port of the processor.
-                    Defaults to kubediag agent serving port if not specified.
-                  format: int32
-                  type: integer
-                path:
-                  description: Path is the serving http path of processor.
-                  type: string
-                scheme:
-                  description: Scheme is the serving scheme of processor. It must
-                    be either http or https.
-                  type: string
+                httpServer:
+                  description: One and only one of the following processor should
+                    be specified. HTTPServer specifies the http server to do operations.
+                  properties:
+                    address:
+                      description: Address is the serving address of the processor.
+                        It must be either an ip or a dns address. Defaults to kubediag
+                        agent advertised address if not specified.
+                      type: string
+                    path:
+                      description: Path is the serving http path of processor.
+                      type: string
+                    port:
+                      description: Port is the serving port of the processor. Defaults
+                        to kubediag agent serving port if not specified.
+                      format: int32
+                      type: integer
+                    scheme:
+                      description: Scheme is the serving scheme of processor. It must
+                        be either http or https.
+                      type: string
+                  type: object
+                scriptRunner:
+                  description: ScriptRunner contains the information to run a script.
+                  properties:
+                    argKeys:
+                      description: ArgKeys contains a slice of keys in parameters
+                        or operationResults. The script arguments are generated from
+                        specified key value pairs. No argument will be passed to the
+                        script if not specified.
+                      items:
+                        type: string
+                      type: array
+                    operationResultKey:
+                      description: OperationResultKey is the prefix of keys to store
+                        script stdout, stderr or error message in operationResults.
+                        Execution results will not be updated if not specified.
+                      type: string
+                    script:
+                      description: Script is the content of shell script.
+                      type: string
+                  required:
+                  - script
+                  type: object
                 timeoutSeconds:
                   description: Number of seconds after which the processor times out.
                     Defaults to 30 seconds. Minimum value is 1.

@@ -4,6 +4,7 @@ metadata:
   name: mount-info-collector
 spec:
   processor:
-    path: /processor/mountInfoCollector
-    scheme: http
+    httpServer:
+      path: /processor/mountInfoCollector
+      scheme: http
     timeoutSeconds: 60

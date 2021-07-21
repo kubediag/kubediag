@@ -4,6 +4,7 @@ metadata:
   name: container-collector
 spec:
   processor:
-    path: /processor/containerCollector
-    scheme: http
+    httpServer:
+      path: /processor/containerCollector
+      scheme: http
     timeoutSeconds: 60

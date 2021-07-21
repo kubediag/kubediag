@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
+	"github.com/kubediag/kubediag/pkg/controllers"
 	"github.com/kubediag/kubediag/pkg/util"
 )
 
@@ -410,11 +412,21 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		Namespace: diagnosis.Namespace,
 	}, "node", node, "operationset", operationset.Name, "path", path)
 
-	// Execute the operation by sending http request to the processor.
-	succeeded, result, err := ex.doHTTPRequestWithContext(operation, data)
-	if err != nil {
-		executorOperationErrorCounter.Inc()
-		return diagnosis, err
+	// Execute the operation by sending http request to the processor or running predefined script.
+	var succeeded bool
+	var result map[string]string
+	if operation.Spec.Processor.HTTPServer != nil {
+		succeeded, result, err = ex.doHTTPRequestWithContext(operation, data)
+		if err != nil {
+			executorOperationErrorCounter.Inc()
+			return diagnosis, err
+		}
+	} else if operation.Spec.Processor.ScriptRunner != nil {
+		succeeded, result, err = ex.runScriptWithContext(operation, data)
+		if err != nil {
+			executorOperationErrorCounter.Inc()
+			return diagnosis, err
+		}
 	}
 
 	// Update the operation result into diagnosis status.
@@ -506,24 +518,28 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 }
 
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.
-// It returns a bool, a response body and an error as results.
+// It returns a bool, a map and an error as results.
 func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
+	if operation.Spec.Processor.HTTPServer == nil {
+		return false, nil, fmt.Errorf("http server not specified")
+	}
+
 	// Set http request contexts and construct http client. Use kubediag agent bind address as the processor
 	// address if external ip and external port not specified.
 	var host string
 	var port int32
-	if operation.Spec.Processor.ExternalAddress != nil {
-		host = *operation.Spec.Processor.ExternalAddress
+	if operation.Spec.Processor.HTTPServer.Address != nil {
+		host = *operation.Spec.Processor.HTTPServer.Address
 	} else {
 		host = ex.bindAddress
 	}
-	if operation.Spec.Processor.ExternalPort != nil {
-		port = *operation.Spec.Processor.ExternalPort
+	if operation.Spec.Processor.HTTPServer.Port != nil {
+		port = *operation.Spec.Processor.HTTPServer.Port
 	} else {
 		port = int32(ex.port)
 	}
-	path := *operation.Spec.Processor.Path
-	scheme := strings.ToLower(string(*operation.Spec.Processor.Scheme))
+	path := *operation.Spec.Processor.HTTPServer.Path
+	scheme := strings.ToLower(string(*operation.Spec.Processor.HTTPServer.Scheme))
 	url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
 	timeout := time.Duration(*operation.Spec.Processor.TimeoutSeconds) * time.Second
 	cli := &http.Client{
@@ -569,6 +585,40 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 		ex.Error(err, "failed to marshal response body", "response", string(body))
 		// If response code is 200 but body is not a string-map, we think this processor is finished but failed and will not return error
 		return false, nil, nil
+	}
+
+	return true, result, nil
+}
+
+// runScriptWithContext runs a script with the arguments provided by context.
+// It returns a bool, a map and an error as results.
+func (ex *executor) runScriptWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
+	if operation.Spec.Processor.ScriptRunner == nil {
+		return false, nil, fmt.Errorf("script runner not specified")
+	}
+
+	// Generate all argument according to script runner definition and execute the script with timeout.
+	var args []string
+	for _, key := range operation.Spec.Processor.ScriptRunner.ArgKeys {
+		if value, ok := data[key]; ok {
+			args = append(args, value)
+		}
+	}
+	scriptFilePath := filepath.Join(ex.dataRoot, controllers.ScriptSubDirectory, operation.Name)
+	command := append([]string{"/bin/sh", scriptFilePath}, args...)
+	output, err := util.BlockingRunCommandWithTimeout(command, *operation.Spec.Processor.TimeoutSeconds)
+
+	// Update script execution result with output and error.
+	result := make(map[string]string)
+	if operation.Spec.Processor.ScriptRunner.OperationResultKey != nil {
+		if output != nil {
+			key := strings.Join([]string{"operation", *operation.Spec.Processor.ScriptRunner.OperationResultKey, "output"}, ".")
+			result[key] = string(output)
+		}
+		if err != nil {
+			key := strings.Join([]string{"operation", *operation.Spec.Processor.ScriptRunner.OperationResultKey, "error"}, ".")
+			result[key] = err.Error()
+		}
 	}
 
 	return true, result, nil

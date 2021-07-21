@@ -280,6 +280,8 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Operation"),
 			mgr.GetScheme(),
+			opts.Mode,
+			opts.DataRoot,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Operation")
 			return fmt.Errorf("unable to create controller for Operation: %v", err)
@@ -417,7 +419,7 @@ func (opts *KubeDiagOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis.
+		// Setup reconcilers for Diagnosis and Operation.
 		if err = (controllers.NewDiagnosisReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
@@ -428,6 +430,16 @@ func (opts *KubeDiagOptions) Run() error {
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
+		}
+		if err = (controllers.NewOperationReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("Operation"),
+			mgr.GetScheme(),
+			opts.Mode,
+			opts.DataRoot,
+		)).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Operation")
+			return fmt.Errorf("unable to create controller for Operation: %v", err)
 		}
 		// +kubebuilder:scaffold:builder
 
