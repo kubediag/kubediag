@@ -48,6 +48,8 @@ import (
 	"github.com/kubediag/kubediag/pkg/graphbuilder"
 	"github.com/kubediag/kubediag/pkg/kafka"
 	"github.com/kubediag/kubediag/pkg/processors/register"
+	"github.com/kubediag/kubediag/pkg/storage"
+	"github.com/kubediag/kubediag/pkg/storage/minio"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -99,6 +101,14 @@ type KubeDiagOptions struct {
 	FeatureGates map[string]bool
 	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
+	// MinioEndpoint is minio endpoint.
+	MinioEndpoint string
+	// MinioAccessKeyID is access key for the object storage.
+	MinioAccessKeyID string
+	// MinioSecretAccessKey is secret key for the object storage.
+	MinioSecretAccessKey string
+	// If 'true' API requests in minio will be secure (HTTPS), and insecure (HTTP) otherwise.
+	MinioSSL bool
 }
 
 func init() {
@@ -354,6 +364,16 @@ func (opts *KubeDiagOptions) Run() error {
 			return fmt.Errorf("unable to start manager: %v", err)
 		}
 
+		//if args endpoint is not nil.
+		var storage storage.Store
+		if opts.MinioEndpoint != "" && opts.MinioAccessKeyID != "" && opts.MinioSecretAccessKey != "" {
+			storage, err = minio.NewMinioStorage(opts.MinioEndpoint, opts.MinioAccessKeyID, opts.MinioSecretAccessKey,
+				opts.MinioSSL, context.Background(), ctrl.Log.WithName("minio"))
+			if err != nil {
+				setupLog.Error(err, "minio setup failed.")
+			}
+		}
+
 		// Channel for queuing Diagnoses to pipeline for executing operations.
 		executorCh := make(chan diagnosisv1.Diagnosis, 1000)
 		stopCh := SetupSignalHandler()
@@ -371,6 +391,7 @@ func (opts *KubeDiagOptions) Run() error {
 			opts.Port,
 			opts.DataRoot,
 			executorCh,
+			storage,
 		)
 		go func(stopCh chan struct{}) {
 			executor.Run(stopCh)
@@ -475,6 +496,10 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
+	fs.StringVar(&opts.MinioEndpoint, "minio-endpoint", "", "Minio endpoint")
+	fs.StringVar(&opts.MinioAccessKeyID, "minio-access-key-id", "", "Minio access key for the object storage")
+	fs.StringVar(&opts.MinioSecretAccessKey, "minio-secret-access-key", "", "Minio secret key for the object storage")
+	fs.BoolVar(&opts.MinioSSL, "minio-ssl", false, "The minio request will be secure (HTTPS) or insecure (HTTP)")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned
