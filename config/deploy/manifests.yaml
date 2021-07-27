@@ -337,16 +337,31 @@ spec:
               description: Storage represents the type of storage for operation results.
                 Operation results will not be stored if nil.
               properties:
-                hostPath:
-                  description: HostPath represents a directory on the host.
-                  properties:
-                    path:
-                      description: Path of the directory on the host. Defaults to
-                        kubediag agent data root if not specified.
-                      type: string
-                  required:
-                  - path
-                  type: object
+                contents:
+                  description: Contents specify which contents to store.
+                  items:
+                    description: Content specify which content to store.
+                    properties:
+                      key:
+                        description: Key specify the scrap key to get content
+                        type: string
+                      type:
+                        description: Default to raw, which means it will store the
+                          response of processor. If set to file, the response of processor
+                          will be treated as file path, and stored as file.
+                        type: string
+                    required:
+                    - key
+                    - type
+                    type: object
+                  type: array
+                volumeType:
+                  description: Type specify which storage to save object. Only support
+                    minio now.
+                  type: string
+              required:
+              - contents
+              - volumeType
               type: object
           required:
           - processor
