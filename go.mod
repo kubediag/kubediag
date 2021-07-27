@@ -16,6 +16,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/joewalnes/websocketd v0.4.1
+	github.com/minio/minio-go/v7 v7.0.12
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
