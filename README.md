@@ -76,3 +76,9 @@ make deploy
 ## 行为准则
 
 您在参与本项目的过程中须遵守 [CNCF 行为准则](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)。
+
+## 联系我们
+
+如果您在使用过程中遇到了任何问题，欢迎提交 [Issue](https://github.com/kubediag/kubediag/issues) 进行反馈。您也可以扫描下列二维码加入微信技术交流群：
+
+<img src="https://kubediag.nos-eastchina1.126.net/QR%20Code.jpeg" width="250" height="250"/>
