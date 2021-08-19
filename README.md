@@ -1,4 +1,4 @@
-# KubeDiag
+# <img src="https://kubediag.nos-eastchina1.126.net/Logo%201.png" width="500">
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -79,6 +79,4 @@ make deploy
 
 ## 联系我们
 
-如果您在使用过程中遇到了任何问题，欢迎提交 [Issue](https://github.com/kubediag/kubediag/issues) 进行反馈。您也可以扫描下列二维码加入微信技术交流群：
-
-<img src="https://kubediag.nos-eastchina1.126.net/QR%20Code.jpeg" width="250" height="250"/>
+如果您在使用过程中遇到了任何问题，欢迎提交 [Issue](https://github.com/kubediag/kubediag/issues) 进行反馈。您也可以扫描[微信二维码](https://kubediag.nos-eastchina1.126.net/QR%20Code.jpeg)加入技术交流群。
