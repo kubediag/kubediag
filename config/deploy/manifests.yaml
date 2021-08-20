@@ -744,6 +744,31 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+  name: kubediag-edit
+rules:
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - diagnoses
+  - diagnoses/status
+  - operations
+  - operations/status
+  - operationsets
+  - operationsets/status
+  - triggers
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   creationTimestamp: null
   name: kubediag-role
 rules:
@@ -909,6 +934,30 @@ rules:
   - get
   - patch
   - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: kubediag-view
+rules:
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - diagnoses
+  - diagnoses/status
+  - operations
+  - operations/status
+  - operationsets
+  - operationsets/status
+  - triggers
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

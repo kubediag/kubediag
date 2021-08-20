@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubediag-view
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["diagnosis.kubediag.org"]
+    resources: ["diagnoses", "diagnoses/status", "operations", "operations/status", "operationsets", "operationsets/status", "triggers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubediag-edit
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["diagnosis.kubediag.org"]
+    resources: ["diagnoses", "diagnoses/status", "operations", "operations/status", "operationsets", "operationsets/status", "triggers"]
+    verbs: ["create", "delete", "deletecollection", "patch", "update"]
