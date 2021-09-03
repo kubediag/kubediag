@@ -1,4 +1,4 @@
-# <img src="https://kubediag.nos-eastchina1.126.net/Logo%201.png" width="500">
+# <img src="https://raw.githubusercontent.com/kubediag/kubediag/master/logo/logo_1.png" width="500">
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
