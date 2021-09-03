@@ -73,6 +73,10 @@ make deploy
 
 我们欢迎任何形式的帮助，包括但不限定于完善文档、提出问题、修复 Bug 和增加特性。详情可参考[文档](./CONTRIBUTING.md)。
 
+## 社区例会
+
+我们会在每周四 14:00 CST 进行例会并对社区当前的状况和未来的发展进行讨论，您可以在[这里](https://docs.google.com/document/d/1x93h0qmjPjSp_u5-P-_Xw_pkEHhH3o5vlYdXhfn1Tms/edit?usp=sharing)查看会议纪要以及日程。
+
 ## 行为准则
 
 您在参与本项目的过程中须遵守 [CNCF 行为准则](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)。
