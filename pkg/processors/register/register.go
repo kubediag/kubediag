@@ -139,6 +139,13 @@ func RegisterProcessors(mgr manager.Manager,
 		featureGate.Enabled(features.ElasticsearchCollector),
 	)
 
+	portInUseDiagnoser := kubediagnoser.NewPortInUseDiagnoser(
+		context.Background(),
+		ctrl.Log.WithName("processor/portInUseDiagnoser"),
+		mgr.GetCache(),
+		featureGate.Enabled(features.PortInUseDiagnoser),
+	)
+
 	// Handlers for collecting information.
 	router.HandleFunc("/processor/podListCollector", podListCollector.Handler)
 	router.HandleFunc("/processor/podDetailCollector", podDetailCollector.Handler)
@@ -159,5 +166,8 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/subpathRemountDiagnoser", subpathRemountDiagnoser.Handler)
 
 	router.HandleFunc("/processor/subpathRemountRecover", subpathRemountRecover.Handler)
+
+	router.HandleFunc("/processor/portInUseDiagnoser", portInUseDiagnoser.Handler)
+
 	return nil
 }
