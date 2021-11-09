@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: hub.c.163.com/kubediag/kubediag
   newName: hub.c.163.com/kubediag/kubediag
-  newTag: v0.2.0
+  newTag: v0.2.1
