@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -42,6 +43,7 @@ import (
 
 	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	"github.com/kubediag/kubediag/pkg/controllers"
+	"github.com/kubediag/kubediag/pkg/storage"
 	"github.com/kubediag/kubediag/pkg/util"
 )
 
@@ -148,6 +150,8 @@ type executor struct {
 	dataRoot string
 	// executorCh is a channel for queuing Diagnoses to be processed by executor.
 	executorCh chan diagnosisv1.Diagnosis
+	// storage helps store data or file.
+	storage storage.Store
 }
 
 // NewExecutor creates a new executor.
@@ -163,6 +167,7 @@ func NewExecutor(
 	port int,
 	dataRoot string,
 	executorCh chan diagnosisv1.Diagnosis,
+	strorage storage.Store,
 ) Executor {
 	metrics.Registry.MustRegister(
 		executorSyncSuccessCount,
@@ -194,6 +199,7 @@ func NewExecutor(
 		port:          port,
 		dataRoot:      dataRoot,
 		executorCh:    executorCh,
+		storage:       strorage,
 	}
 }
 
@@ -438,6 +444,12 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "OperationSucceeded", "Operation %s executed successfully", operation.Name)
 		executorOperationSuccessCounter.Inc()
 
+		// Attempt to store data or file from result.
+		if operation.Spec.Storage != nil {
+			ex.Info("attempt to store data from result.")
+			ex.attemptStorage(result, operation, diagnosis)
+		}
+
 		// Set operation result according to response from operaton processor.
 		if diagnosis.Status.OperationResults == nil {
 			diagnosis.Status.OperationResults = make(map[string]string)
@@ -515,6 +527,63 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 	}
 
 	return diagnosis, nil
+}
+
+// attemptStorage attempt to store operation result.
+func (ex *executor) attemptStorage(diagnosisResult map[string]string, operation diagnosisv1.Operation, diagnosis diagnosisv1.Diagnosis) {
+	if ex.storage == nil || operation.Spec.Storage.VolumeType != ex.storage.StorageIndentity() {
+		return
+	}
+
+	// init node and pod info for storage key.
+	nodeName := establishStorageKey(diagnosis.Spec.NodeName)
+	var podNamespace, podName, containerName string
+	if diagnosis.Spec.PodReference != nil {
+		podNamespace = establishStorageKey(diagnosis.Spec.PodReference.Namespace)
+		podName = establishStorageKey(diagnosis.Spec.PodReference.Name)
+		containerName = establishStorageKey(diagnosis.Spec.PodReference.Container)
+	} else {
+		podNamespace = establishStorageKey(podNamespace)
+		podName = establishStorageKey(podName)
+		containerName = establishStorageKey(containerName)
+	}
+	now := time.Now().Format("20060102150405")
+	storage := operation.Spec.Storage
+
+	for _, content := range storage.Contents {
+		value, ok := diagnosisResult[content.Key]
+		if !ok {
+			ex.Error(fmt.Errorf("could not find key in result."), "", "content_key", content.Key, "operation_name", operation.Name)
+			continue
+		}
+
+		switch content.Type {
+		case "file":
+			// key pattern: <diagnosis_name>.<node_name>.<pod_namespace>.<pod_name>.<container_name>.<timestamp>.file.<file_name>
+			_, fileName := path.Split(value)
+			objectName := fmt.Sprintf("%s.%s.%s.%s.%s.%s.file.%s", diagnosis.Name, nodeName, podNamespace, podName, containerName, now, fileName)
+			err := ex.storage.FileUpload(operation.Name, objectName, value)
+			if err != nil {
+				ex.Error(err, "could not store file.", "content_key", content.Key, "operation_name", operation.Name)
+			}
+
+		case "raw":
+			// key pattern: <diagnosis_name>.<node_name>.<pod_namespace>.<pod_name>.<container_name>.<timestamp>.raw.<content_key>
+			objectName := fmt.Sprintf("%s.%s.%s.%s.%s.%s.raw.%s", diagnosis.Name, nodeName, podNamespace, podName, containerName, now, content.Key)
+			err := ex.storage.RawUpload(operation.Name, objectName, value)
+			if err != nil {
+				ex.Error(err, "could not store raw content.", "content_key", content.Key, "operation_name", operation.Name)
+			}
+		}
+	}
+}
+
+// establishStorageKey set default value for storage key if it is nil.
+func establishStorageKey(storageKey string) string {
+	if storageKey == "" {
+		return "0"
+	}
+	return storageKey
 }
 
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.

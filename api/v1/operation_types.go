@@ -50,16 +50,20 @@ type Processor struct {
 
 // Storage represents the type of storage for operation results.
 type Storage struct {
-	// HostPath represents a directory on the host.
-	// +optional
-	HostPath *HostPath `json:"hostPath,omitempty"`
+	// Type specify which storage to save object.
+	// Only support minio now.
+	VolumeType string `json:"volumeType"`
+	// Contents specify which contents to store.
+	Contents []Content `json:"contents"`
 }
 
-// HostPath represents a directory on the host.
-type HostPath struct {
-	// Path of the directory on the host.
-	// Defaults to kubediag agent data root if not specified.
-	Path string `json:"path"`
+// Content specify which content to store.
+type Content struct {
+	// Default to raw, which means it will store the response of processor.
+	// If set to file, the response of processor will be treated as file path, and stored as file.
+	Type string `json:"type"`
+	// Key specify the scrap key to get content
+	Key string `json:"key"`
 }
 
 // HTTPServer specifies the http server to do operations.
