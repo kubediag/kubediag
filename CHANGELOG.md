@@ -1,5 +1,14 @@
 # Changelog
 
+- [v0.2.1](#v021)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Change](#api-change)
+    - [Bug or Regression](#bug-or-regression)
+    - [Other](#other)
+  - [Dependencies](#dependencies)
+    - [Added](#added)
+    - [Changed](#changed)
+    - [Removed](#removed)
 - [v0.2.0](#v020)
   - [Changes by Kind](#changes-by-kind)
     - [API Change](#api-change)
@@ -72,6 +81,46 @@
     - [Added](#added)
     - [Changed](#changed)
     - [Removed](#removed)
+
+## v0.2.1
+
+### Changes by Kind
+
+#### API Change
+
+- Implement script runner. ([#83](https://github.com/kubediag/kubediag/pull/83)), ([#79](https://github.com/kubediag/kubediag/pull/79))
+- Implement elasticsearch collector. ([#84](https://github.com/kubediag/kubediag/pull/84)), ([#81](https://github.com/kubediag/kubediag/pull/81))
+
+#### Bug or Regression
+
+- Support address of DNS type in Operation registration. ([#78](https://github.com/kubediag/kubediag/pull/78))
+- Add kustomize installation in CI workflows. ([#85](https://github.com/kubediag/kubediag/pull/85))
+- Add code verification in CI workflows. ([#86](https://github.com/kubediag/kubediag/pull/86))
+
+#### Other
+
+- Add support for installation via KubeDiag Helm chart. ([#75](https://github.com/kubediag/kubediag/pull/75)
+- Migrate all documents under docs/website path to website project. ([#76](https://github.com/kubediag/kubediag/pull/76))
+- Add aggregated view and edit roles for crd. ([#89](https://github.com/kubediag/kubediag/pull/89))
+- Update QR code for WeChat. ([#92](https://github.com/kubediag/kubediag/pull/92))
+- Add MAINTAINERS.md. ([#96](https://github.com/kubediag/kubediag/pull/96))
+- Update meeting notes and agenda in README.md. ([#97](https://github.com/kubediag/kubediag/pull/97))
+- Update logo images. ([#98](https://github.com/kubediag/kubediag/pull/98))
+
+### Dependencies
+
+#### Added
+
+- github.com/asaskevich/govalidator [v0.0.0-20200108200545-475eaeb16496](https://github.com/asaskevich/govalidator/tree/475eaeb164960a651e97470412a7d3b0c5036105)
+- github.com/elastic/go-elasticsearch/v7 [v7.13.1](https://github.com/elastic/go-elasticsearch/tree/v7.13.1)
+
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
+
+_Nothing has changed._
 
 ## v0.2.0
 
