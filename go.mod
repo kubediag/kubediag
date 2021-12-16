@@ -24,6 +24,7 @@ require (
 	github.com/prometheus/alertmanager v0.21.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.12.0
+	github.com/robfig/cron v1.2.0
 	github.com/segmentio/kafka-go v0.4.16
 	github.com/shirou/gopsutil v2.20.7+incompatible
 	github.com/spf13/cobra v0.0.5
