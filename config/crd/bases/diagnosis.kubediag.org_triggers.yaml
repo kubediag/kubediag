@@ -46,6 +46,9 @@ spec:
         spec:
           description: TriggerSpec defines the desired state of Trigger.
           properties:
+            nodeName:
+              description: NodeName is the default node which the diagnosis is on.
+              type: string
             operationSet:
               description: OperationSet is the name of referenced operation set in
                 the generated diagnosis.
@@ -53,9 +56,20 @@ spec:
             sourceTemplate:
               description: SourceTemplate is the template of trigger.
               properties:
+                cronTemplate:
+                  description: CronTemplate specifies the template to create a diagnosis
+                    periodically at fixed times.
+                  properties:
+                    schedule:
+                      description: Schedule is the schedule in cron format. See https://en.wikipedia.org/wiki/Cron
+                        for more details.
+                      type: string
+                  required:
+                  - schedule
+                  type: object
                 kubernetesEventTemplate:
                   description: KubernetesEventTemplate specifies the template to create
-                    an diagnosis from a kubernetes event.
+                    a diagnosis from a kubernetes event.
                   properties:
                     regexp:
                       description: Regexp is the regular expression for matching kubernetes
@@ -96,7 +110,7 @@ spec:
                 prometheusAlertTemplate:
                   description: One and only one of the following source should be
                     specified. PrometheusAlertTemplate specifies the template to create
-                    an diagnosis from a prometheus alert.
+                    a diagnosis from a prometheus alert.
                   properties:
                     containerReferenceLabel:
                       description: ContainerReferenceLabel specifies the label for
@@ -178,6 +192,15 @@ spec:
           required:
           - operationSet
           - sourceTemplate
+          type: object
+        status:
+          description: TriggerStatus defines the observed state of Trigger.
+          properties:
+            lastScheduleTime:
+              description: LastScheduleTime is the last time the cron was successfully
+                scheduled.
+              format: date-time
+              type: string
           type: object
       type: object
   version: v1

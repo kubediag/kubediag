@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -79,8 +80,6 @@ type eventer struct {
 	client client.Client
 	// cache knows how to load Kubernetes objects.
 	cache cache.Cache
-	// nodeName specifies the node name.
-	nodeName string
 	// eventChainCh is a channel for queuing Events to be processed by eventer.
 	eventChainCh chan corev1.Event
 	// eventerEnabled indicates whether eventer is enabled.
@@ -93,7 +92,6 @@ func NewEventer(
 	logger logr.Logger,
 	cli client.Client,
 	cache cache.Cache,
-	nodeName string,
 	eventChainCh chan corev1.Event,
 	eventerEnabled bool,
 ) Eventer {
@@ -114,6 +112,11 @@ func NewEventer(
 // Run runs the eventer.
 func (ev *eventer) Run(stopCh <-chan struct{}) {
 	if !ev.eventerEnabled {
+		return
+	}
+
+	// Wait for all caches to sync before processing.
+	if !ev.cache.WaitForCacheSync(stopCh) {
 		return
 	}
 
@@ -180,7 +183,8 @@ func (ev *eventer) createDiagnosisFromKubernetesEvent(triggers []diagnosisv1.Tri
 				})
 
 				// Create diagnosis according to the kubernetes event.
-				name := fmt.Sprintf("%s.%s.%s", KubernetesEventGeneratedDiagnosisPrefix, event.Namespace, event.Name)
+				now := time.Now()
+				name := fmt.Sprintf("%s.%s.%s.%d", KubernetesEventGeneratedDiagnosisPrefix, event.Namespace, event.Name, now.Unix())
 				namespace := util.DefautlNamespace
 				annotations := make(map[string]string)
 				annotations[KubernetesEventAnnotation] = event.String()
@@ -192,8 +196,22 @@ func (ev *eventer) createDiagnosisFromKubernetesEvent(triggers []diagnosisv1.Tri
 					},
 					Spec: diagnosisv1.DiagnosisSpec{
 						OperationSet: trigger.Spec.OperationSet,
-						NodeName:     event.Source.Host,
 					},
+				}
+
+				if event.Source.Host != "" {
+					diagnosis.Spec.NodeName = event.Source.Host
+				} else if trigger.Spec.NodeName != "" {
+					diagnosis.Spec.NodeName = trigger.Spec.NodeName
+				}
+
+				// Skip if node name cannot be determined.
+				if diagnosis.Spec.NodeName == "" {
+					ev.Info("node name cannot be determined for event", "event", client.ObjectKey{
+						Name:      event.Name,
+						Namespace: event.Namespace,
+					})
+					continue
 				}
 
 				if err := ev.client.Create(ev, &diagnosis); err != nil {

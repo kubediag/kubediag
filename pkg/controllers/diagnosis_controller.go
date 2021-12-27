@@ -163,8 +163,8 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// The master will process an diagnosis which is not found or completed, or has not been accept yet, while the agent will process
-	// an diagnosis in Pending and Running phases.
+	// The master will process a diagnosis which is not found or completed, or has not been accept yet, while the agent will process
+	// a diagnosis in Pending and Running phases.
 	if r.mode == "master" {
 		switch diagnosis.Status.Phase {
 		case "":

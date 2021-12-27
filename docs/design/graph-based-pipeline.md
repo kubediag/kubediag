@@ -230,7 +230,7 @@ type Trigger struct {
 
 ### 触发诊断
 
-Diagnosis 对象的元数据中包含了需要执行的 OperationSet。触发诊断包括手动和自动两种方式。通过手动创建 Diagnosis 对象可以直接触发诊断。通过创建 Trigger 对象并配置 Prometheus 报警模板或 Event 模板可以基于 Prometheus 或 Event 自动生成 Diagnosis 以触发诊断流水线。
+Diagnosis 对象的元数据中包含了需要执行的 OperationSet。触发诊断包括手动和自动两种方式。通过手动创建 Diagnosis 对象可以直接触发诊断。通过创建 Trigger 对象并配置 Prometheus 报警模板或 Event 模板可以基于 Prometheus 或 Event 自动生成 Diagnosis 以触发诊断流水线。用户还可以通过定义 Cron 来定时触发预定义的诊断。
 
 ### 运行诊断流水线
 
