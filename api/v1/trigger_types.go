@@ -26,22 +26,28 @@ import (
 type TriggerSpec struct {
 	// OperationSet is the name of referenced operation set in the generated diagnosis.
 	OperationSet string `json:"operationSet"`
+	// NodeName is the default node which the diagnosis is on.
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
 	// SourceTemplate is the template of trigger.
 	SourceTemplate SourceTemplate `json:"sourceTemplate"`
 }
 
-// SourceTemplate describes the information to generate an diagnosis.
+// SourceTemplate describes the information to generate a diagnosis.
 type SourceTemplate struct {
 	// One and only one of the following source should be specified.
-	// PrometheusAlertTemplate specifies the template to create an diagnosis from a prometheus alert.
+	// PrometheusAlertTemplate specifies the template to create a diagnosis from a prometheus alert.
 	// +optional
 	PrometheusAlertTemplate *PrometheusAlertTemplate `json:"prometheusAlertTemplate,omitempty"`
-	// KubernetesEventTemplate specifies the template to create an diagnosis from a kubernetes event.
+	// KubernetesEventTemplate specifies the template to create a diagnosis from a kubernetes event.
 	// +optional
 	KubernetesEventTemplate *KubernetesEventTemplate `json:"kubernetesEventTemplate,omitempty"`
+	// CronTemplate specifies the template to create a diagnosis periodically at fixed times.
+	// +optional
+	CronTemplate *CronTemplate `json:"cronTemplate,omitempty"`
 }
 
-// PrometheusAlertTemplate specifies the template to create an diagnosis from a prometheus alert.
+// PrometheusAlertTemplate specifies the template to create a diagnosis from a prometheus alert.
 type PrometheusAlertTemplate struct {
 	// Regexp is the regular expression for matching prometheus alert template.
 	Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
@@ -94,7 +100,7 @@ type PrometheusAlertTemplateRegexp struct {
 	GeneratorURL string `json:"generatorURL,omitempty"`
 }
 
-// KubernetesEventTemplate specifies the template to create an diagnosis from a kubernetes event.
+// KubernetesEventTemplate specifies the template to create a diagnosis from a kubernetes event.
 type KubernetesEventTemplate struct {
 	// Regexp is the regular expression for matching kubernetes event template.
 	Regexp KubernetesEventTemplateRegexp `json:"regexp"`
@@ -121,6 +127,20 @@ type KubernetesEventTemplateRegexp struct {
 	Source corev1.EventSource `json:"source,omitempty"`
 }
 
+// CronTemplate specifies the template to create a diagnosis periodically at fixed times.
+type CronTemplate struct {
+	// Schedule is the schedule in cron format.
+	// See https://en.wikipedia.org/wiki/Cron for more details.
+	Schedule string `json:"schedule"`
+}
+
+// TriggerStatus defines the observed state of Trigger.
+type TriggerStatus struct {
+	// LastScheduleTime is the last time the cron was successfully scheduled.
+	// +optional
+	LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
@@ -133,7 +153,8 @@ type Trigger struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec TriggerSpec `json:"spec,omitempty"`
+	Spec   TriggerSpec   `json:"spec,omitempty"`
+	Status TriggerStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

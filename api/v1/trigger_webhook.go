@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/robfig/cron"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -78,12 +79,25 @@ func (r *Trigger) validateTrigger() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("operationSet"),
 			r.Spec.OperationSet, "must not be empty"))
 	}
-	if r.Spec.SourceTemplate.PrometheusAlertTemplate == nil && r.Spec.SourceTemplate.KubernetesEventTemplate == nil {
+	if r.Spec.SourceTemplate.PrometheusAlertTemplate == nil && r.Spec.SourceTemplate.KubernetesEventTemplate == nil && r.Spec.SourceTemplate.CronTemplate == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate"),
-			r.Spec.SourceTemplate, "must specify either prometheus alert template or kubernetes event template"))
-	} else if r.Spec.SourceTemplate.PrometheusAlertTemplate != nil && r.Spec.SourceTemplate.KubernetesEventTemplate != nil {
+			r.Spec.SourceTemplate, "must specify a source template"))
+	} else if r.Spec.SourceTemplate.PrometheusAlertTemplate != nil && r.Spec.SourceTemplate.KubernetesEventTemplate != nil ||
+		r.Spec.SourceTemplate.KubernetesEventTemplate != nil && r.Spec.SourceTemplate.CronTemplate != nil ||
+		r.Spec.SourceTemplate.PrometheusAlertTemplate != nil && r.Spec.SourceTemplate.CronTemplate != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate"),
 			r.Spec.SourceTemplate, "one and only one template should be specified."))
+	}
+	if r.Spec.SourceTemplate.CronTemplate != nil {
+		_, err := cron.ParseStandard(r.Spec.SourceTemplate.CronTemplate.Schedule)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("sourceTemplate").Child("cronTemplate").Child("schedule"),
+				r.Spec.SourceTemplate.CronTemplate.Schedule, "must be valid schedule format"))
+		}
+		if r.Spec.NodeName == "" {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("nodeName"),
+				r.Spec.NodeName, "must not be empty"))
+		}
 	}
 	if len(allErrs) == 0 {
 		return nil
