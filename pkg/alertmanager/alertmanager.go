@@ -85,8 +85,6 @@ type alertmanager struct {
 	client client.Client
 	// cache knows how to load Kubernetes objects.
 	cache cache.Cache
-	// nodeName specifies the node name.
-	nodeName string
 	// repeatInterval specifies how long to wait before sending a notification again if it has already
 	// been sent successfully for an alert.
 	repeatInterval time.Duration
@@ -102,7 +100,6 @@ func NewAlertmanager(
 	logger logr.Logger,
 	cli client.Client,
 	cache cache.Cache,
-	nodeName string,
 	repeatInterval time.Duration,
 	alertmanagerEnabled bool,
 ) Alertmanager {
@@ -119,7 +116,6 @@ func NewAlertmanager(
 		Logger:              logger,
 		client:              cli,
 		cache:               cache,
-		nodeName:            nodeName,
 		repeatInterval:      repeatInterval,
 		firingAlertSet:      firingAlertSet,
 		alertmanagerEnabled: alertmanagerEnabled,
@@ -129,7 +125,7 @@ func NewAlertmanager(
 // Handler handles http requests for sending prometheus alerts.
 func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 	if !am.alertmanagerEnabled {
-		http.Error(w, fmt.Sprintf("alertmanager is not enabled"), http.StatusUnprocessableEntity)
+		http.Error(w, "alertmanager is not enabled", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -227,7 +223,8 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 				am.Info("creating Diagnosis from prometheus alert", "alert", alert.String())
 
 				// Create diagnosis according to the prometheus alert.
-				name := fmt.Sprintf("%s.%s.%s", PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7])
+				now := time.Now()
+				name := fmt.Sprintf("%s.%s.%s.%d", PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7], now.Unix())
 				namespace := util.DefautlNamespace
 				annotations := make(map[string]string)
 				annotations[PrometheusAlertAnnotation] = string(alert.String())
@@ -256,6 +253,18 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 					diagnosis.Spec.PodReference = podReference
 				}
 
+				if sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel != "" {
+					diagnosis.Spec.NodeName = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
+				} else if trigger.Spec.NodeName != "" {
+					diagnosis.Spec.NodeName = trigger.Spec.NodeName
+				}
+
+				// Skip if pod reference and node name cannot be determined.
+				if podReference == nil && diagnosis.Spec.NodeName == "" {
+					am.Info("pod reference and node name cannot be determined for alert", "alert", alert.String())
+					continue
+				}
+
 				parameters := make(map[string]string)
 				for _, label := range sourceTemplate.PrometheusAlertTemplate.ParameterInjectionLabels {
 					value, ok := alert.Labels[label]
@@ -264,10 +273,6 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 					}
 				}
 				diagnosis.Spec.Parameters = parameters
-
-				if sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel != "" {
-					diagnosis.Spec.NodeName = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
-				}
 
 				if err := am.client.Create(am, &diagnosis); err != nil {
 					if !apierrors.IsAlreadyExists(err) {

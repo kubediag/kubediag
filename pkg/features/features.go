@@ -40,6 +40,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	Eventer featuregate.Feature = "Eventer"
+	// CronScheduler generates diagnoses periodically at fixed times.
+	//
+	// Mode: master
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.1
+	CronScheduler featuregate.Feature = "CronScheduler"
 	// KafkaConsumer can processs valid kafka messages.
 	//
 	// Mode: master
@@ -147,6 +153,7 @@ var (
 var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
+	CronScheduler:                {Default: true, PreRelease: featuregate.Alpha},
 	KafkaConsumer:                {Default: true, PreRelease: featuregate.Alpha},
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},
 	ContainerCollector:           {Default: true, PreRelease: featuregate.Alpha},

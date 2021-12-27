@@ -41,6 +41,7 @@ import (
 	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	"github.com/kubediag/kubediag/pkg/alertmanager"
 	"github.com/kubediag/kubediag/pkg/controllers"
+	"github.com/kubediag/kubediag/pkg/cronscheduler"
 	"github.com/kubediag/kubediag/pkg/diagnosisreaper"
 	"github.com/kubediag/kubediag/pkg/eventer"
 	"github.com/kubediag/kubediag/pkg/executor"
@@ -213,7 +214,6 @@ func (opts *KubeDiagOptions) Run() error {
 			ctrl.Log.WithName("alertmanager"),
 			mgr.GetClient(),
 			mgr.GetCache(),
-			opts.NodeName,
 			opts.AlertmanagerRepeatInterval,
 			featureGate.Enabled(features.Alertmanager),
 		)
@@ -224,12 +224,23 @@ func (opts *KubeDiagOptions) Run() error {
 			ctrl.Log.WithName("eventer"),
 			mgr.GetClient(),
 			mgr.GetCache(),
-			opts.NodeName,
 			eventChainCh,
 			featureGate.Enabled(features.Eventer),
 		)
 		go func(stopCh chan struct{}) {
 			eventer.Run(stopCh)
+		}(stopCh)
+
+		// Create cron scheduler for managing crons.
+		cronscheduler := cronscheduler.NewCronScheduler(
+			context.Background(),
+			ctrl.Log.WithName("cronscheduler"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			featureGate.Enabled(features.CronScheduler),
+		)
+		go func(stopCh chan struct{}) {
+			cronscheduler.Run(stopCh)
 		}(stopCh)
 
 		// Create kafka consumer for managing kafka messages.

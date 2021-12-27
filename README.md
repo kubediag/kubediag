@@ -29,7 +29,9 @@ KubeDiag Master 建议使用 [Cert Manager](https://github.com/jetstack/cert-man
 
 ```bash
 # Kubernetes 1.16+
-kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.yaml
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.4/cert-manager.yaml
+# Kubernetes <1.16
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.4/cert-manager-legacy.yaml
 ```
 
 使用 `kubectl` 命令行工具进行安装：
@@ -50,7 +52,7 @@ kubectl get -n kubediag pod -o wide
 ```bash
 helm repo add kubediag https://kubediag.github.io/kubediag-helm
 helm repo update
-helm install kubediag/kubediag-helm --create-namespace --generate-name --namespace kubediag
+helm install kubediag kubediag/kubediag-helm --create-namespace --namespace kubediag
 ```
 
 在开发环境进行调试时，如果安装了 [`kustomize`](https://github.com/kubernetes-sigs/kustomize) 工具，运行以下命令可以将当前分支上的代码打包成镜像并进行安装：
