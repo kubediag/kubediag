@@ -27,48 +27,82 @@ KubeDiag 早期设计上为了规范和简化流水线的定义，将诊断流�
 `Operation` API 对象的数据结构如下：
 
 ```go
-// OperationSpec 定义了 Operation 的目标状态。
+// OperationSpec defines the desired state of Operation.
 type OperationSpec struct {
-    // Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
+    // Processor describes how to register a operation processor into kubediag.
     Processor Processor `json:"processor"`
-    // Dependences 是所有被依赖且必须预先执行的诊断操作列表。
+    // Dependences is the list of all depended operations required to be precedently executed.
+    // +optional
     Dependences []string `json:"dependences,omitempty"`
-    // Storage 表示操作处理结果的存储类型。
-    // 如果该字段为空，那么操作处理结果不会被保存。
+    // Storage represents the type of storage for operation results.
+    // Operation results will not be stored if nil.
+    // +optional
     Storage *Storage `json:"storage,omitempty"`
 }
 
-// Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
+// Processor describes how to register a operation processor into kubediag.
 type Processor struct {
-    // ExternalAddress 是操作处理器的监听地址。
-    // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
-    ExternalAddress *string `json:"externalAddress,omitempty"`
-    // ExternalPort 是操作处理器的服务端口。
-    // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
-    ExternalPort *int32 `json:"externalPort,omitempty"`
-    // Path 是操作处理器服务的 HTTP 路径。
-    Path *string `json:"path,omitempty"`
-    // Scheme 是操作处理器服务的协议。
-    Scheme *string `json:"scheme,omitempty"`
-    // 操作处理器超时的秒数。
-    // 默认为 30 秒。最小值为 1。
+    // One and only one of the following processor should be specified.
+    // HTTPServer specifies the http server to do operations.
+    // +optional
+    HTTPServer *HTTPServer `json:"httpServer,omitempty"`
+    // ScriptRunner contains the information to run a script.
+    // +optional
+    ScriptRunner *ScriptRunner `json:"scriptRunner,omitempty"`
+    // Number of seconds after which the processor times out.
+    // Defaults to 30 seconds. Minimum value is 1.
+    // +optional
     TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// Storage 表示操作结果的存储类型。
+// Storage represents the type of storage for operation results.
 type Storage struct {
-    // HostPath 表示宿主机上的目录。
+    // HostPath represents a directory on the host.
+    // +optional
     HostPath *HostPath `json:"hostPath,omitempty"`
 }
 
-// HostPath 表示宿主机上的目录。
+// HostPath represents a directory on the host.
 type HostPath struct {
-    // 宿主机上目录的路径。
-    // 如果该字段为空，那么默认为 KubeDiag Agent 的数据根目录。
+    // Path of the directory on the host.
+    // Defaults to kubediag agent data root if not specified.
     Path string `json:"path"`
 }
 
-// Operation 的 API 对象。
+// HTTPServer specifies the http server to do operations.
+type HTTPServer struct {
+    // Address is the serving address of the processor. It must be either an ip or a dns address.
+    // Defaults to kubediag agent advertised address if not specified.
+    // +optional
+    Address *string `json:"address,omitempty"`
+    // Port is the serving port of the processor.
+    // Defaults to kubediag agent serving port if not specified.
+    // +optional
+    Port *int32 `json:"port,omitempty"`
+    // Path is the serving http path of processor.
+    // +optional
+    Path *string `json:"path,omitempty"`
+    // Scheme is the serving scheme of processor. It must be either http or https.
+    // +optional
+    Scheme *string `json:"scheme,omitempty"`
+}
+
+// ScriptRunner contains the information to run a script.
+type ScriptRunner struct {
+    // Script is the content of shell script.
+    Script string `json:"script"`
+    // ArgKeys contains a slice of keys in parameters or operationResults. The script arguments are generated
+    // from specified key value pairs.
+    // No argument will be passed to the script if not specified.
+    // +optional
+    ArgKeys []string `json:"argKeys,omitempty"`
+    // OperationResultKey is the prefix of keys to store script stdout, stderr or error message in operationResults.
+    // Execution results will not be updated if not specified.
+    // +optional
+    OperationResultKey *string `json:"operationResultKey,omitempty"`
+}
+
+// Operation is the Schema for the operations API.
 type Operation struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -82,45 +116,52 @@ type Operation struct {
 `OperationSet` API 对象的数据结构如下：
 
 ```go
-// OperationSetSpec 定义了 OperationSet 的目标状态。
+// OperationSetSpec defines the desired state of OperationSet.
 type OperationSetSpec struct {
-    // AdjacencyList 包含有向无环图中所有表示诊断操作的顶点。
-    // 数组的第一个顶点表示诊断的开始而不是某个特定的诊断操作。
+    // AdjacencyList contains all nodes in the directed acyclic graph. The first node in the list represents the
+    // start of a diagnosis.
     AdjacencyList []Node `json:"adjacencyList"`
 }
 
-// Node 是有向无环图中的一个顶点。它包含序号和操作名。
+// Node is a node in the directed acyclic graph. It contains details of the operation.
 type Node struct {
-    // ID 是该顶点的唯一标识符。
-    ID int `json:"id"`
-    // To 是从该顶点能够直接到达的顶点序号列表。
+    // ID is the unique identifier of the node.
+    // It is identical to node index in adjacency list and set by admission webhook server.
+    // +optional
+    ID int `json:"id,omitempty"`
+    // To is the list of node ids this node links to.
+    // +optional
     To NodeSet `json:"to,omitempty"`
-    // Operation 是在该顶点运行的操作名。
-    Operation string `json:"operation"`
-    // Dependences 是所有被依赖且必须预先执行的诊断操作 ID 列表。
-    Dependences []int `json:"dependences,omitempty"`
+    // Operation is the name of operation running on the node.
+    // It is empty if the node is the first in the list.
+    // +optional
+    Operation string `json:"operation,omitempty"`
+    // Dependences is the list of depended node ids.
+    // +optional
+    Dependences NodeSet `json:"dependences,omitempty"`
 }
 
-// NodeSet 是一组顶点序号。
+// NodeSet is the set of node ids.
 type NodeSet []int
 
-// OperationSetStatus 定义了 OperationSet 的实际状态。
+// OperationSetStatus defines the observed state of OperationSet.
 type OperationSetStatus struct {
-    // Paths 是有向无环图中所有诊断路径的集合。
+    // Paths is the collection of all directed paths of the directed acyclic graph.
+    // +optional
     Paths []Path `json:"paths,omitempty"`
-    // 表示定义中提供的顶点是否能生成合法的有向无环图。
-    Ready bool `json:"ready,omitempty"`
+    // Specifies whether a valid directed acyclic graph can be generated via provided nodes.
+    Ready bool `json:"ready"`
 }
 
-// Path 表示与所有边方向一致的顶点线性顺序。
+// Path represents a linear ordering of nodes along the direction of every directed edge.
 type Path []Node
 
-// OperationSet 的 API 对象。
+// OperationSet is the Schema for the operationsets API.
 type OperationSet struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec OperationSetSpec `json:"spec,omitempty"`
+    Spec   OperationSetSpec   `json:"spec,omitempty"`
     Status OperationSetStatus `json:"status,omitempty"`
 }
 ```
@@ -130,86 +171,132 @@ type OperationSet struct {
 `Trigger` API 对象的数据结构如下：
 
 ```go
-// TriggerSpec 定义了 Trigger 的目标状态。
+// TriggerSpec defines the desired state of Trigger.
 type TriggerSpec struct {
-    // OperationSet 是生成 Diagnosis 中引用的 OperationSet 名。
+    // OperationSet is the name of referenced operation set in the generated diagnosis.
     OperationSet string `json:"operationSet"`
-    // SourceTemplate 是用于生成 Diagnosis 的模板源。
+    // NodeName is the default node which the diagnosis is on.
+    // +optional
+    NodeName string `json:"nodeName,omitempty"`
+    // SourceTemplate is the template of trigger.
     SourceTemplate SourceTemplate `json:"sourceTemplate"`
 }
 
-// SourceTemplate 描述用于生成 Diagnosis 的信息。
+// SourceTemplate describes the information to generate a diagnosis.
 type SourceTemplate struct {
-    // 下列源中必须指定一个唯一的模板源。
-    // PrometheusAlertTemplate 声明基于 Prometheus 报警创建 Diagnosis 的模板。
+    // One and only one of the following source should be specified.
+    // PrometheusAlertTemplate specifies the template to create a diagnosis from a prometheus alert.
+    // +optional
     PrometheusAlertTemplate *PrometheusAlertTemplate `json:"prometheusAlertTemplate,omitempty"`
-    // KubernetesEventTemplate 声明基于 Event 创建 Diagnosis 的模板。
+    // KubernetesEventTemplate specifies the template to create a diagnosis from a kubernetes event.
+    // +optional
     KubernetesEventTemplate *KubernetesEventTemplate `json:"kubernetesEventTemplate,omitempty"`
+    // CronTemplate specifies the template to create a diagnosis periodically at fixed times.
+    // +optional
+    CronTemplate *CronTemplate `json:"cronTemplate,omitempty"`
 }
 
-// PrometheusAlertTemplate 声明基于 Prometheus 报警创建 Diagnosis 的模板。
+// PrometheusAlertTemplate specifies the template to create a diagnosis from a prometheus alert.
 type PrometheusAlertTemplate struct {
-    // Regexp 是用于匹配 Prometheus 报警模板的正则表达式。
+    // Regexp is the regular expression for matching prometheus alert template.
     Regexp PrometheusAlertTemplateRegexp `json:"regexp"`
-    // NodeNameReferenceLabel 指定用于设置 Diagnosis 的 ".spec.nodeName" 字段的标签键。
-    NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel"`
-    // PodNamespaceReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.namespace" 字段的标签键。
+    // NodeNameReferenceLabel specifies the label for setting ".spec.nodeName" of generated diagnosis.
+    // The label value will be set as ".spec.nodeName" field.
+    // +optional
+    NodeNameReferenceLabel model.LabelName `json:"nodeNameReferenceLabel,omitempty"`
+    // PodNamespaceReferenceLabel specifies the label for setting ".spec.podReference.namespace" of generated diagnosis.
+    // The label value will be set as ".spec.podReference.namespace" field.
+    // +optional
     PodNamespaceReferenceLabel model.LabelName `json:"podNamespaceReferenceLabel,omitempty"`
-    // PodNameReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.name" 字段的标签键。
+    // PodNameReferenceLabel specifies the label for setting ".spec.podReference.name" of generated diagnosis.
+    // The label value will be set as ".spec.podReference.name" field.
+    // +optional
     PodNameReferenceLabel model.LabelName `json:"podNameReferenceLabel,omitempty"`
-    // ContainerReferenceLabel 指定用于设置 Diagnosis 的 ".spec.podReference.container" 字段的标签键。
+    // ContainerReferenceLabel specifies the label for setting ".spec.podReference.container" of generated diagnosis.
+    // The label value will be set as ".spec.podReference.container" field.
+    // +optional
     ContainerReferenceLabel model.LabelName `json:"containerReferenceLabel,omitempty"`
-    // ParameterInjectionLabels 指定需要注入到 ".spec.parameters" 字段的标签键列表。
+    // ParameterInjectionLabels specifies the labels for setting ".spec.parameters" of generated diagnosis.
+    // All label names and values will be set as key value pairs in ".spec.parameters" field.
+    // +optional
     ParameterInjectionLabels []model.LabelName `json:"parameterInjectionLabels,omitempty"`
 }
 
-// PrometheusAlertTemplateRegexp 是用于匹配 Prometheus 报警模板的正则表达式。
-// 所有的正则表达式必须遵循 RE2 规范，详情可参考 https://golang.org/s/re2syntax。
+// PrometheusAlertTemplateRegexp is the regular expression for matching prometheus alert template.
+// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
 type PrometheusAlertTemplateRegexp struct {
-    // AlertName 是用于匹配 Prometheus 报警的 AlertName 字段的正则表达式。
+    // AlertName is the regular expression for matching "AlertName" of prometheus alert.
+    // +optional
     AlertName string `json:"alertName,omitempty"`
-    // Labels 是用于匹配 Prometheus 报警的 Labels 字段的正则表达式。
-    // 只有标签的值为正则表达式并且所有标签均与 Prometheus 报警一致时才可以成功匹配。
+    // Labels is the regular expression for matching "Labels" of prometheus alert.
+    // Only label values are regular expressions while all label names must be identical to the
+    // prometheus alert label names.
+    // +optional
     Labels model.LabelSet `json:"labels,omitempty"`
-    // Annotations 是用于匹配 Prometheus 报警的 Annotations 字段的正则表达式。
-    // 只有注解的值为正则表达式并且所有注解均与 Prometheus 报警一致时才可以成功匹配。
+    // Annotations is the regular expression for matching "Annotations" of prometheus alert.
+    // Only annotation values are regular expressions while all annotation names must be identical to the
+    // prometheus alert annotation names.
+    // +optional
     Annotations model.LabelSet `json:"annotations,omitempty"`
-    // StartsAt 是用于匹配 Prometheus 报警的 StartsAt 字段的正则表达式。
+    // StartsAt is the regular expression for matching "StartsAt" of prometheus alert.
+    // +optional
     StartsAt string `json:"startsAt,omitempty"`
-    // EndsAt 是用于匹配 Prometheus 报警的 EndsAt 字段的正则表达式。
+    // EndsAt is the regular expression for matching "EndsAt" of prometheus alert.
+    // +optional
     EndsAt string `json:"endsAt,omitempty"`
-    // GeneratorURL 是用于匹配 Prometheus 报警的 GeneratorURL 字段的正则表达式。
+    // GeneratorURL is the regular expression for matching "GeneratorURL" of prometheus alert.
+    // +optional
     GeneratorURL string `json:"generatorURL,omitempty"`
 }
 
-// KubernetesEventTemplate 声明基于 Event 创建 Diagnosis 的模板。
+// KubernetesEventTemplate specifies the template to create a diagnosis from a kubernetes event.
 type KubernetesEventTemplate struct {
-    // Regexp 是用于匹配 Event 模板的正则表达式。
+    // Regexp is the regular expression for matching kubernetes event template.
     Regexp KubernetesEventTemplateRegexp `json:"regexp"`
 }
 
-// KubernetesEventTemplateRegexp 是用于匹配 Event 模板的正则表达式。
-// 所有的正则表达式必须遵循 RE2 规范，详情可参考 https://golang.org/s/re2syntax。
+// KubernetesEventTemplateRegexp is the regular expression for matching kubernetes event template.
+// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
 type KubernetesEventTemplateRegexp struct {
-    // Name 是用于匹配 Event 的 Name 字段的正则表达式。
+    // Name is the regular expression for matching "Name" of kubernetes event.
+    // +optional
     Name string `json:"name,omitempty"`
-    // Namespace 是用于匹配 Event 的 Namespace 字段的正则表达式。
+    // Namespace is the regular expression for matching "Namespace" of kubernetes event.
+    // +optional
     Namespace string `json:"namespace,omitempty"`
-    // Reason 是用于匹配 Event 的 Reason 字段的正则表达式。
+    // Reason is the regular expression for matching "Reason" of kubernetes event.
+    // +optional
     Reason string `json:"reason,omitempty"`
-    // Message 是用于匹配 Event 的 Message 字段的正则表达式。
+    // Message is the regular expression for matching "Message" of kubernetes event.
+    // +optional
     Message string `json:"message,omitempty"`
-    // Source 是用于匹配 Event 的 Source 字段的正则表达式。
-    // 所有 Source 中的字段均为正则表达式。
+    // Source is the regular expression for matching "Source" of kubernetes event.
+    // All fields of "Source" are regular expressions.
+    // +optional
     Source corev1.EventSource `json:"source,omitempty"`
 }
 
-// Trigger 的 API 对象。
+// CronTemplate specifies the template to create a diagnosis periodically at fixed times.
+type CronTemplate struct {
+    // Schedule is the schedule in cron format.
+    // See https://en.wikipedia.org/wiki/Cron for more details.
+    Schedule string `json:"schedule"`
+}
+
+// TriggerStatus defines the observed state of Trigger.
+type TriggerStatus struct {
+    // LastScheduleTime is the last time the cron was successfully scheduled.
+    // +optional
+    LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
+}
+
+// Trigger is the Schema for the triggers API.
 type Trigger struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec TriggerSpec `json:"spec,omitempty"`
+    Spec   TriggerSpec   `json:"spec,omitempty"`
+    Status TriggerStatus `json:"status,omitempty"`
 }
 ```
 

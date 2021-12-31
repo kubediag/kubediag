@@ -22,21 +22,52 @@ Processor 通过 [Operation](./graph-based-pipeline.md#operation) API 进行注�
 `Processor` API 对象的数据结构如下：
 
 ```go
-// Processor 描述了如何在 KubeDiag 中注册一个操作处理器。
+// Processor describes how to register a operation processor into kubediag.
 type Processor struct {
-    // ExternalAddress 是操作处理器的监听地址。
-    // 如果该字段为空，那么默认为 KubeDiag Agent 的地址。
-    ExternalAddress *string `json:"externalAddress,omitempty"`
-    // ExternalPort 是操作处理器的服务端口。
-    // 如果该字段为空，那么默认为 KubeDiag Agent 的服务端口。
-    ExternalPort *int32 `json:"externalPort,omitempty"`
-    // Path 是操作处理器服务的 HTTP 路径。
-    Path *string `json:"path,omitempty"`
-    // Scheme 是操作处理器服务的协议。
-    Scheme *string `json:"scheme,omitempty"`
-    // 操作处理器超时的秒数。
-    // 默认为 30 秒。最小值为 1。
+    // One and only one of the following processor should be specified.
+    // HTTPServer specifies the http server to do operations.
+    // +optional
+    HTTPServer *HTTPServer `json:"httpServer,omitempty"`
+    // ScriptRunner contains the information to run a script.
+    // +optional
+    ScriptRunner *ScriptRunner `json:"scriptRunner,omitempty"`
+    // Number of seconds after which the processor times out.
+    // Defaults to 30 seconds. Minimum value is 1.
+    // +optional
     TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// HTTPServer specifies the http server to do operations.
+type HTTPServer struct {
+    // Address is the serving address of the processor. It must be either an ip or a dns address.
+    // Defaults to kubediag agent advertised address if not specified.
+    // +optional
+    Address *string `json:"address,omitempty"`
+    // Port is the serving port of the processor.
+    // Defaults to kubediag agent serving port if not specified.
+    // +optional
+    Port *int32 `json:"port,omitempty"`
+    // Path is the serving http path of processor.
+    // +optional
+    Path *string `json:"path,omitempty"`
+    // Scheme is the serving scheme of processor. It must be either http or https.
+    // +optional
+    Scheme *string `json:"scheme,omitempty"`
+}
+
+// ScriptRunner contains the information to run a script.
+type ScriptRunner struct {
+    // Script is the content of shell script.
+    Script string `json:"script"`
+    // ArgKeys contains a slice of keys in parameters or operationResults. The script arguments are generated
+    // from specified key value pairs.
+    // No argument will be passed to the script if not specified.
+    // +optional
+    ArgKeys []string `json:"argKeys,omitempty"`
+    // OperationResultKey is the prefix of keys to store script stdout, stderr or error message in operationResults.
+    // Execution results will not be updated if not specified.
+    // +optional
+    OperationResultKey *string `json:"operationResultKey,omitempty"`
 }
 ```
 
@@ -114,7 +145,6 @@ spec:
 1. Processor 发送信号成功则向 KubeDiag Agent 返回 200 状态码。
 1. Processor 发送信号失败则向 KubeDiag Agent 返回 500 状态码。
 1. KubeDiag Agent 中的 Executor 在请求返回后继续执行诊断逻辑。
-
 
 ## 命名与规范
 
