@@ -19,6 +19,7 @@ package diagnosisreaper
 import (
 	"context"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"time"
@@ -216,6 +217,12 @@ func (dr *DiagnosisReaper) listDiagnoses() ([]diagnosisv1.Diagnosis, error) {
 // DeleteExpiredProfilerData deletes profiler data by removing files or directories if the file age is longer
 // than diagnosisTTL.
 func DeleteExpiredProfilerData(path string, diagnosisTTL time.Duration, log logr.Logger) error {
+	// Return if the profiler data directory does not exist.
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
