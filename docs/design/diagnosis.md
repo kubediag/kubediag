@@ -22,92 +22,115 @@ Diagnosis 是针对用户管理诊断的需求所设计的 API 对象。
 `Diagnosis` API 对象的数据结构如下：
 
 ```go
-// DiagnosisSpec 定义了 Diagnosis 的目标状态。
+// DiagnosisSpec defines the desired state of Diagnosis.
 type DiagnosisSpec struct {
-    // OperationSet 是待执行诊断流水线的 OperationSet 名。
+    // OperationSet is the name of operation set which represents diagnosis pipeline to be executed.
     OperationSet string `json:"operationSet"`
-    // 必须指定 NodeName 或 PodReference 其中的一个字段。
-    // NodeName 是诊断执行的节点。
+    // One of NodeName and PodReference must be specified.
+    // NodeName is a specific node which the diagnosis is on.
+    // +optional
     NodeName string `json:"nodeName,omitempty"`
-    // PodReference 包含目标 Pod 的详细信息。
+    // PodReference contains details of the target pod.
+    // +optional
     PodReference *PodReference `json:"podReference,omitempty"`
-    // Parameters 包含诊断过程中需要传入的参数。
-    // 通常该字段的键为 OperationSet 中顶点的序号，值为执行该顶点诊断操作需要的参数。
-    // Parameters 和 OperationResults 会被序列化为 JSON 对象并在运行诊断的过程中发送给故障处理器。
+    // Parameters is a set of the parameters to be passed to opreations.
+    // Parameters and OperationResults are encoded into a json object and sent to operation processor when
+    // running diagnosis.
+    // +optional
     Parameters map[string]string `json:"parameters,omitempty"`
 }
 
-// PodReference 包含目标 Pod 的详细信息。
+// PodReference contains details of the target pod.
 type PodReference struct {
     NamespacedName `json:",inline"`
-    // Container 是目标容器名。
+    // Container specifies name of the target container.
+    // +optional
     Container string `json:"container,omitempty"`
 }
 
-// NamespacedName 表示 Kubernetes API 对象。
+// NamespacedName represents a kubernetes api resource.
 type NamespacedName struct {
-    // Namespace 是 Kubernetes API 对象命名空间。
+    // Namespace specifies the namespace of a kubernetes api resource.
     Namespace string `json:"namespace"`
-    // Namespace 是 Kubernetes API 对象名。
+    // Name specifies the name of a kubernetes api resource.
     Name string `json:"name"`
 }
 
-// DiagnosisStatus 定义了 Diagnosis 的实际状态。
+// DiagnosisStatus defines the observed state of Diagnosis.
 type DiagnosisStatus struct {
-    // Phase 是 Diagnosis 在其生命周期中所处位置的简单宏观概述。状况列表包含更多关于 Diagnosis 状态的信息。
-    // 阶段可能存在五种不同的值：
+    // Phase is a simple, high-level summary of where the diagnosis is in its lifecycle.
+    // The conditions array, the reason and message fields contain more detail about the
+    // pod's status.
+    // There are five possible phase values:
     //
-    // Pending：Diagnosis 已被系统接受，但诊断执行前的准备工作还未完成。
-    // Running：Diagnosis 已经绑定到了某个节点，至少有一个诊断操作正处于运行状态。
-    // Succeeded：诊断流水线中某个路径中的所有诊断操作均执行成功。
-    // Failed：诊断流水线中的所有路径失败。也就是说，所有路径中最后一个执行的诊断操作返回码非 200。
-    // Unknown：因为某些原因无法取得 Diagnosis 的状态。这种情况通常是因为与 Diagnosis 所在主机通信失败。
+    // DiagnosisPending: The diagnosis has been accepted by the system, but no operation has been started.
+    // DiagnosisRunning: The diagnosis has been bound to a node and one of the operations have been started.
+    // At least one operation is still running.
+    // DiagnosisSucceeded: All operations in some path have voluntarily terminated with a response code
+    // of 200, and the system is not going to execute rest operations.
+    // DiagnosisFailed: All paths in the graph have terminated, and at least one operation in each path
+    // terminated in a failure.
+    // DiagnosisUnknown: For some reason the state of the diagnosis could not be obtained, typically due
+    // to an error in communicating with the host of the diagnosis.
+    // +optional
     Phase DiagnosisPhase `json:"phase,omitempty"`
-    // Conditions 包含 Diagnosis 当前的服务状态。
+    // Conditions contains current service state of diagnosis.
+    // +optional
     Conditions []DiagnosisCondition `json:"conditions,omitempty"`
-    // StartTime 是对象被系统接收的 RFC 3339 日期和时间。
+    // StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
+    // +optional
     StartTime metav1.Time `json:"startTime,omitempty"`
-    // FailedPaths 包含诊断流水线中所有运行失败的路径。路径的最后一个顶点是操作执行失败的顶点。
-    FailedPaths []Path `json:"failedPath,omitempty"`
-    // SucceededPath 是诊断流水线中运行成功的路径。
+    // FailedPaths contains all failed paths in diagnosis pipeline.
+    // The last node in the path is the one which fails to execute operation.
+    // +optional
+    FailedPaths []Path `json:"failedPaths,omitempty"`
+    // SucceededPath is the succeeded paths in diagnosis pipeline.
+    // +optional
     SucceededPath Path `json:"succeededPath,omitempty"`
-    // OperationResults 包含诊断运行过程中操作的结果。
-    // Parameters 和 OperationResults 会被序列化为 JSON 对象并在运行诊断的过程中发送给故障处理器。
+    // OperationResults contains results of operations.
+    // Parameters and OperationResults are encoded into a json object and sent to operation processor when
+    // running diagnosis.
+    // +optional
     OperationResults map[string]string `json:"operationResults,omitempty"`
-    // Checkpoint 是恢复未完成诊断的检查点。
+    // Checkpoint is the checkpoint for resuming unfinished diagnosis.
+    // +optional
     Checkpoint *Checkpoint `json:"checkpoint,omitempty"`
 }
 
-// DiagnosisCondition 包含 Diagnosis 当前的服务状态。
+// DiagnosisCondition contains details for the current condition of this diagnosis.
 type DiagnosisCondition struct {
-    // Type 是状况的类型。
+    // Type is the type of the condition.
     Type DiagnosisConditionType `json:"type"`
-    // Status 是状况的状态。
-    // 可以是 True、False、Unknown。
+    // Status is the status of the condition.
+    // Can be True, False, Unknown.
     Status corev1.ConditionStatus `json:"status"`
-    // LastTransitionTime 描述了上一次从某个状况迁移到另一个状况的时间。
+    // LastTransitionTime specifies last time the condition transitioned from one status
+    // to another.
+    // +optional
     LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
-    // Reason 是对上一次状况迁移的描述，该原因描述是唯一的、只包含单个词语的、符合驼峰命名法的。
+    // Reason is a unique, one-word, CamelCase reason for the condition's last transition.
+    // +optional
     Reason string `json:"reason,omitempty"`
-    // Message 是描述上一次状况迁移细节的信息。
+    // Message is a human readable message indicating details about last transition.
+    // +optional
     Message string `json:"message,omitempty"`
 }
 
-// Checkpoint 是恢复未完成诊断的检查点。
+// Checkpoint is the checkpoint for resuming unfinished diagnosis.
 type Checkpoint struct {
-    // PathIndex 是当前路径在 OperationSet 状态中的序号。
+    // PathIndex is the index of current path in operation set status.
     PathIndex int `json:"pathIndex"`
-    // NodeIndex 是当前顶点在路径中的序号。
+    // NodeIndex is the index of current node in path.
     NodeIndex int `json:"nodeIndex"`
 }
 
-// DiagnosisPhase 是描述当前 Diagnosis 状况的标签。
+// DiagnosisPhase is a label for the condition of a diagnosis at the current time.
 type DiagnosisPhase string
 
-// DiagnosisConditionType 是 Diagnosis 状况类型的合法值。
+// DiagnosisConditionType is a valid value for DiagnosisCondition.Type.
 type DiagnosisConditionType string
 
-// Diagnosis 的 API 对象。
+// Diagnosis is the Schema for the diagnoses API.
 type Diagnosis struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
