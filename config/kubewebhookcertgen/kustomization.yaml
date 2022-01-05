@@ -1,0 +1,3 @@
+resources:
+- job-create-secret.yaml
+- job-patch-webhook.yaml

@@ -61,6 +61,7 @@ jobs:
             kubectl apply -f config/deploy/manifests.yaml
             kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=agent
             kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=master
+            sleep 10
             # wait for webhook service ready
             for (( c=1; c<=5; c++ )); do if( kubectl apply -f config/deploy/ ); then break ;fi ;sleep 10; done
             make e2e

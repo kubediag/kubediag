@@ -983,6 +983,27 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: kubediag-webhook-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  - mutatingwebhookconfigurations
+  verbs:
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: leader-election-rolebinding
@@ -1017,6 +1038,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kubediag-role
+subjects:
+- kind: ServiceAccount
+  name: kubediag
+  namespace: kubediag
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubediag-webhook-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubediag-webhook-role
 subjects:
 - kind: ServiceAccount
   name: kubediag
@@ -1081,7 +1115,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: webhook-service
+  name: kubediag-webhook-service
   namespace: kubediag
 spec:
   ports:
@@ -1277,27 +1311,74 @@ spec:
       maxUnavailable: 5
     type: RollingUpdate
 ---
-apiVersion: cert-manager.io/v1
-kind: Certificate
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: serving-cert
+  name: kubediag-admission-create
   namespace: kubediag
 spec:
-  dnsNames:
-  - webhook-service.kubediag.svc
-  - webhook-service.kubediag.svc.cluster.local
-  issuerRef:
-    kind: Issuer
-    name: selfsigned-issuer
-  secretName: webhook-server-cert
+  template:
+    metadata:
+      name: kubediag-admission-create
+    spec:
+      containers:
+      - args:
+        - create
+        - --cert-name=tls.crt
+        - --key-name=tls.key
+        - --host=,kubediag-webhook-service.kubediag.svc
+        - --namespace=kubediag
+        - --secret-name=webhook-server-cert
+        image: jettech/kube-webhook-certgen:v1.5.2
+        imagePullPolicy: IfNotPresent
+        name: create
+        resources: {}
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccountName: kubediag
 ---
-apiVersion: cert-manager.io/v1
-kind: Issuer
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: selfsigned-issuer
+  name: kubediag-admission-patch
   namespace: kubediag
 spec:
-  selfSigned: {}
+  template:
+    metadata:
+      name: kubediag-admission-patch
+    spec:
+      containers:
+      - args:
+        - patch
+        - --webhook-name=kubediag-mutating-webhook-configuration
+        - --namespace=kubediag
+        - --secret-name=webhook-server-cert
+        - --patch-failure-policy=Fail
+        - --patch-mutating=true
+        - --patch-validating=false
+        image: jettech/kube-webhook-certgen:v1.5.2
+        imagePullPolicy: IfNotPresent
+        name: patch-mutating-webhook
+        resources: {}
+      - args:
+        - patch
+        - --webhook-name=kubediag-validating-webhook-configuration
+        - --namespace=kubediag
+        - --secret-name=webhook-server-cert
+        - --patch-failure-policy=Fail
+        - --patch-mutating=false
+        - --patch-validating=true
+        image: jettech/kube-webhook-certgen:v1.5.2
+        imagePullPolicy: IfNotPresent
+        name: patch-validating-webhook
+        resources: {}
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccountName: kubediag
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -1342,14 +1423,13 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: kubediag/serving-cert
-  name: mutating-webhook-configuration
+  creationTimestamp: null
+  name: kubediag-mutating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
@@ -1367,7 +1447,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
@@ -1385,7 +1465,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
@@ -1403,7 +1483,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
@@ -1422,14 +1502,13 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: kubediag/serving-cert
-  name: validating-webhook-configuration
+  creationTimestamp: null
+  name: kubediag-validating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
@@ -1447,7 +1526,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
@@ -1465,7 +1544,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
@@ -1483,7 +1562,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail

@@ -14,3 +14,5 @@ resources:
 - apiserver_profiler_viewer_clusterrole.yaml
 - apiserver_profiler_viewer_serviceaccount.yaml
 - apiserver_profiler_viewer_binding.yaml
+- webhook_role.yaml
+- webhook_role_binding.yaml

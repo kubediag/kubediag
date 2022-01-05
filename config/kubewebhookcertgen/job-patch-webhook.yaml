@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubediag-admission-patch
+  namespace: kubediag
+spec:
+  template:
+    metadata:
+      name: kubediag-admission-patch
+    spec:
+      containers:
+      - name: patch-mutating-webhook
+        image: jettech/kube-webhook-certgen:v1.5.2
+        imagePullPolicy: IfNotPresent
+        args:
+        - patch
+        - --webhook-name=kubediag-mutating-webhook-configuration
+        - --namespace=kubediag
+        - --secret-name=webhook-server-cert
+        - --patch-failure-policy=Fail
+        - --patch-mutating=true
+        - --patch-validating=false
+        resources: {}
+      - name: patch-validating-webhook
+        image: jettech/kube-webhook-certgen:v1.5.2
+        imagePullPolicy: IfNotPresent
+        args:
+        - patch
+        - --webhook-name=kubediag-validating-webhook-configuration
+        - --namespace=kubediag
+        - --secret-name=webhook-server-cert
+        - --patch-failure-policy=Fail
+        - --patch-mutating=false
+        - --patch-validating=true
+        resources: {}
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccountName: kubediag
