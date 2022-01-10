@@ -1,6 +1,7 @@
 resources:
 - manifests.yaml
 - service.yaml
+namePrefix: kubediag-
 
 configurations:
 - kustomizeconfig.yaml

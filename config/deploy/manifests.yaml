@@ -1081,7 +1081,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: webhook-service
+  name: kubediag-webhook-service
   namespace: kubediag
 spec:
   ports:
@@ -1284,8 +1284,8 @@ metadata:
   namespace: kubediag
 spec:
   dnsNames:
-  - webhook-service.kubediag.svc
-  - webhook-service.kubediag.svc.cluster.local
+  - kubediag-webhook-service.kubediag.svc
+  - kubediag-webhook-service.kubediag.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: selfsigned-issuer
@@ -1344,12 +1344,12 @@ kind: MutatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kubediag/serving-cert
-  name: mutating-webhook-configuration
+  name: kubediag-mutating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
@@ -1367,7 +1367,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
@@ -1385,7 +1385,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
@@ -1403,7 +1403,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /mutate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
@@ -1424,12 +1424,12 @@ kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kubediag/serving-cert
-  name: validating-webhook-configuration
+  name: kubediag-validating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-diagnosis
   failurePolicy: Fail
@@ -1447,7 +1447,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-operation
   failurePolicy: Fail
@@ -1465,7 +1465,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-operationset
   failurePolicy: Fail
@@ -1483,7 +1483,7 @@ webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: kubediag-webhook-service
       namespace: kubediag
       path: /validate-diagnosis-kubediag-org-v1-trigger
   failurePolicy: Fail
