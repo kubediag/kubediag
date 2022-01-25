@@ -237,11 +237,6 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 
-			err := util.QueueDiagnosis(ctx, r.executorCh, diagnosis)
-			if err != nil {
-				log.Error(err, "failed to send diagnosis to executor queue")
-			}
-			diagnosisAgentQueuedCount.Inc()
 		case diagnosisv1.DiagnosisRunning:
 			err := util.QueueDiagnosis(ctx, r.executorCh, diagnosis)
 			if err != nil {
