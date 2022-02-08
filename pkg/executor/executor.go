@@ -319,7 +319,8 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
 		}
 
-		return diagnosis, fmt.Errorf("hash value of adjacency list calculated")
+		ex.Info("hash value of adjacency list calculated")
+		return diagnosis, nil
 	}
 
 	// Validate the graph defined by operation set is not changed.
