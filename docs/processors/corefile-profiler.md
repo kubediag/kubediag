@@ -8,7 +8,7 @@ Core File Profiler 是一个 [Processor](../design/processor.md)，用户可以�
 
 ## 实现
 
-Core File Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Core File Profiler，该 Operation 在 KubeDiag Agent 部署时默认注册，但整体功能是关闭的，可以在部署 KubeDiag Agent 时在启动参数中配置：`--feature-gates=CorefileProfiler=true` 打开该功能，执行下列命令可以查看已注册的 Core File Profiler：
+Core File Profiler 按照 [Processor](../design/processor.md) 规范实现。通过 Operation 可以在 KubeDiag 中注册 Core File Profiler，该 Operation 在 KubeDiag Agent 部署时默认注册，但整体功能是关闭的，可以在部署 KubeDiag Agent 时在启动参数中配置：`--feature-gates=CoreFileProfiler=true` 打开该功能，执行下列命令可以查看已注册的 Core File Profiler：
 
 ```bash
 $ kubectl get operation core-file-profiler -o yaml
