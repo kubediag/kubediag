@@ -4,8 +4,9 @@ metadata:
   name: http-operation
 spec:
   processor:
-    externalAddress: http-operation.kubediag.svc.cluster.local
-    externalPort: 80
-    path: /
-    scheme: http
+    httpServer:
+      address: http-operation.kubediag.svc.cluster.local
+      port: 80
+      path: /
+      scheme: http
     timeoutSeconds: 30
