@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"hash/fnv"
@@ -504,4 +505,45 @@ func SafeEncodeString(s string) string {
 		r[i] = AlphaNums[(int(b) % len(AlphaNums))]
 	}
 	return string(r)
+}
+
+// CreateFile creates a file on the destination path and writes content to the the file.
+func CreateFile(path string, content string) error {
+	// Create the file on the destination path.
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write content to the the file.
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ScanLastNonEmptyLine get the last available line.
+// It is an implementation of scanner.SplitFunc.
+func ScanLastNonEmptyLine(data []byte, eof bool) (advance int, token []byte, err error) {
+	// Set advance to after our last line.
+	if eof {
+		advance = len(data)
+	} else {
+		advance = bytes.LastIndexAny(data, "\n\r") + 1
+	}
+	data = data[:advance]
+
+	// Remove empty lines.
+	data = bytes.TrimRight(data, "\n\r")
+
+	// We have no non-empty lines, so advance but do not return a token.
+	if len(data) == 0 {
+		return advance, nil, nil
+	}
+
+	token = data[bytes.LastIndexAny(data, "\n\r")+1:]
+	return advance, token, nil
 }

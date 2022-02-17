@@ -100,6 +100,8 @@ type KubeDiagOptions struct {
 	FeatureGates map[string]bool
 	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
+	// Python3MainFilePath is the absolute path of main file for running python3 function.
+	Python3MainFilePath string
 }
 
 func init() {
@@ -293,6 +295,7 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetScheme(),
 			opts.Mode,
 			opts.DataRoot,
+			opts.Python3MainFilePath,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Operation")
 			return fmt.Errorf("unable to create controller for Operation: %v", err)
@@ -448,6 +451,7 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetScheme(),
 			opts.Mode,
 			opts.DataRoot,
+			opts.Python3MainFilePath,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Operation")
 			return fmt.Errorf("unable to create controller for Operation: %v", err)
@@ -486,6 +490,7 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
+	fs.StringVar(&opts.Python3MainFilePath, "python3-main-file", opts.Python3MainFilePath, "The main file for running python3 function.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

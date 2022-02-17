@@ -17,6 +17,7 @@ limitations under the License.
 package executor
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -428,6 +429,12 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 			executorOperationErrorCounter.Inc()
 			return diagnosis, err
 		}
+	} else if operation.Spec.Processor.Function != nil {
+		succeeded, result, err = ex.runFunctionWithContext(operation, data)
+		if err != nil {
+			executorOperationErrorCounter.Inc()
+			return diagnosis, err
+		}
 	}
 
 	// Update the operation result into diagnosis status.
@@ -583,7 +590,7 @@ func (ex *executor) doHTTPRequestWithContext(operation diagnosisv1.Operation, da
 	var result map[string]string
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		ex.Error(err, "failed to marshal response body", "response", string(body))
+		ex.Error(err, "failed to unmarshal response body", "response", string(body))
 		// If response code is 200 but body is not a string-map, we think this processor is finished but failed and will not return error
 		return false, nil, nil
 	}
@@ -620,6 +627,63 @@ func (ex *executor) runScriptWithContext(operation diagnosisv1.Operation, data m
 			key := strings.Join([]string{"operation", *operation.Spec.Processor.ScriptRunner.OperationResultKey, "error"}, ".")
 			result[key] = err.Error()
 		}
+	}
+
+	return true, result, nil
+}
+
+// runFunctionWithContext runs a function with provided context.
+// It returns a bool, a map and an error as results.
+func (ex *executor) runFunctionWithContext(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
+	if operation.Spec.Processor.Function == nil {
+		return false, nil, fmt.Errorf("function not specified")
+	}
+
+	// This could be implemented as an interface if more runtimes are supported in the future.
+	if operation.Spec.Processor.Function.Runtime == diagnosisv1.Python3FunctionRuntime {
+		return ex.runPython3Function(operation, data)
+	}
+
+	return false, nil, fmt.Errorf("runtime not supported")
+}
+
+// runPython3Function runs a python3 function.
+func (ex *executor) runPython3Function(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
+	context, err := json.Marshal(data)
+	if err != nil {
+		ex.Error(err, "failed to marshal context", "context", data)
+		return false, nil, err
+	}
+
+	functionFilePath := filepath.Join(ex.dataRoot, controllers.FunctionSubDirectory, operation.Name, "main.py")
+	command := []string{"python3", functionFilePath, string(context)}
+	output, err := util.BlockingRunCommandWithTimeout(command, *operation.Spec.Processor.TimeoutSeconds)
+
+	// Update function execution result with output and error.
+	var result map[string]string
+	if output != nil {
+		reader := bytes.NewReader(output)
+		scanner := bufio.NewScanner(reader)
+		scanner.Split(util.ScanLastNonEmptyLine)
+
+		var last string
+		for scanner.Scan() {
+			last = scanner.Text()
+		}
+		if err := scanner.Err(); err != nil {
+			ex.Error(err, "Invalid output", "error", err)
+			return false, nil, nil
+		}
+
+		err = json.Unmarshal([]byte(last), &result)
+		if err != nil {
+			ex.Error(err, "failed to unmarshal function result", "result", last)
+			return false, nil, nil
+		}
+	}
+	if err != nil {
+		key := strings.Join([]string{"function", operation.Name, "error"}, ".")
+		result[key] = err.Error()
 	}
 
 	return true, result, nil

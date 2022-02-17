@@ -584,3 +584,144 @@ func TestRetrieveDiagnosesOnNode(t *testing.T) {
 		assert.Equal(t, test.expected, resultDiagnoses, test.desc)
 	}
 }
+
+func TestScanLastNonEmptyLine(t *testing.T) {
+	type expectedStruct struct {
+		advance int
+		token   []byte
+	}
+
+	tests := []struct {
+		data     []byte
+		eof      bool
+		expected expectedStruct
+		desc     string
+	}{
+		{
+			data: []byte("test"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 0,
+				token:   nil,
+			},
+			desc: "request more",
+		},
+		{
+			data: []byte("\n"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 1,
+				token:   nil,
+			},
+			desc: "only eol",
+		},
+		{
+			data: []byte("\n\r\r\r"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 4,
+				token:   nil,
+			},
+			desc: "only eol multi",
+		},
+		{
+			data: []byte("\n\rworld"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 2,
+				token:   nil,
+			},
+			desc: "only eol not eof",
+		},
+		{
+			data: []byte("hello"),
+			eof:  true,
+			expected: expectedStruct{
+				advance: 5,
+				token:   []byte("hello"),
+			},
+			desc: "eof simple",
+		},
+		{
+			data: []byte("hello\n"),
+			eof:  true,
+			expected: expectedStruct{
+				advance: 6,
+				token:   []byte("hello"),
+			},
+			desc: "eof trailing eol 1",
+		},
+		{
+			data: []byte("hello\r\n"),
+			eof:  true,
+			expected: expectedStruct{
+				advance: 7,
+				token:   []byte("hello"),
+			},
+			desc: "eof trailing eol 2",
+		},
+		{
+			data: []byte("hello\r\n\r\n"),
+			eof:  true,
+			expected: expectedStruct{
+				advance: 9,
+				token:   []byte("hello"),
+			},
+			desc: "eof trailing eol 4",
+		},
+		{
+			data: []byte("hello\nworld"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 6,
+				token:   []byte("hello"),
+			},
+			desc: "one line",
+		},
+		{
+			data: []byte("one\ntwotwo\nthreethreethree\rfourfourfourfour"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 27,
+				token:   []byte("threethreethree"),
+			},
+			desc: "many lines",
+		},
+		{
+			data: []byte("one\ntwotwo\nthreethreethree\rfourfourfourfour"),
+			eof:  true,
+			expected: expectedStruct{
+				advance: 43,
+				token:   []byte("fourfourfourfour"),
+			},
+			desc: "many lines eof",
+		},
+		{
+			data: []byte("one\ntwotwo\nthreethreethree\rfourfourfourfour\n"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 44,
+				token:   []byte("fourfourfourfour"),
+			},
+			desc: "many lines eol",
+		},
+		{
+			data: []byte("one\ntwotwo\nthreethreethree\rfourfourfourfour\r\n"),
+			eof:  false,
+			expected: expectedStruct{
+				advance: 45,
+				token:   []byte("fourfourfourfour"),
+			},
+			desc: "many lines multi eol",
+		},
+	}
+
+	for _, test := range tests {
+		advance, token, err := ScanLastNonEmptyLine(test.data, test.eof)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, test.expected.advance, advance, test.desc)
+		assert.Equal(t, test.expected.token, token, test.desc)
+	}
+}
