@@ -20,6 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// Python3FunctionRuntime is the runtime for running python3 functions
+	Python3FunctionRuntime FunctionRuntime = "Python3"
+)
+
 // OperationSpec defines the desired state of Operation.
 type OperationSpec struct {
 	// Processor describes how to register a operation processor into kubediag.
@@ -42,6 +47,9 @@ type Processor struct {
 	// ScriptRunner contains the information to run a script.
 	// +optional
 	ScriptRunner *ScriptRunner `json:"scriptRunner,omitempty"`
+	// Function contains the details to run a function as an operation.
+	// +optional
+	Function *Function `json:"function,omitempty"`
 	// Number of seconds after which the processor times out.
 	// Defaults to 30 seconds. Minimum value is 1.
 	// +optional
@@ -94,6 +102,17 @@ type ScriptRunner struct {
 	// +optional
 	OperationResultKey *string `json:"operationResultKey,omitempty"`
 }
+
+// Function contains the details to run a function as an operation.
+type Function struct {
+	// CodeSource contains the code source files.
+	CodeSource map[string]string `json:"codeSource"`
+	// Runtime is the language to use for writing a function.
+	Runtime FunctionRuntime `json:"runtime"`
+}
+
+// FunctionRuntime is a valid value for Function.Runtime.
+type FunctionRuntime string
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster

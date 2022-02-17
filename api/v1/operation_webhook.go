@@ -92,10 +92,12 @@ func (r *Operation) ValidateDelete() error {
 func (r *Operation) validateOperation() error {
 	var allErrs field.ErrorList
 
-	if r.Spec.Processor.HTTPServer == nil && r.Spec.Processor.ScriptRunner == nil {
+	if r.Spec.Processor.HTTPServer == nil && r.Spec.Processor.ScriptRunner == nil && r.Spec.Processor.Function == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor"),
-			r.Spec.Processor, "must specify either http server or script runner"))
-	} else if r.Spec.Processor.HTTPServer != nil && r.Spec.Processor.ScriptRunner != nil {
+			r.Spec.Processor, "must specify http server, script runner or function"))
+	} else if r.Spec.Processor.HTTPServer != nil && r.Spec.Processor.ScriptRunner != nil ||
+		r.Spec.Processor.HTTPServer != nil && r.Spec.Processor.Function != nil ||
+		r.Spec.Processor.ScriptRunner != nil && r.Spec.Processor.Function != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor"),
 			r.Spec.Processor, "one and only one processor should be specified."))
 	} else if r.Spec.Processor.HTTPServer != nil {
@@ -116,6 +118,11 @@ func (r *Operation) validateOperation() error {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("httpServer").Child("scheme"),
 					r.Spec.Processor.HTTPServer.Scheme, "must be either http or https"))
 			}
+		}
+	} else if r.Spec.Processor.Function != nil {
+		if r.Spec.Processor.Function.Runtime != Python3FunctionRuntime {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("function").Child("runtime"),
+				r.Spec.Processor.Function.Runtime, "must be supported function runtime"))
 		}
 	}
 	if r.Spec.Processor.TimeoutSeconds != nil {
