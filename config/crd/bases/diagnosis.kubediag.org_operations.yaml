@@ -44,6 +44,22 @@ spec:
               description: Processor describes how to register a operation processor
                 into kubediag.
               properties:
+                function:
+                  description: Function contains the details to run a function as
+                    an operation.
+                  properties:
+                    codeSource:
+                      additionalProperties:
+                        type: string
+                      description: CodeSource contains the code source files.
+                      type: object
+                    runtime:
+                      description: Runtime is the language to use for writing a function.
+                      type: string
+                  required:
+                  - codeSource
+                  - runtime
+                  type: object
                 httpServer:
                   description: One and only one of the following processor should
                     be specified. HTTPServer specifies the http server to do operations.

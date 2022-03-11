@@ -115,6 +115,7 @@ spec:
         - --metrics-port=10355
         - --data-root=/var/lib/kubediag
         - --node-name=$(NODE_NAME)
+        - --python3-main-file=/var/lib/kubediag/function-main/python3
         image: hub.c.163.com/kubediag/kubediag:v0.2.1
         env:
         - name: NODE_NAME
@@ -149,10 +150,12 @@ spec:
           name: docker-data-root
         - mountPath: /var/lib/kubelet
           name: kubelet-data
-        - mountPath: /var/lib/kubediag
-          name: kubediag-data
         - mountPath: /usr/local/bin/
           name: usr-local-bin
+        - mountPath: /var/lib/kubediag
+          name: kubediag-data
+        - mountPath: /var/lib/kubediag/function-main
+          name: function-main
         terminationMessagePolicy: FallbackToLogsOnError
       volumes:
       - name: docker-sock
@@ -179,6 +182,9 @@ spec:
         hostPath:
           path: /usr/local/bin
           type: DirectoryOrCreate
+      - name: function-main
+        configMap:
+          name: function-main
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       hostPID: true
@@ -189,6 +195,34 @@ spec:
       terminationGracePeriodSeconds: 10
       tolerations:
       - operator: Exists
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: function-main
+  namespace: kubediag
+data:
+  python3: |
+    import sys
+    import json
+    from function import handler
+
+
+    def main():
+        # The last argument is the context in json format.
+        context_string = sys.argv[-1]
+        context = json.loads(context_string)
+
+        # Call user defined handler.
+        result = handler(context)
+
+        # Serialize result from user defined handler to a json formatted string.
+        json_object = json.dumps(result)
+        print("\n"+json_object)
+
+
+    if __name__ == "__main__":
+        sys.exit(main())
 ---
 apiVersion: v1
 kind: ServiceAccount

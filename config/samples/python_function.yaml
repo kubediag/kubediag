@@ -1,0 +1,22 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: python-function
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: python-function
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: python-function
+spec:
+  parameters:
+    c: "3"
+    d: "4"
+  operationSet: python-function
+  nodeName: my-node
