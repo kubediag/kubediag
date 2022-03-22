@@ -1,0 +1,31 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: docker-debugger
+spec:
+  adjacencyList:
+  - id: 0 
+    to:
+    - 1
+  - id: 1 
+    operation: docker-info-collector
+    to:
+    - 2
+  - id: 2 
+    operation: dockerd-goroutine-collector
+    to:
+    - 3
+  - id: 3 
+    operation: containerd-goroutine-collector
+    to:
+    - 4
+  - id: 4
+    operation: node-cordon
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: docker-debugger
+spec:
+  operationSet: docker-debugger
+  nodeName: my-node

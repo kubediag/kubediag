@@ -44,6 +44,10 @@ RUN wget https://golang.org/dl/go1.14.9.linux-amd64.tar.gz && \
 RUN apt-get install -y openjdk-11-jdk && \
     apt-get clean
 
+# Install Python3
+RUN apt-get install -y python3 python3.8 && \
+    apt-get clean
+
 WORKDIR /usr/bin/
 # Copy diagnosing tools
 COPY tools/ctr .

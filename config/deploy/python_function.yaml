@@ -1,0 +1,27 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: python-function
+spec:
+  processor:
+    function:
+      codeSource:
+        function.py: |
+          from hello import hello
+
+
+          def handler(context):
+              hello()
+
+              result = dict()
+              for key in context:
+                  result[key] = context[key]
+              result["a"] = "1"
+              result["b"] = "2"
+
+              return result
+        hello.py: |
+          def hello():
+              print("Hello World")
+      runtime: Python3
+    timeoutSeconds: 120
