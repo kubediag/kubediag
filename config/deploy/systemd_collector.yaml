@@ -1,0 +1,10 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: systemd-collector
+spec:
+  processor:
+    httpServer:
+      path: /processor/systemdCollector
+      scheme: http
+    timeoutSeconds: 60

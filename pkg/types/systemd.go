@@ -83,11 +83,21 @@ func ParseProperties(buf *bytes.Buffer) ([]Property, error) {
 			return nil, err
 		}
 
+		var property Property
 		line = strings.TrimSuffix(line, "\n")
 		str := strings.SplitN(line, "=", 2)
-		property := Property{
-			Name:  str[0],
-			Value: str[1],
+		if len(str) == 2 {
+			property = Property{
+				Name:  str[0],
+				Value: str[1],
+			}
+		} else if len(str) == 1 {
+			property = Property{
+				Name:  str[0],
+				Value: "",
+			}
+		} else {
+			continue
 		}
 		properties = append(properties, property)
 	}
