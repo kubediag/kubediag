@@ -1173,7 +1173,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/kubediag/kubediag:v0.2.1
+        image: hub.c.163.com/kubediag/kubediag:v0.2.2
         name: kubediag
         ports:
         - containerPort: 9443
@@ -1252,7 +1252,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: hub.c.163.com/kubediag/kubediag:v0.2.1
+        image: hub.c.163.com/kubediag/kubediag:v0.2.2
         name: kubediag
         ports:
         - containerPort: 10355

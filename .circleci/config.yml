@@ -14,7 +14,7 @@ jobs:
       - run:
           name: Verify code
           command: |
-            export TAG=v0.2.1
+            export TAG=v0.2.2
             make fmt && make vet && go mod vendor && go mod tidy && make manifests
             if [ -n "$(git diff --name-only)" ] ; then exit 1; fi
       - run:
