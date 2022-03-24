@@ -45,6 +45,8 @@ var (
 	PrometheusAlertGeneratedDiagnosisPrefix = "prometheus-alert"
 	// PrometheusAlertAnnotation is the annotation used to store the prometheus alert that triggers a diagnosis.
 	PrometheusAlertAnnotation = util.KubeDiagPrefix + PrometheusAlertGeneratedDiagnosisPrefix
+
+	invalidDNS1123Characters = regexp.MustCompile("[^-a-z0-9]+")
 )
 
 var (
@@ -223,8 +225,9 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 				am.Info("creating Diagnosis from prometheus alert", "alert", alert.String())
 
 				// Create diagnosis according to the prometheus alert.
+				alertName := sanitizeAlertName(alert.Name())
 				now := time.Now()
-				name := fmt.Sprintf("%s.%s.%s.%d", PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alert.Name()), alert.Fingerprint().String()[:7], now.Unix())
+				name := fmt.Sprintf("%s.%s.%s.%d", PrometheusAlertGeneratedDiagnosisPrefix, strings.ToLower(alertName), alert.Fingerprint().String()[:7], now.Unix())
 				namespace := util.DefautlNamespace
 				annotations := make(map[string]string)
 				annotations[PrometheusAlertAnnotation] = string(alert.String())
@@ -260,7 +263,7 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 				}
 
 				// Skip if pod reference and node name cannot be determined.
-				if podReference == nil && diagnosis.Spec.NodeName == "" {
+				if diagnosis.Spec.PodReference == nil && diagnosis.Spec.NodeName == "" {
 					am.Info("pod reference and node name cannot be determined for alert", "alert", alert.String())
 					continue
 				}
@@ -349,7 +352,6 @@ func matchPrometheusAlert(prometheusAlertTemplate diagnosisv1.PrometheusAlertTem
 	if !re.MatchString(alert.EndsAt.String()) {
 		return false, nil
 	}
-
 	re, err = regexp.Compile(prometheusAlertTemplate.Regexp.GeneratorURL)
 	if err != nil {
 		return false, err
@@ -359,4 +361,9 @@ func matchPrometheusAlert(prometheusAlertTemplate diagnosisv1.PrometheusAlertTem
 	}
 
 	return true, nil
+}
+
+// Compile alert name in DNS1123 format.
+func sanitizeAlertName(alertName string) string {
+	return invalidDNS1123Characters.ReplaceAllString(strings.ToLower(alertName), "-")
 }
