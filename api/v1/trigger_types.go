@@ -26,6 +26,9 @@ import (
 type TriggerSpec struct {
 	// OperationSet is the name of referenced operation set in the generated diagnosis.
 	OperationSet string `json:"operationSet"`
+	// Parameters is a set of the parameters to be passed to diagnosis.
+	// +optional
+	Parameters map[string]string `json:"parameters,omitempty"`
 	// NodeName is the default node which the diagnosis is on.
 	// +optional
 	NodeName string `json:"nodeName,omitempty"`
