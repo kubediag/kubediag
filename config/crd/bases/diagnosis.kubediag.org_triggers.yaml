@@ -53,6 +53,11 @@ spec:
               description: OperationSet is the name of referenced operation set in
                 the generated diagnosis.
               type: string
+            parameters:
+              additionalProperties:
+                type: string
+              description: Parameters is a set of the parameters to be passed to diagnosis.
+              type: object
             sourceTemplate:
               description: SourceTemplate is the template of trigger.
               properties:
