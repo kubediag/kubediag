@@ -220,6 +220,7 @@ func (cs *cronScheduler) createDiagnosisFromCron(trigger diagnosisv1.Trigger) (*
 				Annotations: annotations,
 			},
 			Spec: diagnosisv1.DiagnosisSpec{
+				Parameters:   trigger.Spec.Parameters,
 				OperationSet: trigger.Spec.OperationSet,
 				NodeName:     trigger.Spec.NodeName,
 			},
