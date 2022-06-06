@@ -1,5 +1,6 @@
 # <img src="https://raw.githubusercontent.com/kubediag/kubediag/master/logo/logo_1.png" width="500">
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubediag/kubediag)](https://goreportcard.com/report/github.com/kubediag/kubediag)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## KubeDiag 是什么
