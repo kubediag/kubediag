@@ -138,6 +138,12 @@ const (
 	// Owner: @April-Q
 	// Alpha: 0.2.0
 	ElasticsearchCollector featuregate.Feature = "ElasticsearchCollector"
+	// SonobuoyResultsDiagnoser help diagnosis failures in sonobuoy results dump mode files
+	//
+	// Mode: agent
+	// Owner: @Harmol
+	// Alpha: 0.2.3
+	SonobuoyResultCollector featuregate.Feature = "SonobuoyResultCollector"
 )
 
 var (
@@ -169,6 +175,7 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	MountInfoCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 	ElasticsearchCollector:       {Default: true, PreRelease: featuregate.Alpha},
+	SonobuoyResultCollector:      {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -378,6 +379,34 @@ func GetProgramPID(program string) ([]int, error) {
 	}
 
 	return pids, nil
+}
+
+// MoveFiles moves all files within src to an output directory.
+func MoveFiles(src string, dst string) error {
+	files, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	var FilePath string
+	for _, file := range files {
+		// Create directory if the directory is not exist.
+		if _, err := os.Stat(dst); os.IsNotExist(err) {
+			err := os.MkdirAll(dst, os.ModePerm)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Move file to dst directory.
+		FilePath = filepath.Join(dst, file.Name())
+		_, err := BlockingRunCommandWithTimeout([]string{"mv", filepath.Join(src, file.Name()), FilePath}, 30)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // RemoveFile removes a file or a directory by executing "rm" command.
