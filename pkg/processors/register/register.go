@@ -36,7 +36,8 @@ func RegisterProcessors(mgr manager.Manager,
 	opts *RegistryOption,
 	featureGate features.KubeDiagFeatureGate,
 	router *mux.Router,
-	setupLog logr.Logger) error {
+	setupLog logr.Logger,
+) error {
 	// Setup operation processors.
 	podListCollector := kubecollector.NewPodListCollector(
 		context.Background(),
@@ -93,7 +94,6 @@ func RegisterProcessors(mgr manager.Manager,
 		ctrl.Log.WithName("processor/mountInfoCollector"),
 		featureGate.Enabled(features.MountInfoCollector),
 	)
-
 	nodeCordon := kuberecover.NewNodeCordon(
 		context.Background(),
 		ctrl.Log.WithName("processor/nodeCordon"),
@@ -101,7 +101,6 @@ func RegisterProcessors(mgr manager.Manager,
 		opts.NodeName,
 		featureGate.Enabled(features.NodeCordon),
 	)
-
 	goProfiler := runtimediagnoser.NewGoProfiler(
 		context.Background(),
 		ctrl.Log.WithName("processor/goProfiler"),
@@ -120,14 +119,12 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "coreFileProfiler")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
-
 	subpathRemountDiagnoser := kubediagnoser.NewSubPathRemountDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("processor/subpathRemountDiagnoser"),
 		mgr.GetCache(),
 		featureGate.Enabled(features.SubpathRemountDiagnoser),
 	)
-
 	subpathRemountRecover := kuberecover.NewSubPathRemountRecover(
 		context.Background(),
 		ctrl.Log.WithName("processor/subpathRemountRecover"),
@@ -138,8 +135,13 @@ func RegisterProcessors(mgr manager.Manager,
 		ctrl.Log.WithName("processor/elasticsearchCollector"),
 		featureGate.Enabled(features.ElasticsearchCollector),
 	)
+	systemdCollector := systemcollector.NewSystemdCollector(
+		context.Background(),
+		ctrl.Log.WithName("processor/systemdCollector"),
+		featureGate.Enabled(features.SystemdCollector),
+	)
 
-	// Handlers for collecting information.
+	// Handlers for collectors.
 	router.HandleFunc("/processor/podListCollector", podListCollector.Handler)
 	router.HandleFunc("/processor/podDetailCollector", podDetailCollector.Handler)
 	router.HandleFunc("/processor/containerCollector", containerCollector.Handler)
@@ -149,15 +151,14 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/containerdGoroutineCollector", containerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
 	router.HandleFunc("/processor/elasticsearchCollector", elasticsearchCollector.Handler)
-	// Handlers for executing specified command.
-	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
-	// Handlers for profiling programs.
+	router.HandleFunc("/processor/systemdCollector", systemdCollector.Handler)
+	// Handlers for diagnosers.
 	router.HandleFunc("/processor/coreFileProfiler", coreFileProfiler.Handler)
 	router.HandleFunc("/processor/goProfiler", goProfiler.Handler)
-
-	// Handlers for diagnosing programs
 	router.HandleFunc("/processor/subpathRemountDiagnoser", subpathRemountDiagnoser.Handler)
-
+	// Handlers for recovers.
+	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
 	router.HandleFunc("/processor/subpathRemountRecover", subpathRemountRecover.Handler)
+
 	return nil
 }

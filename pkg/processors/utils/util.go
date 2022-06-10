@@ -43,6 +43,8 @@ func ExtractParametersFromHTTPContext(r *http.Request) (map[string]string, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request body: %v", err)
 	}
+	defer r.Body.Close()
+
 	data := make(map[string]string)
 	err = json.Unmarshal(body, &data)
 	if err != nil {

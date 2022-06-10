@@ -1,0 +1,21 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: systemd-collector
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: systemd-collector
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: systemd-collector
+spec: 
+  operationSet: systemd-collector
+  parameters:
+    "collector.systemd_unit_list.parameter": "docker,kubelet"
+  nodeName: my-node
