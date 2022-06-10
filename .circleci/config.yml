@@ -36,20 +36,20 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y kubectl=1.17.3-00 kubelet=1.17.3-00 kubeadm=1.17.3-00
             sudo apt-mark hold kubelet kubeadm kubectl
-            sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+            sudo kubeadm init --pod-network-cidr=10.244.0.0/16
             mkdir -p $HOME/.kube
             sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
             sudo chown $(id -u):$(id -g) $HOME/.kube/config
             kubectl taint nodes --all node-role.kubernetes.io/master-
-            kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+            kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/v0.18.1/Documentation/kube-flannel.yml
       - run:
           name: Run e2e tests
           command: |
             # Deploy cert-manager in the configured Kubernetes cluster
-            kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.yaml
-            kubectl wait deployment/cert-manager --for=condition=available --timeout=120s -n cert-manager
-            kubectl wait deployment/cert-manager-cainjector --for=condition=available --timeout=120s -n cert-manager
-            kubectl wait deployment/cert-manager-webhook --for=condition=available --timeout=120s -n cert-manager
+            kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.4/cert-manager.yaml
+            kubectl wait deployment/cert-manager --for=condition=available --timeout=300s -n cert-manager
+            kubectl wait deployment/cert-manager-cainjector --for=condition=available --timeout=300s -n cert-manager
+            kubectl wait deployment/cert-manager-webhook --for=condition=available --timeout=300s -n cert-manager
             kubectl create ns kubediag
             make install
             # disable prometheus in e2e test
@@ -58,8 +58,8 @@ jobs:
             make docker-build
             # build deployment and service first
             kubectl apply -f config/deploy/manifests.yaml
-            kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=agent
-            kubectl --namespace kubediag wait --for=condition=ready  --timeout=600s pod -l mode=master
+            kubectl --namespace kubediag wait --for=condition=ready --timeout=300s pod -l mode=agent
+            kubectl --namespace kubediag wait --for=condition=ready --timeout=300s pod -l mode=master
             # wait for webhook service ready
             for (( c=1; c<=5; c++ )); do if( kubectl apply -f config/deploy/ ); then break ;fi ;sleep 10; done
             make e2e
