@@ -199,6 +199,13 @@ func (dr *DiagnosisReaper) Run(stopCh <-chan struct{}) {
 			dr.Error(err, "failed to garbage collect go profiler data")
 		}
 
+		// Garbage collect go profiler data on node.
+		absoluteDiagnosisPath := filepath.Join(dr.dataRoot, "diagnosis")
+		err = DeleteExpiredProfilerData(absoluteDiagnosisPath, dr.diagnosisTTL, dr)
+		if err != nil {
+			dr.Error(err, "failed to garbage collect diagnosis data")
+		}
+
 	}, housekeepingInterval, stopCh)
 }
 

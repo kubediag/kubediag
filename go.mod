@@ -30,12 +30,20 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	github.com/vmware-tanzu/sonobuoy v0.18.4
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	gonum.org/v1/gonum v0.9.0
-	k8s.io/api v0.17.2
-	k8s.io/apimachinery v0.17.2
-	k8s.io/client-go v0.17.2
+	gopkg.in/yaml.v2 v2.3.0
+	k8s.io/api v0.17.7
+	k8s.io/apimachinery v0.17.7
+	k8s.io/client-go v0.17.7
 	k8s.io/component-base v0.17.2
 	sigs.k8s.io/controller-runtime v0.5.0
+)
+
+replace (
+	k8s.io/api => k8s.io/api v0.17.2
+	k8s.io/apimachinery => k8s.io/apimachinery v0.17.2
+	k8s.io/client-go => k8s.io/client-go v0.17.2
 )
