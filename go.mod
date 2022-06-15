@@ -21,6 +21,7 @@ require (
 	github.com/onsi/gomega v1.8.1
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.21.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.12.0
@@ -32,6 +33,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/vmware-tanzu/sonobuoy v0.18.4
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	gonum.org/v1/gonum v0.9.0
 	gopkg.in/yaml.v2 v2.3.0
