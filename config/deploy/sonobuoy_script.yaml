@@ -1,0 +1,50 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: sonobuoy-script
+spec:
+  processor:
+    scriptRunner:
+      script: |
+        #!/usr/bin/env bash
+        FILE=/usr/bin/sonobuoy
+        if [ -f "$FILE" ]; then 
+          echo "$FILE exists"
+        else
+          wget --quiet https://sonobuoy.nos-eastchina1.126.net/sonobuoy_0.18.4_linux_amd64.tar.gz
+          tar -xvf sonobuoy_0.18.4_linux_amd64.tar.gz
+          mv sonobuoy /usr/bin
+        fi
+
+        sonobuoy delete --wait
+
+        cat <<EOF> repo.yaml
+        buildImageRegistry: hub.c.163.com/kubediag/build-image
+        dockerGluster: hub.c.163.com/kubediag/gluster
+        dockerLibraryRegistry: hub.c.163.com/kubediag/library
+        e2eRegistry: hub.c.163.com/kubediag/kubernetes-e2e-test-images
+        e2eVolumeRegistry: hub.c.163.com/kubediag/kubernetes-e2e-test-images/volume
+        gcRegistry: hub.c.163.com/kubediag
+        gcEtcdRegistry: hub.c.163.com/kubediag
+        promoterE2eRegistry: hub.c.163.com/kubediag/e2e-test-images
+        sigStorageRegistry: hub.c.163.com/kubediag/sig-storage
+        EOF
+
+        sonobuoy run --sonobuoy-image hub.c.163.com/kubediag/sonobuoy:v0.18.4 --kube-conformance-image hub.c.163.com/kubediag/conformance:v1.18.4 --systemd-logs-image hub.c.163.com/kubediag/systemd-logs:v0.3 --e2e-repo-config repo.yaml --wait
+
+        # don't edit following code.
+        DIR=/var/lib/kubediag/tmp/results
+        if [ ! -d "$DIR" ]; then
+          mkdir -p $DIR
+        fi
+        cd $DIR
+        results=$(sonobuoy retrieve)
+        tar -xvf $results
+
+        sonobuoy results $results --mode dump --plugin e2e > results_dump_e2e.yaml
+        
+        sonobuoy delete --wait
+      argKeys:
+      - param.operation.sonobuoy.path
+      operationResultKey: "sonobuoy"
+    timeoutSeconds: 18000

@@ -1,0 +1,10 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: sonobuoy-diagnoser
+spec:
+  processor:
+    httpServer:
+      path: /processor/sonobuoyResultCollector
+      scheme: http
+    timeoutSeconds: 120
