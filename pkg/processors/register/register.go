@@ -120,6 +120,18 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "coreFileProfiler")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
+	tcpdumpProfiler, err := runtimediagnoser.NewTcpdumpProfiler(
+		context.Background(),
+		ctrl.Log.WithName("processor/tcpdumpProfiler"),
+		opts.DockerEndpoint,
+		mgr.GetCache(),
+		opts.DataRoot,
+		featureGate.Enabled(features.TcpdumpProfiler),
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create processor", "processors", "tcpdumpProfiler")
+		return fmt.Errorf("unable to create processor: %v", err)
+	}
 
 	subpathRemountDiagnoser := kubediagnoser.NewSubPathRemountDiagnoser(
 		context.Background(),
@@ -176,6 +188,7 @@ func RegisterProcessors(mgr manager.Manager,
 	// Handlers for profiling programs.
 	router.HandleFunc("/processor/coreFileProfiler", coreFileProfiler.Handler)
 	router.HandleFunc("/processor/goProfiler", goProfiler.Handler)
+	router.HandleFunc("/processor/tcpdumpProfiler", tcpdumpProfiler.Handler)
 
 	// Handlers for diagnosing programs
 	router.HandleFunc("/processor/subpathRemountDiagnoser", subpathRemountDiagnoser.Handler)
