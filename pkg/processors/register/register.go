@@ -14,6 +14,7 @@ import (
 	logcollector "github.com/kubediag/kubediag/pkg/processors/collector/log"
 	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
 	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
+	diagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser"
 	kubediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
 	runtimediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/runtime"
 	kuberecover "github.com/kubediag/kubediag/pkg/processors/recover/kubernetes"
@@ -151,12 +152,12 @@ func RegisterProcessors(mgr manager.Manager,
 		featureGate.Enabled(features.ElasticsearchCollector),
 	)
 
-	sonobuoyResultCollector := kubecollector.NewSonobuoyResultCollector(
+	sonobuoyResultDiagnoser := diagnoser.NewSonobuoyResultDiagnoser(
 		context.Background(),
-		ctrl.Log.WithName("processor/sonobuoyResultCollector"),
+		ctrl.Log.WithName("processor/sonobuoyResultDiagnoser"),
 		opts.DataRoot,
 		opts.BindAddress,
-		featureGate.Enabled(features.SonobuoyResultCollector),
+		featureGate.Enabled(features.SonobuoyResultDiagnoser),
 	)
 	statefulsetDetailCollector := kubecollector.NewStatefuSetDetailCollector(
 		context.Background(),
@@ -181,7 +182,6 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/containerdGoroutineCollector", containerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
 	router.HandleFunc("/processor/elasticsearchCollector", elasticsearchCollector.Handler)
-	router.HandleFunc("/processor/sonobuoyResultCollector", sonobuoyResultCollector.Handler)
 	router.HandleFunc("/processor/statefulsetDetailCollector", statefulsetDetailCollector.Handler)
 	// Handlers for executing specified command.
 	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
@@ -195,5 +195,6 @@ func RegisterProcessors(mgr manager.Manager,
 
 	router.HandleFunc("/processor/subpathRemountRecover", subpathRemountRecover.Handler)
 	router.HandleFunc("/processor/statefulsetStuck", statefulsetStuck.Handler)
+	router.HandleFunc("/processor/sonobuoyResultDiagnoser", sonobuoyResultDiagnoser.Handler)
 	return nil
 }

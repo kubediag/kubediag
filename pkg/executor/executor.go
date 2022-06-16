@@ -252,6 +252,7 @@ func (ex *executor) Run(stopCh <-chan struct{}) {
 }
 
 // syncDiagnosis syncs diagnoses.
+// TODO: Control the logic to enqueue a diagnosis on failure. For example, A diagnosis with max data size should not be enqueued.
 func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
 	ex.Info("starting to sync Diagnosis", "diagnosis", client.ObjectKey{
 		Name:      diagnosis.Name,

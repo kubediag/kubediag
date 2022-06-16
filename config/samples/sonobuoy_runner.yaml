@@ -1,0 +1,26 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: sonobuoy-runner
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: sonobuoy-result-collector
+    to:
+    - 2
+  - id: 2
+    operation: sonobuoy-result-diagnoser
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: sonobuoy-runner
+spec: 
+  operationSet: sonobuoy-runner
+  nodeName: my-node
+  parameters:
+    "sonobuoy_result_diagnoser.temporary_result_directory": "/var/lib/kubediag/tmp/results"
+    "sonobuoy_result_diagnoser.e2e_file": "results_dump_e2e.yaml"
