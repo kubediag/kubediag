@@ -1,0 +1,10 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: statefulset-detail-collector
+spec:
+  processor:
+    httpServer:
+      path: /processor/statefulsetDetailCollector
+      scheme: http
+    timeoutSeconds: 60
