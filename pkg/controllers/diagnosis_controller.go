@@ -139,7 +139,7 @@ func NewDiagnosisReconciler(
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=diagnoses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=diagnoses/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
