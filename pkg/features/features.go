@@ -144,6 +144,18 @@ const (
 	// Owner: @Harmol
 	// Alpha: 0.2.3
 	SonobuoyResultCollector featuregate.Feature = "SonobuoyResultCollector"
+	// StatefulSetDetailCollector retrieves details from statefulset.
+	//
+	// Mode: agent
+	// Owner: @April-Q
+	// Alpha: 0.2.0
+	StatefulSetDetailCollector featuregate.Feature = "StatefulSetDetailCollector"
+	// StatefulSetStuck recover statefulset stuck.
+	//
+	// Mode: agent
+	// Owner: @April-Q
+	// Alpha: 0.2.0
+	StatefulSetStuck featuregate.Feature = "StatefulSetStuck"
 )
 
 var (
@@ -176,6 +188,8 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 	ElasticsearchCollector:       {Default: true, PreRelease: featuregate.Alpha},
 	SonobuoyResultCollector:      {Default: true, PreRelease: featuregate.Alpha},
+	StatefulSetDetailCollector:   {Default: true, PreRelease: featuregate.Alpha},
+	StatefulSetStuck:             {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.

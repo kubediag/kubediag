@@ -1,0 +1,30 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: statefulset-stuck
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: pod-detail-collector
+    to:
+    - 2
+  - id: 2
+    operation: statefulset-detail-collector
+    to:
+    - 3
+  - id: 3
+    operation: statefulset-stuck
+
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: statefulset-stuck
+spec: 
+  operationSet: statefulset-stuck
+  podReference: 
+    name: web-0
+    namespace: "default"

@@ -146,6 +146,18 @@ func RegisterProcessors(mgr manager.Manager,
 		opts.BindAddress,
 		featureGate.Enabled(features.SonobuoyResultCollector),
 	)
+	statefulsetDetailCollector := kubecollector.NewStatefuSetDetailCollector(
+		context.Background(),
+		ctrl.Log.WithName("/processor/statefulsetDetailCollector"),
+		mgr.GetCache(),
+		featureGate.Enabled(features.StatefulSetDetailCollector),
+	)
+	statefulsetStuck := kuberecover.NewStatefuSetStuck(
+		context.Background(),
+		ctrl.Log.WithName("/processor/statefulsetStuck"),
+		mgr.GetClient(),
+		featureGate.Enabled(features.StatefulSetStuck),
+	)
 
 	// Handlers for collecting information.
 	router.HandleFunc("/processor/podListCollector", podListCollector.Handler)
@@ -157,6 +169,8 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/containerdGoroutineCollector", containerdGoroutineCollector.Handler)
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
 	router.HandleFunc("/processor/elasticsearchCollector", elasticsearchCollector.Handler)
+	router.HandleFunc("/processor/sonobuoyResultCollector", sonobuoyResultCollector.Handler)
+	router.HandleFunc("/processor/statefulsetDetailCollector", statefulsetDetailCollector.Handler)
 	// Handlers for executing specified command.
 	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
 	// Handlers for profiling programs.
@@ -167,6 +181,6 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/subpathRemountDiagnoser", subpathRemountDiagnoser.Handler)
 
 	router.HandleFunc("/processor/subpathRemountRecover", subpathRemountRecover.Handler)
-	router.HandleFunc("/processor/sonobuoyResultCollector", sonobuoyResultCollector.Handler)
+	router.HandleFunc("/processor/statefulsetStuck", statefulsetStuck.Handler)
 	return nil
 }

@@ -1,0 +1,10 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: statefulset-stuck
+spec:
+  processor:
+    httpServer:
+      path: /processor/statefulsetStuck
+      scheme: http
+    timeoutSeconds: 60
