@@ -188,6 +188,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
 # github.com/pkg/errors v0.9.1
+## explicit
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
@@ -294,7 +295,8 @@ go.uber.org/zap/zapcore
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/exp v0.0.0-20210220032938-85be41e4509f
 ## explicit
-# golang.org/x/lint v0.0.0-20190930215403-16217165b5de
+# golang.org/x/lint v0.0.0-20200302205851-738671d3881b
+## explicit
 golang.org/x/lint
 golang.org/x/lint/golint
 # golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449

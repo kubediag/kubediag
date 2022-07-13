@@ -156,6 +156,12 @@ const (
 	// Owner: @April-Q
 	// Alpha: 0.2.0
 	StatefulSetStuck featuregate.Feature = "StatefulSetStuck"
+	// TcpdumpProfiler manages tcp dump information of container on the node.
+	//
+	// Mode: agent
+	// Owner: yanwenhao
+	// Alpha: 0.2.3
+	TcpdumpProfiler featuregate.Feature = "TcpdumpProfiler"
 )
 
 var (
@@ -190,6 +196,7 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	SonobuoyResultCollector:      {Default: true, PreRelease: featuregate.Alpha},
 	StatefulSetDetailCollector:   {Default: true, PreRelease: featuregate.Alpha},
 	StatefulSetStuck:             {Default: true, PreRelease: featuregate.Alpha},
+	TcpdumpProfiler:              {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // KubeDiagFeatureGate indicates whether a given feature is enabled or not and stores flag gates for known features.
