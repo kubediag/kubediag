@@ -40,6 +40,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.1.5
 	Eventer featuregate.Feature = "Eventer"
+	// PagerDutyEventer can handle valid pagerduty events.
+	//
+	// Mode: master
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.3
+	PagerDutyEventer featuregate.Feature = "PagerDutyEventer"
 	// CronScheduler generates diagnoses periodically at fixed times.
 	//
 	// Mode: master

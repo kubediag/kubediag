@@ -48,6 +48,7 @@ import (
 	"github.com/kubediag/kubediag/pkg/features"
 	"github.com/kubediag/kubediag/pkg/graphbuilder"
 	"github.com/kubediag/kubediag/pkg/kafka"
+	"github.com/kubediag/kubediag/pkg/pagerdutyeventer"
 	"github.com/kubediag/kubediag/pkg/processors/register"
 	// +kubebuilder:scaffold:imports
 )
@@ -83,8 +84,10 @@ type KubeDiagOptions struct {
 	// AlertmanagerRepeatInterval specifies how long to wait before sending a notification again if it has
 	// already been sent successfully for an alert.
 	AlertmanagerRepeatInterval time.Duration
+	// TODO: Differentiate from the KafkaAddress option.
 	// KafkaBrokers is the list of broker addresses used to connect to the kafka cluster.
 	KafkaBrokers []string
+	// TODO: Differentiate from the KafkaAddress option.
 	// KafkaTopic specifies the topic to read messages from.
 	KafkaTopic string
 	// DockerEndpoint specifies the docker endpoint.
@@ -102,6 +105,8 @@ type KubeDiagOptions struct {
 	DataRoot string
 	// Python3MainFilePath is the absolute path of main file for running python3 function.
 	Python3MainFilePath string
+	// KafkaAddress is the addresses used to connect to the kafka cluster.
+	KafkaAddress string
 }
 
 func init() {
@@ -233,6 +238,16 @@ func (opts *KubeDiagOptions) Run() error {
 			eventer.Run(stopCh)
 		}(stopCh)
 
+		// Create pagerduty eventer for managing pagerduty events.
+		pagerdutyEventer := pagerdutyeventer.NewPagerDutyEventer(
+			context.Background(),
+			ctrl.Log.WithName("pagerdutyeventer"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			opts.KafkaAddress,
+			featureGate.Enabled(features.PagerDutyEventer),
+		)
+
 		// Create cron scheduler for managing crons.
 		cronscheduler := cronscheduler.NewCronScheduler(
 			context.Background(),
@@ -268,6 +283,7 @@ func (opts *KubeDiagOptions) Run() error {
 		go func(stopCh chan struct{}) {
 			r := mux.NewRouter()
 			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
+			r.HandleFunc("/pagerduty", pagerdutyEventer.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -491,6 +507,7 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
 	fs.StringVar(&opts.Python3MainFilePath, "python3-main-file", opts.Python3MainFilePath, "The main file for running python3 function.")
+	fs.StringVar(&opts.KafkaAddress, "kafka-address", opts.KafkaAddress, "The addresses used to connect to the kafka cluster.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned
