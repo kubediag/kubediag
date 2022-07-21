@@ -138,12 +138,12 @@ const (
 	// Owner: @April-Q
 	// Alpha: 0.2.0
 	ElasticsearchCollector featuregate.Feature = "ElasticsearchCollector"
-	// SonobuoyResultsDiagnoser help diagnosis failures in sonobuoy results dump mode files
+	// SonobuoyResultDiagnoser analyzes failures in the result of a sonobuoy e2e test run.
 	//
 	// Mode: agent
 	// Owner: @Harmol
 	// Alpha: 0.2.3
-	SonobuoyResultCollector featuregate.Feature = "SonobuoyResultCollector"
+	SonobuoyResultDiagnoser featuregate.Feature = "SonobuoyResultDiagnoser"
 	// StatefulSetDetailCollector retrieves details from statefulset.
 	//
 	// Mode: agent
@@ -193,7 +193,7 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	MountInfoCollector:           {Default: true, PreRelease: featuregate.Alpha},
 	SubpathRemountDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 	ElasticsearchCollector:       {Default: true, PreRelease: featuregate.Alpha},
-	SonobuoyResultCollector:      {Default: true, PreRelease: featuregate.Alpha},
+	SonobuoyResultDiagnoser:      {Default: true, PreRelease: featuregate.Alpha},
 	StatefulSetDetailCollector:   {Default: true, PreRelease: featuregate.Alpha},
 	StatefulSetStuck:             {Default: true, PreRelease: featuregate.Alpha},
 	TcpdumpProfiler:              {Default: true, PreRelease: featuregate.Alpha},

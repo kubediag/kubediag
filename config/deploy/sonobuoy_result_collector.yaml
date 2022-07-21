@@ -1,7 +1,7 @@
 apiVersion: diagnosis.kubediag.org/v1
 kind: Operation
 metadata:
-  name: sonobuoy-script
+  name: sonobuoy-result-collector
 spec:
   processor:
     scriptRunner:
@@ -32,19 +32,16 @@ spec:
 
         sonobuoy run --sonobuoy-image hub.c.163.com/kubediag/sonobuoy:v0.18.4 --kube-conformance-image hub.c.163.com/kubediag/conformance:v1.18.4 --systemd-logs-image hub.c.163.com/kubediag/systemd-logs:v0.3 --e2e-repo-config repo.yaml --wait
 
-        # don't edit following code.
-        DIR=/var/lib/kubediag/tmp/results
-        if [ ! -d "$DIR" ]; then
-          mkdir -p $DIR
+        # Store sonobuoy results under the temporary directory.
+        TMP_DIR=/var/lib/kubediag/tmp/results
+        if [ ! -d "$TMP_DIR" ]; then
+          mkdir -p $TMP_DIR
         fi
-        cd $DIR
+        cd $TMP_DIR
         results=$(sonobuoy retrieve)
         tar -xvf $results
 
         sonobuoy results $results --mode dump --plugin e2e > results_dump_e2e.yaml
-        
         sonobuoy delete --wait
-      argKeys:
-      - param.operation.sonobuoy.path
-      operationResultKey: "sonobuoy"
+      operationResultKey: "sonobuoy_result_collector"
     timeoutSeconds: 18000
