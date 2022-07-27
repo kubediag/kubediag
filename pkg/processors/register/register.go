@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kubediag/kubediag/pkg/features"
+	"github.com/kubediag/kubediag/pkg/processors/collector"
 	kubecollector "github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
 	logcollector "github.com/kubediag/kubediag/pkg/processors/collector/log"
 	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
@@ -171,6 +172,11 @@ func RegisterProcessors(mgr manager.Manager,
 		mgr.GetClient(),
 		featureGate.Enabled(features.StatefulSetStuck),
 	)
+	prometheusQuerier := collector.NewPrometheusQuerier(
+		context.Background(),
+		ctrl.Log.WithName("/processor/prometheusQuerier"),
+		featureGate.Enabled(features.PrometheusQuerier),
+	)
 
 	// Handlers for collecting information.
 	router.HandleFunc("/processor/podListCollector", podListCollector.Handler)
@@ -183,6 +189,7 @@ func RegisterProcessors(mgr manager.Manager,
 	router.HandleFunc("/processor/mountInfoCollector", mountInfoCollector.Handler)
 	router.HandleFunc("/processor/elasticsearchCollector", elasticsearchCollector.Handler)
 	router.HandleFunc("/processor/statefulsetDetailCollector", statefulsetDetailCollector.Handler)
+	router.HandleFunc("/processor/prometheusQuerier", prometheusQuerier.Handler)
 	// Handlers for executing specified command.
 	router.HandleFunc("/processor/nodeCordon", nodeCordon.Handler)
 	// Handlers for profiling programs.
