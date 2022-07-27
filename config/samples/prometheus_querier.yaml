@@ -1,0 +1,26 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: prometheus-querier
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: prometheus-querier
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: prometheus-querier
+spec: 
+  operationSet: prometheus-querier
+  nodeName: my-node
+  parameters:
+    "prometheus_querier.address": "http://localhost:30090/prometheus/local"
+    "prometheus_querier.expression": "rate(container_cpu_usage_seconds_total[${interval}])>0.1; sum(up) by (job)"
+    "prometheus_querier.timeFrom": "5m"
+    "prometheus_querier.timeTo": "now"
+    "prometheus_querier.step": "1m"
+    "interval": "5m"

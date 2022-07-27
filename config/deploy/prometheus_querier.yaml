@@ -1,0 +1,10 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: prometheus-querier
+spec:
+  processor:
+    httpServer:
+      path: /processor/prometheusQuerier
+      scheme: http
+    timeoutSeconds: 10
