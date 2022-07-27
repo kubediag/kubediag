@@ -197,6 +197,8 @@ github.com/pmezard/go-difflib/difflib
 github.com/prometheus/alertmanager/types
 # github.com/prometheus/client_golang v1.7.1
 ## explicit
+github.com/prometheus/client_golang/api
+github.com/prometheus/client_golang/api/prometheus/v1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
@@ -295,8 +297,7 @@ go.uber.org/zap/zapcore
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/exp v0.0.0-20210220032938-85be41e4509f
 ## explicit
-# golang.org/x/lint v0.0.0-20200302205851-738671d3881b
-## explicit
+# golang.org/x/lint v0.0.0-20190930215403-16217165b5de
 golang.org/x/lint
 golang.org/x/lint/golint
 # golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
