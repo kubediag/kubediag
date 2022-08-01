@@ -1,0 +1,69 @@
+apiVersion: diagnosis.kubediag.org/v1
+kind: Operation
+metadata:
+  name: prometheus-query-function
+spec:
+  processor:
+    function:
+      codeSource:
+        function.py: |
+          import datetime
+          import marshal
+          import time
+          import requests  
+
+          def handler(context):
+            PROMETHEUS = 'http://localhost:30090/prometheus/local'
+            expr = 'sum(up) by (job)'
+
+            # range query
+            start = time.mktime((datetime.datetime.now() - datetime.timedelta(minutes=5)).timetuple())
+            end = time.mktime(datetime.datetime.now().timetuple())
+            step = 60 # float number of seconds
+            results = range_query(PROMETHEUS, expr, start, end, step)
+            
+            result = dict()
+            result["query_result"] = str(results)
+            return result
+            
+          def instant_query(address, expr, time):
+            response = requests.get(address + '/api/v1/query',
+              params={
+                'query': expr,
+                'time': time,
+                })
+            results = response.json()
+            return results
+
+          def range_query(address, expr, start, end, step):
+            response = requests.get(address + '/api/v1/query_range',
+              params={
+                'query': expr,
+                'start': start,
+                'end': end,
+                'step': step,
+                })
+            results = response.json()
+            return results
+      runtime: Python3
+    timeoutSeconds: 10
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: OperationSet
+metadata:
+  name: prometheus-query-function
+spec:
+  adjacencyList:
+  - id: 0
+    to:
+    - 1
+  - id: 1
+    operation: prometheus-query-function
+---
+apiVersion: diagnosis.kubediag.org/v1
+kind: Diagnosis
+metadata:
+  name: prometheus-query-function
+spec:
+  operationSet: prometheus-query-function
+  nodeName: my-node
