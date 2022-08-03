@@ -1,0 +1,24 @@
+# permissions for end users to edit commonevents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: commonevent-editor-role
+rules:
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - commonevents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - commonevents/status
+  verbs:
+  - get
