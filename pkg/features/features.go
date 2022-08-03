@@ -183,6 +183,7 @@ var (
 var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
+	PagerDutyEventer:             {Default: true, PreRelease: featuregate.Alpha},
 	CronScheduler:                {Default: true, PreRelease: featuregate.Alpha},
 	KafkaConsumer:                {Default: true, PreRelease: featuregate.Alpha},
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},

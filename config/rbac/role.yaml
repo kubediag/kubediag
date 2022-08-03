@@ -80,7 +80,7 @@ rules:
 - apiGroups:
   - diagnosis.kubediag.org
   resources:
-  - Operations
+  - commonevents
   verbs:
   - create
   - delete
@@ -92,7 +92,7 @@ rules:
 - apiGroups:
   - diagnosis.kubediag.org
   resources:
-  - Operations/status
+  - commonevents/status
   verbs:
   - get
   - patch

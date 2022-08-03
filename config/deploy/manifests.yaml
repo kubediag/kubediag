@@ -4,6 +4,87 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
+  name: commonevents.diagnosis.kubediag.org
+spec:
+  group: diagnosis.kubediag.org
+  names:
+    kind: CommonEvent
+    listKind: CommonEventList
+    plural: commonevents
+    singular: commonevent
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: CommonEvent is the Schema for the commonevents API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: CommonEventSpec defines the desired state of CommonEvent.
+          properties:
+            class:
+              type: string
+            component:
+              type: string
+            custom_details:
+              additionalProperties:
+                type: string
+              type: object
+            group:
+              type: string
+            severity:
+              type: string
+            source:
+              type: string
+            summary:
+              type: string
+            timestamp:
+              type: string
+          required:
+          - severity
+          - source
+          - summary
+          type: object
+        status:
+          description: CommonEventStatus defines the observed state of CommonEvent.
+          properties:
+            count:
+              type: integer
+            lastUpdateTime:
+              format: date-time
+              type: string
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
   name: diagnoses.diagnosis.kubediag.org
 spec:
   additionalPrinterColumns:
@@ -890,7 +971,7 @@ rules:
 - apiGroups:
   - diagnosis.kubediag.org
   resources:
-  - Operations
+  - commonevents
   verbs:
   - create
   - delete
@@ -902,7 +983,7 @@ rules:
 - apiGroups:
   - diagnosis.kubediag.org
   resources:
-  - Operations/status
+  - commonevents/status
   verbs:
   - get
   - patch
