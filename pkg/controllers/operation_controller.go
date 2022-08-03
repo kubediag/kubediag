@@ -88,8 +88,7 @@ func NewOperationReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=Operations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=Operations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operations,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile synchronizes an Operation object.
 func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

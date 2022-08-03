@@ -42,10 +42,10 @@ import (
 	"github.com/kubediag/kubediag/pkg/alertmanager"
 	"github.com/kubediag/kubediag/pkg/controllers"
 	"github.com/kubediag/kubediag/pkg/cronscheduler"
-	"github.com/kubediag/kubediag/pkg/diagnosisreaper"
 	"github.com/kubediag/kubediag/pkg/eventer"
 	"github.com/kubediag/kubediag/pkg/executor"
 	"github.com/kubediag/kubediag/pkg/features"
+	"github.com/kubediag/kubediag/pkg/garbagecollection"
 	"github.com/kubediag/kubediag/pkg/graphbuilder"
 	"github.com/kubediag/kubediag/pkg/kafka"
 	"github.com/kubediag/kubediag/pkg/pagerdutyeventer"
@@ -98,6 +98,8 @@ type KubeDiagOptions struct {
 	MinimumDiagnosisTTLDuration time.Duration
 	// MaximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
 	MaximumDiagnosesPerNode int32
+	// CommonEventTTL is amount of time to retain common events.
+	CommonEventTTL time.Duration
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
 	// piecemeal the default values from "github.com/kubediag/kubediag/pkg/features/features.go".
 	FeatureGates map[string]bool
@@ -105,7 +107,10 @@ type KubeDiagOptions struct {
 	DataRoot string
 	// Python3MainFilePath is the absolute path of main file for running python3 function.
 	Python3MainFilePath string
+	// SinkEventToKafka enables the pagerduty handler to write message to kafka cluster.
+	SinkEventToKafka bool
 	// KafkaAddress is the addresses used to connect to the kafka cluster.
+	// It is valid only if SinkEventToKafka is true.
 	KafkaAddress string
 }
 
@@ -162,7 +167,9 @@ func NewKubeDiagOptions() (*KubeDiagOptions, error) {
 		DiagnosisTTL:                240 * time.Hour,
 		MinimumDiagnosisTTLDuration: 30 * time.Minute,
 		MaximumDiagnosesPerNode:     20,
+		CommonEventTTL:              2400 * time.Hour,
 		DataRoot:                    defaultDataRoot,
+		SinkEventToKafka:            false,
 	}, nil
 }
 
@@ -200,6 +207,19 @@ func (opts *KubeDiagOptions) Run() error {
 		eventChainCh := make(chan corev1.Event, 1000)
 		graphBuilderCh := make(chan diagnosisv1.OperationSet, 1000)
 		stopCh := SetupSignalHandler()
+
+		// Run common event reaper for garbage collection.
+		commonEventReaper := garbagecollection.NewCommonEventReaper(
+			context.Background(),
+			ctrl.Log.WithName("commoneventreaper"),
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetCache(),
+			opts.CommonEventTTL,
+		)
+		go func(stopCh chan struct{}) {
+			commonEventReaper.Run(stopCh)
+		}(stopCh)
 
 		// Create graph builder for generating graph from operation set.
 		graphbuilder := graphbuilder.NewGraphBuilder(
@@ -244,6 +264,7 @@ func (opts *KubeDiagOptions) Run() error {
 			ctrl.Log.WithName("pagerdutyeventer"),
 			mgr.GetClient(),
 			mgr.GetCache(),
+			opts.SinkEventToKafka,
 			opts.KafkaAddress,
 			featureGate.Enabled(features.PagerDutyEventer),
 		)
@@ -407,7 +428,7 @@ func (opts *KubeDiagOptions) Run() error {
 		}(stopCh)
 
 		// Run diagnosis reaper for garbage collection.
-		diagnosisReaper := diagnosisreaper.NewDiagnosisReaper(
+		diagnosisReaper := garbagecollection.NewDiagnosisReaper(
 			context.Background(),
 			ctrl.Log.WithName("diagnosisreaper"),
 			mgr.GetClient(),
@@ -503,10 +524,12 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.KafkaTopic, "kafka-topic", opts.KafkaTopic, "The topic to read messages from.")
 	fs.DurationVar(&opts.DiagnosisTTL, "diagnosis-ttl", opts.DiagnosisTTL, "Amount of time to retain diagnoses.")
 	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
+	fs.DurationVar(&opts.CommonEventTTL, "common-event-ttl", opts.CommonEventTTL, "Amount of time to retain common events.")
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
 	fs.StringVar(&opts.Python3MainFilePath, "python3-main-file", opts.Python3MainFilePath, "The main file for running python3 function.")
+	fs.BoolVar(&opts.SinkEventToKafka, "sink-event-to-kafka", opts.SinkEventToKafka, "Enables the pagerduty handler to write message to kafka cluster.")
 	fs.StringVar(&opts.KafkaAddress, "kafka-address", opts.KafkaAddress, "The addresses used to connect to the kafka cluster.")
 }
 
