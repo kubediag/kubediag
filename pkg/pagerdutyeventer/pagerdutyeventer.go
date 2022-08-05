@@ -173,6 +173,13 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 			Name:      name,
 		}
 
+		labels := make(map[string]string)
+		labels["source"] = pagerDutyMessage.Payload.Source
+		labels["severity"] = pagerDutyMessage.Payload.Severity
+		labels["class"] = pagerDutyMessage.Payload.Class
+		labels["component"] = pagerDutyMessage.Payload.Component
+		labels["group"] = pagerDutyMessage.Payload.Group
+
 		var commonEvent diagnosisv1.CommonEvent
 		if err := pe.client.Get(pe, namespacedName, &commonEvent); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -180,6 +187,7 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
+						Labels:    labels,
 					},
 					Spec: diagnosisv1.CommonEventSpec{
 						Summary:       pagerDutyMessage.Payload.Summary,
