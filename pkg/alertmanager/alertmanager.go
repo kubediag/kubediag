@@ -269,6 +269,9 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 				}
 
 				parameters := make(map[string]string)
+				for key, value := range trigger.Spec.Parameters {
+					parameters[key] = value
+				}
 				for _, label := range sourceTemplate.PrometheusAlertTemplate.ParameterInjectionLabels {
 					value, ok := alert.Labels[label]
 					if ok {
