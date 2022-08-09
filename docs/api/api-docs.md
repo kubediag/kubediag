@@ -47,6 +47,281 @@ int
 </tr>
 </tbody>
 </table>
+<h3 id="diagnosis.kubediag.org/v1.CommonEvent">CommonEvent
+</h3>
+<div>
+<p>CommonEvent is the Schema for the commonevents API.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#diagnosis.kubediag.org/v1.CommonEventSpec">
+CommonEventSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>summary</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>source</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>severity</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>timestamp</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>class</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>component</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>group</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>custom_details</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#diagnosis.kubediag.org/v1.CommonEventStatus">
+CommonEventStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="diagnosis.kubediag.org/v1.CommonEventSpec">CommonEventSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#diagnosis.kubediag.org/v1.CommonEvent">CommonEvent</a>)
+</p>
+<div>
+<p>CommonEventSpec defines the desired state of CommonEvent.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>summary</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>source</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>severity</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>timestamp</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>class</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>component</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>group</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>custom_details</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="diagnosis.kubediag.org/v1.CommonEventStatus">CommonEventStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#diagnosis.kubediag.org/v1.CommonEvent">CommonEvent</a>)
+</p>
+<div>
+<p>CommonEventStatus defines the observed state of CommonEvent.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>count</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastUpdateTime</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="diagnosis.kubediag.org/v1.CronTemplate">CronTemplate
 </h3>
 <p>
@@ -94,7 +369,7 @@ See <a href="https://en.wikipedia.org/wiki/Cron">https://en.wikipedia.org/wiki/C
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -219,7 +494,7 @@ DiagnosisConditionType
 <td>
 <code>status</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#conditionstatus-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#conditionstatus-v1-core">
 Kubernetes core/v1.ConditionStatus
 </a>
 </em>
@@ -233,7 +508,7 @@ Can be True, False, Unknown.</p>
 <td>
 <code>lastTransitionTime</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -471,7 +746,7 @@ to an error in communicating with the host of the diagnosis.</p>
 <td>
 <code>startTime</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -800,7 +1075,7 @@ string
 <td>
 <code>source</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#eventsource-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#eventsource-v1-core">
 Kubernetes core/v1.EventSource
 </a>
 </em>
@@ -950,7 +1225,7 @@ NodeSet
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1035,7 +1310,7 @@ Operation results will not be stored if nil.</p>
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1223,7 +1498,7 @@ Operation results will not be stored if nil.</p>
 </tbody>
 </table>
 <h3 id="diagnosis.kubediag.org/v1.Path">Path
-(<code>[]./api/v1/.Node</code> alias)</h3>
+(<code>[]./api/v1.Node</code> alias)</h3>
 <p>
 (<em>Appears on:</em><a href="#diagnosis.kubediag.org/v1.DiagnosisStatus">DiagnosisStatus</a>, <a href="#diagnosis.kubediag.org/v1.OperationSetStatus">OperationSetStatus</a>)
 </p>
@@ -1706,7 +1981,7 @@ HostPath
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1880,7 +2155,7 @@ SourceTemplate
 <td>
 <code>lastScheduleTime</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -1895,5 +2170,5 @@ Kubernetes meta/v1.Time
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>10d7bfe</code>.
+on git commit <code>e94718b</code>.
 </em></p>
