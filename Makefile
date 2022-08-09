@@ -70,6 +70,14 @@ docker-build: test
 docker-push:
 	docker push ${IMG}:${TAG}
 
+# Generate api docs
+doc: gen-api-docs
+	$(GEN_API_DOCS) \
+	-config ./docs/api/gen-crd-api-reference-docs/example-config.json \
+	-api-dir  ./api/v1 \
+	-out-file ./docs/api/api-docs.md \
+	--template-dir ./docs/api/gen-crd-api-reference-docs/template
+
 # Find or download controller-gen
 # Download controller-gen if necessary
 controller-gen:
@@ -85,6 +93,22 @@ ifeq (, $(shell which controller-gen))
 CONTROLLER_GEN=$(shell which controller-gen)
 else
 CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+PROJECT_DIR = $(shell pwd)
+GEN_API_DOCS = $(PROJECT_DIR)/bin/gen-crd-api-reference-docs
+gen-api-docs: ## Download gen-crd-api-referenc-docs locally if necessary
+ifeq (, $(wildcard $(GEN_API_DOCS)))
+	@{ \
+	set -e ;\
+	GEN_API_DOCS_TMP_DIR=$$(mktemp -d) ;\
+	cd $$GEN_API_DOCS_TMP_DIR ;\
+	go mod init tmp ;\
+	git clone https://github.com/ahmetb/gen-crd-api-reference-docs.git -b v0.3.0 ;\
+	cd gen-crd-api-reference-docs ;\
+	go build -o $(PROJECT_DIR)/bin/ ;\
+	rm -rf $$GEN_API_DOCS_TMP_DIR ;\
+	}
 endif
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
