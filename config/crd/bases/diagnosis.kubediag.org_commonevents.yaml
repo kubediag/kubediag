@@ -40,7 +40,7 @@ spec:
               type: string
             component:
               type: string
-            custom_details:
+            customDetails:
               additionalProperties:
                 type: string
               type: object
@@ -64,9 +64,13 @@ spec:
           properties:
             count:
               type: integer
+            diagnosed:
+              type: boolean
             lastUpdateTime:
               format: date-time
               type: string
+            resolved:
+              type: boolean
           type: object
       type: object
   version: v1

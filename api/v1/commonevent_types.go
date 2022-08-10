@@ -29,12 +29,14 @@ type CommonEventSpec struct {
 	Class         string            `json:"class,omitempty"`
 	Component     string            `json:"component,omitempty"`
 	Group         string            `json:"group,omitempty"`
-	CustomDetails map[string]string `json:"custom_details,omitempty"`
+	CustomDetails map[string]string `json:"customDetails,omitempty"`
 }
 
 // CommonEventStatus defines the observed state of CommonEvent.
 type CommonEventStatus struct {
 	Count          int          `json:"count,omitempty"`
+	Resolved       bool         `json:"resolved,omitempty"`
+	Diagnosed      bool         `json:"diagnosed,omitempty"`
 	LastUpdateTime *metav1.Time `json:"lastUpdateTime,omitempty"`
 }
 
