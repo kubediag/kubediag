@@ -159,7 +159,7 @@ string
 </tr>
 <tr>
 <td>
-<code>custom_details</code><br/>
+<code>customDetails</code><br/>
 <em>
 map[string]string
 </em>
@@ -272,7 +272,7 @@ string
 </tr>
 <tr>
 <td>
-<code>custom_details</code><br/>
+<code>customDetails</code><br/>
 <em>
 map[string]string
 </em>
@@ -303,6 +303,26 @@ map[string]string
 <code>count</code><br/>
 <em>
 int
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>resolved</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>diagnosed</code><br/>
+<em>
+bool
 </em>
 </td>
 <td>
@@ -1498,7 +1518,7 @@ Operation results will not be stored if nil.</p>
 </tbody>
 </table>
 <h3 id="diagnosis.kubediag.org/v1.Path">Path
-(<code>[]./api/v1.Node</code> alias)</h3>
+(<code>[]github.com/kubediag/kubediag/api/v1.Node</code> alias)</h3>
 <p>
 (<em>Appears on:</em><a href="#diagnosis.kubediag.org/v1.DiagnosisStatus">DiagnosisStatus</a>, <a href="#diagnosis.kubediag.org/v1.OperationSetStatus">OperationSetStatus</a>)
 </p>
@@ -2170,5 +2190,5 @@ Kubernetes meta/v1.Time
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>e94718b</code>.
+on git commit <code>497899d</code>.
 </em></p>

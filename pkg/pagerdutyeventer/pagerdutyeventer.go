@@ -179,6 +179,8 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 		labels["class"] = pagerDutyMessage.Payload.Class
 		labels["component"] = pagerDutyMessage.Payload.Component
 		labels["group"] = pagerDutyMessage.Payload.Group
+		labels["resolved"] = "false"
+		labels["diagnosed"] = "false"
 
 		var commonEvent diagnosisv1.CommonEvent
 		if err := pe.client.Get(pe, namespacedName, &commonEvent); err != nil {
