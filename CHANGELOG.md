@@ -1,6 +1,15 @@
 # Changelog
 
 - [Changelog](#changelog)
+  - [v0.3.0](#v030)
+    - [Changes by Kind](#changes-by-kind)
+      - [API Change](#api-change)
+      - [Bug or Regression](#bug-or-regression)
+      - [Other](#other)
+    - [Dependencies](#dependencies)
+      - [Added](#added)
+      - [Changed](#changed)
+      - [Removed](#removed)
   - [v0.2.2](#v022)
     - [Changes by Kind](#changes-by-kind)
       - [API Change](#api-change)
@@ -91,6 +100,51 @@
       - [Added](#added-9)
       - [Changed](#changed-9)
       - [Removed](#removed-9)
+
+## v0.3.0
+
+### Changes by Kind
+
+#### API Change
+
+- Add parameters in cronscheduler trigger. ([#134](https://github.com/kubediag/kubediag/pull/134))
+- Create a CommonEvent on receiving PagerDuty message. ([#149](https://github.com/kubediag/kubediag/pull/149))
+
+#### Bug or Regression
+
+- Fix a 404 error on python installation. ([#129](https://github.com/kubediag/kubediag/issues/129))
+- Fix timed out problem when running e2e tests. ([#140](https://github.com/kubediag/kubediag/pull/140))
+- Update sonobuoy runner with more detailed result summary. ([#145](https://github.com/kubediag/kubediag/pull/145))
+- Add labels to manage CommonEvent. ([#150](https://github.com/kubediag/kubediag/pull/150))
+- Add parameters in alertmanager trigger. ([#151](https://github.com/kubediag/kubediag/pull/151))
+- Add resolved and diagnosed status for CommonEvent. ([#151](https://github.com/kubediag/kubediag/pull/153))
+
+#### Other
+
+- Implement tcpdump profiler. ([#126](https://github.com/kubediag/kubediag/pull/126))
+- Implement PagerDuty event handler to send messages to Kafka. ([#137](https://github.com/kubediag/kubediag/pull/137))
+- Add go report card. ([#138](https://github.com/kubediag/kubediag/pull/138))
+- Implement Sonobuoy Results Diagnoser. ([#139](https://github.com/kubediag/kubediag/pull/139))
+- Implement statefulset stuck diagnosis. ([#142](https://github.com/kubediag/kubediag/pull/142))
+- Add Python function sample to request Prometheus HTTP api. ([#148](https://github.com/kubediag/kubediag/pull/148))
+- Add API documentation generation in Makefile. ([#152](https://github.com/kubediag/kubediag/pull/152))
+
+### Dependencies
+
+#### Added
+
+- github.com/pkg/errors [v0.9.1](https://github.com/pkg/errors/tree/v0.9.1)
+- github.com/vmware-tanzu/sonobuoy [v0.18.4](https://github.com/vmware-tanzu/sonobuoy/tree/v0.18.4)
+- golang.org/x/lint [738671d3881b](https://github.com/golang/lint/tree/738671d3881b)
+- gopkg.in/yaml.v2 [v2.3.0](https://github.com/go-yaml/yaml/tree/v2.3.0)
+
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
+
+_Nothing has changed._
 
 ## v0.2.2
 
