@@ -67,7 +67,7 @@ jobs:
   build_and_push:
     environment:
       DOCKER_REGISTRY: hub.c.163.com
-      REPO_NAME: hub.c.163.com/kubediag/ci-test
+      REPO_NAME: hub.c.163.com/kubediag/kubediag
     docker:
       - image: circleci/buildpack-deps:stretch
     steps:
