@@ -194,7 +194,7 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 		var commonEvent diagnosisv1.CommonEvent
 		if err := pe.client.Get(pe, namespacedName, &commonEvent); err != nil {
 			if apierrors.IsNotFound(err) {
-				commonEvent := diagnosisv1.CommonEvent{
+				commonEvent = diagnosisv1.CommonEvent{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
@@ -225,15 +225,15 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-		} else {
-			if commonEvent.Status.LastUpdateTime == nil || commonEvent.Status.LastUpdateTime.Before(&now) {
-				commonEvent.Status.Count += 1
-				commonEvent.Status.LastUpdateTime = &now
-				if err := pe.client.Status().Update(pe, &commonEvent); err != nil {
-					pe.Error(err, "unable to update Event")
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-					return
-				}
+		}
+
+		if commonEvent.Status.LastUpdateTime == nil || commonEvent.Status.LastUpdateTime.Before(&now) {
+			commonEvent.Status.Count += 1
+			commonEvent.Status.LastUpdateTime = &now
+			if err := pe.client.Status().Update(pe, &commonEvent); err != nil {
+				pe.Error(err, "unable to update Event")
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
 		}
 
