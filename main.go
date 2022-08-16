@@ -112,6 +112,11 @@ type KubeDiagOptions struct {
 	// KafkaAddress is the addresses used to connect to the kafka cluster.
 	// It is valid only if SinkEventToKafka is true.
 	KafkaAddress string
+	// SinkEventToWebhookReceiver enables the pagerduty handler to write message to a webhook receiver.
+	SinkEventToWebhookReceiver bool
+	// WebhookAddress is the addresses used to connect to the webhook receiver.
+	// It is valid only if SinkEventToWebhookReceiver is true.
+	WebhookAddress string
 }
 
 func init() {
@@ -170,6 +175,7 @@ func NewKubeDiagOptions() (*KubeDiagOptions, error) {
 		CommonEventTTL:              2400 * time.Hour,
 		DataRoot:                    defaultDataRoot,
 		SinkEventToKafka:            false,
+		SinkEventToWebhookReceiver:  false,
 	}, nil
 }
 
@@ -266,6 +272,8 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetCache(),
 			opts.SinkEventToKafka,
 			opts.KafkaAddress,
+			opts.SinkEventToWebhookReceiver,
+			opts.WebhookAddress,
 			featureGate.Enabled(features.PagerDutyEventer),
 		)
 
@@ -531,6 +539,8 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&opts.Python3MainFilePath, "python3-main-file", opts.Python3MainFilePath, "The main file for running python3 function.")
 	fs.BoolVar(&opts.SinkEventToKafka, "sink-event-to-kafka", opts.SinkEventToKafka, "Enables the pagerduty handler to write message to kafka cluster.")
 	fs.StringVar(&opts.KafkaAddress, "kafka-address", opts.KafkaAddress, "The addresses used to connect to the kafka cluster.")
+	fs.BoolVar(&opts.SinkEventToWebhookReceiver, "sink-event-to-webhook-receiver", opts.SinkEventToWebhookReceiver, "Enables the pagerduty handler to write message to a webhook receiver.")
+	fs.StringVar(&opts.WebhookAddress, "webhook-address", opts.WebhookAddress, "The addresses used to connect to the webhook receiver.")
 }
 
 // SetupSignalHandler registers for SIGTERM and SIGINT. A stop channel is returned

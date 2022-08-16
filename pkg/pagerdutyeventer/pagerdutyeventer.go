@@ -88,6 +88,11 @@ type pagerdutyEventer struct {
 	sinkEventToKafka bool
 	// kafkaAddress is the addresses used to connect to the kafka cluster.
 	kafkaAddress string
+	// sinkEventToWebhookReceiver enables the pagerduty handler to write message to a webhook receiver.
+	sinkEventToWebhookReceiver bool
+	// webhookAddress is the addresses used to connect to the webhook receiver.
+	// It is valid only if sinkEventToWebhookReceiver is true.
+	webhookAddress string
 	// pagerdutyEventerEnabled indicates whether pagerdutyEventer is enabled.
 	pagerdutyEventerEnabled bool
 }
@@ -100,6 +105,8 @@ func NewPagerDutyEventer(
 	cache cache.Cache,
 	sinkEventToKafka bool,
 	kafkaAddress string,
+	sinkEventToWebhookReceiver bool,
+	webhookAddress string,
 	pagerdutyEventerEnabled bool,
 ) PagerDutyEventer {
 	metrics.Registry.MustRegister(
@@ -107,13 +114,15 @@ func NewPagerDutyEventer(
 	)
 
 	return &pagerdutyEventer{
-		Context:                 ctx,
-		Logger:                  logger,
-		client:                  cli,
-		cache:                   cache,
-		sinkEventToKafka:        sinkEventToKafka,
-		kafkaAddress:            kafkaAddress,
-		pagerdutyEventerEnabled: pagerdutyEventerEnabled,
+		Context:                    ctx,
+		Logger:                     logger,
+		client:                     cli,
+		cache:                      cache,
+		sinkEventToKafka:           sinkEventToKafka,
+		kafkaAddress:               kafkaAddress,
+		sinkEventToWebhookReceiver: sinkEventToWebhookReceiver,
+		webhookAddress:             webhookAddress,
+		pagerdutyEventerEnabled:    pagerdutyEventerEnabled,
 	}
 }
 
@@ -228,6 +237,18 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Write the pagerduty message to webhook server.
+		if pe.sinkEventToWebhookReceiver {
+			err = pe.writePagerDutyMessageToWebhookReceiver(commonEvent)
+			if err != nil {
+				pagerdutyEventProcessErrorCount.Inc()
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+
+			pe.Info("sending pagerduty message to webhook receiver successfully", "source", commonEvent.Spec.Source, "severity", commonEvent.Spec.Severity, "class", commonEvent.Spec.Class, "group", commonEvent.Spec.Group)
+		}
+
 		// Write the pagerduty message to kafka.
 		if pe.sinkEventToKafka {
 			topic := pagerDutyMessage.Payload.Group
@@ -251,6 +272,30 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writePagerDutyMessageToWebhookReceiver writes a pagerduty message to kafka.
+func (pe *pagerdutyEventer) writePagerDutyMessageToWebhookReceiver(commonEvent diagnosisv1.CommonEvent) error {
+	body, err := json.Marshal(commonEvent.Spec)
+	if err != nil {
+		pe.Error(err, "failed to marshal common event")
+		return err
+	}
+
+	resp, err := http.Post(pe.webhookAddress, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		pe.Error(err, "failed to post common event to webhook receiver")
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("failed to send common event to webhook receiver: %v", resp.Status)
+		pe.Error(err, "http response with erroneous status", "status", resp.Status)
+		return err
+	}
+
+	return nil
+}
+
 // writePagerDutyMessageToKafka writes a pagerduty message to kafka.
 func (pe *pagerdutyEventer) writePagerDutyMessageToKafka(topic string, partition int, pagerdutyEvent *bytes.Buffer) error {
 	conn, err := kafkago.DialLeader(context.Background(), "tcp", pe.kafkaAddress, topic, partition)
@@ -272,8 +317,6 @@ func (pe *pagerdutyEventer) writePagerDutyMessageToKafka(topic string, partition
 		pe.Error(err, "failed to close kafka writer.")
 		return err
 	}
-
-	pe.Info("sending pagerduty message to kafka successfully", "message", pagerdutyEvent.Bytes())
 
 	return nil
 }
