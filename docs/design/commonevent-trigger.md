@@ -77,32 +77,31 @@ The part is same as pagerdutyeventer, following is the code:
 var commonEvent diagnosisv1.CommonEvent
 if err := ce.client.Get(ce, namespacedName, &commonEvent); err != nil {
   if apierrors.IsNotFound(err) {
-		commonEvent = diagnosisv1.CommonEvent{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-				Labels:    labels,
-			},
-			Spec: diagnosisv1.CommonEventSpec{
-				Summary:       commonEventFormat.Summary,
-				Source:        commonEventFormat.Source,
-				Severity:      commonEventFormat.Severity,
-				Timestamp:     commonEventFormat.Timestamp,
-				Class:         commonEventFormat.Class,
-				Component:     commonEventFormat.Component,
-				Group:         commonEventFormat.Group,
-				CustomDetails: commonEventFormat.CustomDetails,
-			},
-		}
+	commonEvent = diagnosisv1.CommonEvent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: diagnosisv1.CommonEventSpec{
+			Summary:       commonEventFormat.Summary,
+			Source:        commonEventFormat.Source,
+			Severity:      commonEventFormat.Severity,
+			Timestamp:     commonEventFormat.Timestamp,
+			Class:         commonEventFormat.Class,
+			Component:     commonEventFormat.Component,
+			Group:         commonEventFormat.Group,
+			CustomDetails: commonEventFormat.CustomDetails,
+		},
+	}
 
-		// Create commonEvent in cluster
-		err = ce.client.Create(ce, &commonEvent)
-		if err != nil {
-			commonEventDiagnosisGenerationErrorCount.Inc()
-			ce.Error(err, "unable to create Event")
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+	// Create commonEvent in cluster
+	err = ce.client.Create(ce, &commonEvent)
+	if err != nil {
+		commonEventDiagnosisGenerationErrorCount.Inc()
+		ce.Error(err, "unable to create Event")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	} else {
 		commonEventDiagnosisGenerationErrorCount.Inc()
 		ce.Error(err, "unable to fetch Event")
