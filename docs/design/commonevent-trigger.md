@@ -29,8 +29,8 @@ type CommonEventTemplateRegexp struct {
 
 type SourceTemplate struct {
 +  // CommonEventTemplate specifies the template to create a diagnosis from a common event.
-+	 // +optional
-+	 CommonEventTemplate *CommonEventTemplate `json:"common_event_template,omitempty"`
++  // +optional
++  CommonEventTemplate *CommonEventTemplate `json:"common_event_template,omitempty"`
 }
 ```
 
