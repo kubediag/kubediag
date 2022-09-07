@@ -90,8 +90,8 @@ It's worth noting that we can't define any refer labels in common event trigger 
 
 #### Additional details
 
-1. commonEventer struct is defined so taht We can configure manually whether to enable this common events like alertmanager events and kubernetes events. Also a logger member to log message, a client for interacting with Kubernetes API servers and a cache for reading instances.
-2. the state of the object needs to be updated If a common event object already exists in the cluster. The common event will also be triggered.
+1. CommonEventer struct is defined so taht We can configure manually whether to enable this common events like alertmanager events and kubernetes events. Also a logger member to log message, a client for interacting with Kubernetes API servers and a cache for reading instances.
+2. The state of the object needs to be updated if a common event object already exists in the cluster. The common event will also be triggered.
 
 ## Implement
 
