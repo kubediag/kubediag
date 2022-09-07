@@ -1,84 +1,95 @@
 ## Abstract
 
-We currently have two ways to trigger the diagnostic process, one is by monitoring kubernetes events, and the other is by receiving Prometheus alert templates events. The PagerDuty Common Event Format (PD-CEF) is a standardized alert format that allows you to view alert and incident data in a cleaner, more normalized way. They express common event concepts in a normalized, readable way.
+We currently have two ways to trigger the diagnosis process, one is by monitoring kubernetes events and the other is by receiving Prometheus alert templates events. The PagerDuty Common Event Format (PD-CEF) is a standardized alert format that allows you to view alert and incident data in a cleaner, more normalized way. They express common event concepts in a normalized, readable way.
 
 The goal of this Task is to implement the trigger that supports Common Event, the diagnosis is automatically generated based on CommonEvent Template to trigger the diagnosis process.
 
 ## Design
 
-The table below outlines the name and type of each PD-CEF field.
+The table below outlines the name and type of each PD-CEF field. See more PD-CEF details at https://support.pagerduty.com/docs/pd-cef.
 
-|        Name        |              Type              |
-| :----------------: | :----------------------------: |
-|    **Summary**     |             String             |
-|     **Source**     |             String             |
-|    **Severity**    | Info, Warning, Error, Critical |
-|   **Timestamp**    |           Timestamp            |
-|     **Class**      |             String             |
-|   **Component**    |             String             |
-|     **Group**      |             String             |
-| **Custom Details** |             Object             |
+|        Name        |                 Type                 |
+| :----------------: | :----------------------------------: |
+|    **Summary**     |                String                |
+|     **Source**     |                String                |
+|    **Severity**    | enum{Info, Warning, Error, Critical} |
+|   **Timestamp**    |              Timestamp               |
+|     **Class**      |                String                |
+|   **Component**    |                String                |
+|     **Group**      |                String                |
+| **Custom Details** |                Object                |
 
 Considering all the above fields, the following CommonEventFormat struct is designed:
 
 ```go
 type CommonEventFormat struct {
-	Summary       string            `json:"summary,omitempty"`
-	Source        string            `json:"source,omitempty"`
-	Severity      string            `json:"severity,omitempty"`
-	Timestamp     string            `json:"timestamp,omitempty"`
-	Class         string            `json:"class,omitempty"`
-	Component     string            `json:"component,omitempty"`
-	Group         string            `json:"group,omitempty"`
-	CustomDetails map[string]string `json:"custom_details,omitempty"`
+   Summary       string            `json:"summary,omitempty"`
+   Source        string            `json:"source,omitempty"`
+   Severity      string            `json:"severity,omitempty"`
+   Timestamp     string            `json:"timestamp,omitempty"`
+   Class         string            `json:"class,omitempty"`
+   Component     string            `json:"component,omitempty"`
+   Group         string            `json:"group,omitempty"`
+   CustomDetails map[string]string `json:"custom_details,omitempty"`
 }
 ```
 
-However, the fields timestamp and CustomDetails respectively represent the time when the event was generated or created and the user-defined content. Summary is a high-level, text summary message of the event also.Therefore, the contents of three fields are not considered when defining the Trigger template for matching.
+However, the fields Timestamp and CustomDetails respectively represent the time when the event was generated or created and the user-defined content. Summary is a high-level, text summary message of the event also.Therefore, the contents of three fields are not considered when defining the Trigger template for matching. So we define CommonEventTemplateRegexp:
+
+```go
+// CommonEventTemplateRegexp is the regular expression for matching common event template.
+// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
+type CommonEventTemplateRegexp struct {
+	// Source is the regular expression for matching "Source" of common event.
+	// +optional
+	Source string `json:"source,omitempty"`
+	// Severity is the regular expression for matching "Severity" of common event.
+	// +optional
+	Severity string `json:"severity,omitempty"`
+	// Class is the regular expression for matching "Class" of common event.
+	// +optional
+	Class string `json:"class,omitempty"`
+	// Component is the regular expression for matching "Component" of common event.
+	// +optional
+	Component string `json:"component,omitempty"`
+	// Group is the regular expression for matching "Group" of common event.
+	// +optional
+	Group string `json:"group,omitempty"`
+}
+```
 
 commonevent resource will be created when comment event happened but diagnosis is not sure created only if the commonevent is matched with one of triggers that predefined in cluster.
 
-In addition, we also need to add a router for kubediag server in order to listen common event occur. 
+In addition, we also need to add a router for kubediag server in order to listen common event occur.
 
 #### Create diagnosis details
 
+We should match commonevent and trigger template predefined before create diagnosis in truth. A possible commonevent trigger template may looks like following:
 
+```yaml
+apiVersion: diagnosis.kubediag.org/v1
+kind: Trigger
+metadata:
+  name: cpu-high-level
+spec:
+  operationSet: cpu-high-debugger
+  nodeName: example-node
+  sourceTemplate:
+    commonEventTemplate:
+      regexp:
+        source: 10.10.101.101
+        severity: Error
+        class: High CPU
+        component: webPing
+        group: www
+```
+
+It's worth noting that we can't define any refer labels in common event trigger beacuse CommonEventFormat struct does not contain any filed other than PD-CEF fileds. So the nodeName of diagnosis will be created is determined in trigger resourece, the nodeName is necessary.
 
 ## Implement
 
-To achieve this task, the following steps are required：
+To achieve this task, the following specific steps are required：
 
-* Firstly, define the CommonEventTemplate regular experssion for matching CommonEvent;
+* Firstly, define the CommonEventTemplate regular experssion for matching CommonEvent object;
 * We should define a router for this event and correspondent handler;
 * Traverse all Triggers and match the regular expressions defined in the CommonEvent template. Create Diagnosis if match successfully.
-
-#### 1. Define CommonEventTemplate and Regexp for matching
-
-The commonevent template refer to PrometheusAlertTemplate and KubernetesEventTemplate, the code looks like following:
-
-#### 3. Handler
-
-Now, we Implement the logic of this handler by accepting the request and create the common event object or update existing object status.
-
-##### 3.1 Accept request body and deserialize to CommonEventFormat object
-
-##### 3.2 Create CommonEvent object
-
-The part is same as pagerdutyeventer, following is the code:
-
-##### 3.3. Match CommonEvent object and tigger
-
-Realize match function while an CommonEvent object is Created in cluster, the fields to match is defined in CommonEventTemplateRegexp. 
-
-
-
-##### 3.4 Create diagnosis
-
-We need to generate diagnosis if current CommonEvent object is matched to any trigger in cluster, the members of new diagnosis is determined by trigger Spec.
-
-
-
-
-
-
-
