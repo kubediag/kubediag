@@ -6,7 +6,7 @@ The goal of this Task is to implement the trigger that supports Common Event, th
 
 ## Design
 
-The table below outlines the name and type of each PD-CEF field. See more PD-CEF details at https://support.pagerduty.com/docs/pd-cef.
+The table below outlines the name and type of each PD-CEF field. See more details at https://support.pagerduty.com/docs/pd-cef.
 
 |        Name        |                 Type                 |
 | :----------------: | :----------------------------------: |
@@ -34,7 +34,9 @@ type CommonEventFormat struct {
 }
 ```
 
-However, the fields Timestamp and CustomDetails respectively represent the time when the event was generated or created and the user-defined content. Summary is a high-level, text summary message of the event also.Therefore, the contents of three fields are not considered when defining the Trigger template for matching. So we define CommonEventTemplateRegexp:
+However, the fields Timestamp and CustomDetails respectively represent the time when the event was generated or created and the user-defined content. Summary is a high-level, text summary message of the event also.Therefore, the contents of three fields are not considered when defining the Trigger template for matching.
+
+We define CommonEventTemplateRegexp as follows:
 
 ```go
 // CommonEventTemplateRegexp is the regular expression for matching common event template.
@@ -85,6 +87,11 @@ spec:
 ```
 
 It's worth noting that we can't define any refer labels in common event trigger beacuse CommonEventFormat struct does not contain any filed other than PD-CEF fileds. So the nodeName of diagnosis will be created is determined in trigger resourece, the nodeName is necessary.
+
+#### Additional details
+
+1. commonEventer struct is defined so taht We can configure manually whether to enable this common events like alertmanager events and kubernetes events. Also a logger member to log message, a client for interacting with Kubernetes API servers and a cache for reading instances.
+2. the state of the object needs to be updated If a common event object already exists in the cluster. The common event will also be triggered.
 
 ## Implement
 
