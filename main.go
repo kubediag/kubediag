@@ -40,6 +40,7 @@ import (
 
 	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	"github.com/kubediag/kubediag/pkg/alertmanager"
+	"github.com/kubediag/kubediag/pkg/commoneventer"
 	"github.com/kubediag/kubediag/pkg/controllers"
 	"github.com/kubediag/kubediag/pkg/cronscheduler"
 	"github.com/kubediag/kubediag/pkg/eventer"
@@ -277,6 +278,15 @@ func (opts *KubeDiagOptions) Run() error {
 			featureGate.Enabled(features.PagerDutyEventer),
 		)
 
+		// Create commonEventer for managing common events
+		commonEventer := commoneventer.NewCommonEventer(
+			context.Background(),
+			ctrl.Log.WithName("commonEventer"),
+			mgr.GetClient(),
+			mgr.GetCache(),
+			featureGate.Enabled(features.CommonEventer),
+		)
+
 		// Create cron scheduler for managing crons.
 		cronscheduler := cronscheduler.NewCronScheduler(
 			context.Background(),
@@ -313,6 +323,7 @@ func (opts *KubeDiagOptions) Run() error {
 			r := mux.NewRouter()
 			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
 			r.HandleFunc("/pagerduty", pagerdutyEventer.Handler)
+			r.HandleFunc("/api/v1/commonevent", commonEventer.Handler)
 
 			// Start pprof server.
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)

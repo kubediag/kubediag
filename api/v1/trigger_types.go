@@ -45,6 +45,9 @@ type SourceTemplate struct {
 	// KubernetesEventTemplate specifies the template to create a diagnosis from a kubernetes event.
 	// +optional
 	KubernetesEventTemplate *KubernetesEventTemplate `json:"kubernetesEventTemplate,omitempty"`
+	// CommonEventTemplate specifies the template to create a diagnosis from a common event.
+	// +optional
+	CommonEventTemplate *CommonEventTemplate `json:"commonEventTemplate,omitempty"`
 	// CronTemplate specifies the template to create a diagnosis periodically at fixed times.
 	// +optional
 	CronTemplate *CronTemplate `json:"cronTemplate,omitempty"`
@@ -128,6 +131,31 @@ type KubernetesEventTemplateRegexp struct {
 	// All fields of "Source" are regular expressions.
 	// +optional
 	Source corev1.EventSource `json:"source,omitempty"`
+}
+
+// CommonEventTemplate specifies the template to create a diagnosis from a common event
+type CommonEventTemplate struct {
+	Regexp CommonEventTemplateRegexp `json:"regexp,omitempty"`
+}
+
+// CommonEventTemplateRegexp is the regular expression for matching common event template.
+// All regular expressions must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
+type CommonEventTemplateRegexp struct {
+	// Source is the regular expression for matching "Source" of common event.
+	// +optional
+	Source string `json:"source,omitempty"`
+	// Severity is the regular expression for matching "Severity" of common event.
+	// +optional
+	Severity string `json:"severity,omitempty"`
+	// Class is the regular expression for matching "Class" of common event.
+	// +optional
+	Class string `json:"class,omitempty"`
+	// Component is the regular expression for matching "Component" of common event.
+	// +optional
+	Component string `json:"component,omitempty"`
+	// Group is the regular expression for matching "Group" of common event.
+	// +optional
+	Group string `json:"group,omitempty"`
 }
 
 // CronTemplate specifies the template to create a diagnosis periodically at fixed times.
