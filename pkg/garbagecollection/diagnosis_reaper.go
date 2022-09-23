@@ -118,9 +118,9 @@ func NewDiagnosisReaper(
 }
 
 // Run runs the diagnosis reaper.
-func (dr *DiagnosisReaper) Run(stopCh <-chan struct{}) {
+func (dr *DiagnosisReaper) Run(ctx context.Context) {
 	// Wait for all caches to sync before processing.
-	if !dr.cache.WaitForCacheSync(stopCh) {
+	if !dr.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
@@ -206,7 +206,7 @@ func (dr *DiagnosisReaper) Run(stopCh <-chan struct{}) {
 			dr.Error(err, "failed to garbage collect diagnosis data")
 		}
 
-	}, housekeepingInterval, stopCh)
+	}, housekeepingInterval, ctx.Done())
 }
 
 // listDiagnoses lists Diagnoses from cache.

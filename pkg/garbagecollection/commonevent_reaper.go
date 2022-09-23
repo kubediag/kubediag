@@ -96,9 +96,9 @@ func NewCommonEventReaper(
 }
 
 // Run runs the common event reaper.
-func (cr *CommonEventReaper) Run(stopCh <-chan struct{}) {
+func (cr *CommonEventReaper) Run(ctx context.Context) {
 	// Wait for all caches to sync before processing.
-	if !cr.cache.WaitForCacheSync(stopCh) {
+	if !cr.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
@@ -150,7 +150,7 @@ func (cr *CommonEventReaper) Run(stopCh <-chan struct{}) {
 				cr.Info("common events has been garbage collected", "time", now, "count", len(reapedCommonEvents))
 			}
 		}
-	}, housekeepingInterval, stopCh)
+	}, housekeepingInterval, ctx.Done())
 }
 
 // listCommonEvents lists CommonEvents from cache.

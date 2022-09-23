@@ -63,7 +63,7 @@ type GraphBuilder interface {
 	// Logger represents the ability to log messages.
 	logr.Logger
 	// Run runs the GraphBuilder.
-	Run(<-chan struct{})
+	Run(context.Context)
 }
 
 // graphBuilder validates directed acyclic graph defined in the operation set and generates paths
@@ -114,9 +114,9 @@ func NewGraphBuilder(
 
 // Run runs the graph builder.
 // TODO: Prometheus metrics.
-func (gb *graphBuilder) Run(stopCh <-chan struct{}) {
+func (gb *graphBuilder) Run(ctx context.Context) {
 	// Wait for all caches to sync before processing.
-	if !gb.cache.WaitForCacheSync(stopCh) {
+	if !gb.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
@@ -150,7 +150,7 @@ func (gb *graphBuilder) Run(stopCh <-chan struct{}) {
 			}
 			graphbuilderSyncSuccessCount.Inc()
 		// Stop graph builder on stop signal.
-		case <-stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}

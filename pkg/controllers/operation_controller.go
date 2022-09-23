@@ -91,8 +91,7 @@ func NewOperationReconciler(
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operations,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile synchronizes an Operation object.
-func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *OperationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("operation", req.NamespacedName)
 
 	// The master will keep collecting metrics for operations, while the agent will process operations of script runner type.

@@ -119,7 +119,7 @@ type Executor interface {
 	// Logger represents the ability to log messages.
 	logr.Logger
 	// Run runs the Executor.
-	Run(<-chan struct{})
+	Run(context.Context)
 }
 
 // executor runs the diagnosis pipeline by executing operations defined in diagnosis.
@@ -199,9 +199,9 @@ func NewExecutor(
 }
 
 // Run runs the executor.
-func (ex *executor) Run(stopCh <-chan struct{}) {
+func (ex *executor) Run(ctx context.Context) {
 	// Wait for all caches to sync before processing.
-	if !ex.cache.WaitForCacheSync(stopCh) {
+	if !ex.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
@@ -245,7 +245,7 @@ func (ex *executor) Run(stopCh <-chan struct{}) {
 				})
 			}
 		// Stop executor on stop signal.
-		case <-stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}
