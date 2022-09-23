@@ -43,8 +43,9 @@ const (
 
 	// defaultSleepSeconds is the time after the plugin finishes for which Sonobuoy will sleep.
 	// The sleep functions as a way to prevent the daemonset from restarting the container once the
-	// process completes. There is currently no way to have a "run-once daemonset".
-	defaultSleepSeconds = "3600"
+	// process completes. There is currently no way to have a "run-once daemonset". Defaults
+	// to sleeping forever.
+	defaultSleepSeconds = "-1"
 )
 
 // Plugin is a plugin driver that dispatches containers to each node,
@@ -191,11 +192,11 @@ func (p *Plugin) Run(kubeclient kubernetes.Interface, hostname string, cert *tls
 		return errors.Wrapf(err, "couldn't make secret for daemonset plugin %v", p.GetName())
 	}
 
-	if _, err := kubeclient.CoreV1().Secrets(p.Namespace).Create(secret); err != nil {
+	if _, err := kubeclient.CoreV1().Secrets(p.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrapf(err, "couldn't create TLS secret for daemonset plugin %v", p.GetName())
 	}
 
-	if _, err := kubeclient.AppsV1().DaemonSets(p.Namespace).Create(&daemonSet); err != nil {
+	if _, err := kubeclient.AppsV1().DaemonSets(p.Namespace).Create(context.TODO(), &daemonSet, metav1.CreateOptions{}); err != nil {
 		return errors.Wrapf(err, "could not create DaemonSet for daemonset plugin %v", p.GetName())
 	}
 
@@ -217,7 +218,8 @@ func (p *Plugin) Cleanup(kubeclient kubernetes.Interface) {
 	// Delete the DaemonSet created by this plugin
 	// TODO(EKF): Move to v1 in 1.11
 	err := kubeclient.AppsV1().DaemonSets(p.Namespace).DeleteCollection(
-		&deleteOptions,
+		context.TODO(),
+		deleteOptions,
 		listOptions,
 	)
 	if err != nil {
@@ -233,7 +235,7 @@ func (p *Plugin) listOptions() metav1.ListOptions {
 
 // findDaemonSet gets the daemonset that we created, using a kubernetes label search.
 func (p *Plugin) findDaemonSet(kubeclient kubernetes.Interface) (*appsv1.DaemonSet, error) {
-	dsets, err := kubeclient.AppsV1().DaemonSets(p.Namespace).List(p.listOptions())
+	dsets, err := kubeclient.AppsV1().DaemonSets(p.Namespace).List(context.TODO(), p.listOptions())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -266,7 +268,7 @@ func (p *Plugin) Monitor(ctx context.Context, kubeclient kubernetes.Interface, a
 			// nodes have returned results to the aggregator. We can report the error for every node though
 			// since the aggregator will throw out duplicate results.
 			case ctx.Err() == context.DeadlineExceeded:
-				logrus.Errorf("Timeout waiting for plugin %v", p.GetName())
+				logrus.Errorf("Timeout waiting for plugin %v. Try checking the pod logs and other data in the results tarball for more information.", p.GetName())
 				errs := makeErrorResultsForNodes(
 					p.GetName(),
 					map[string]interface{}{"error": plugin.TimeoutErrMsg},
@@ -322,7 +324,7 @@ func (p *Plugin) monitorOnce(kubeclient kubernetes.Interface, availableNodes []v
 	}
 
 	// Find all the pods configured by this daemonset
-	pods, err := kubeclient.CoreV1().Pods(p.Namespace).List(p.listOptions())
+	pods, err := kubeclient.CoreV1().Pods(p.Namespace).List(context.TODO(), p.listOptions())
 	if err != nil {
 		errlog.LogError(errors.Wrapf(err, "could not find pods created by plugin %v, will retry", p.GetName()))
 		// Likewise, if we can't query for pods, just retry next time.
@@ -366,7 +368,7 @@ func (p *Plugin) monitorOnce(kubeclient kubernetes.Interface, availableNodes []v
 				"error": fmt.Sprintf(
 					"No pod was scheduled on node %v within %v. Check tolerations for plugin %v",
 					node.Name,
-					time.Now().Sub(ds.CreationTimestamp.Time),
+					time.Since(ds.CreationTimestamp.Time),
 					p.GetName(),
 				),
 			}, node.Name))
