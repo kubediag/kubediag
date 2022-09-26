@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
-	uuid "github.com/satori/go.uuid"
 	"github.com/vmware-tanzu/sonobuoy/pkg/buildinfo"
 	"github.com/vmware-tanzu/sonobuoy/pkg/plugin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,19 +30,15 @@ const (
 	// DefaultNamespace is the namespace where the aggregator and plugin workers will run (but not necessarily the pods created by the plugin workers).
 	DefaultNamespace = "sonobuoy"
 
-	// DefaultKubeConformanceImageURL is the URL of the docker image to run for the kube conformance tests.
-	DefaultKubeConformanceImageURL = "gcr.io/heptio-images/kube-conformance"
 	// UpstreamKubeConformanceImageURL is the URL of the docker image to run for
 	// the kube conformance tests which is maintained by upstream Kubernetes.
 	UpstreamKubeConformanceImageURL = "k8s.gcr.io/conformance"
-	// DefaultKubeConformanceImageTag is the default tag of the conformance image
-	DefaultKubeConformanceImageTag = "latest"
 	// DefaultAggregationServerBindPort is the default port for the aggregation server to bind to.
 	DefaultAggregationServerBindPort = 8080
 	// DefaultAggregationServerBindAddress is the default address for the aggregation server to bind to.
 	DefaultAggregationServerBindAddress = "0.0.0.0"
 	// DefaultAggregationServerTimeoutSeconds is the default amount of time the aggregation server will wait for all plugins to complete.
-	DefaultAggregationServerTimeoutSeconds = 10800 // 180 min
+	DefaultAggregationServerTimeoutSeconds = 21600 // 360 min
 	// AggregatorPodName is the name of the main pod that runs plugins and collects results.
 	AggregatorPodName = "sonobuoy"
 	// AggregatorContainerName is the name of the main container in the aggregator pod.
@@ -67,8 +62,6 @@ const (
 )
 
 var (
-	// DefaultKubeConformanceImage is the URL and tag of the docker image to run for the kube conformance tests.
-	DefaultKubeConformanceImage = DefaultKubeConformanceImageURL + ":" + DefaultKubeConformanceImageTag
 	// DefaultImage is the URL of the docker image to run for the aggregator and workers
 	DefaultImage = "sonobuoy/sonobuoy:" + buildinfo.Version
 	// DefaultResources is the default set of resources which are queried for after plugins run. The strings
@@ -346,8 +339,6 @@ func (c PodLogLimits) timeLimitDuration() (val time.Duration, defaulted bool, er
 // New returns a newly-constructed Config object with default values.
 func New() *Config {
 	var cfg Config
-	cfgUuid, _ := uuid.NewV4()
-	cfg.UUID = cfgUuid.String()
 	cfg.Description = "DEFAULT"
 	cfg.ResultsDir = AggregatorResultsPath
 	cfg.Version = buildinfo.Version
@@ -385,9 +376,4 @@ func New() *Config {
 // that it can be executed.
 func (cfg *Config) addPlugin(plugin plugin.Interface) {
 	cfg.LoadedPlugins = append(cfg.LoadedPlugins, plugin)
-}
-
-// getPlugins gets the list of plugins selected for this configuration.
-func (cfg *Config) getPlugins() []plugin.Interface {
-	return cfg.LoadedPlugins
 }

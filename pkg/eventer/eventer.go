@@ -66,7 +66,7 @@ var (
 // Eventer generates diagnoses from kubernetes events.
 type Eventer interface {
 	// Run runs the Eventer.
-	Run(<-chan struct{})
+	Run(context.Context)
 }
 
 // eventer manages kubernetes events.
@@ -110,13 +110,13 @@ func NewEventer(
 }
 
 // Run runs the eventer.
-func (ev *eventer) Run(stopCh <-chan struct{}) {
+func (ev *eventer) Run(ctx context.Context) {
 	if !ev.eventerEnabled {
 		return
 	}
 
 	// Wait for all caches to sync before processing.
-	if !ev.cache.WaitForCacheSync(stopCh) {
+	if !ev.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
@@ -147,7 +147,7 @@ func (ev *eventer) Run(stopCh <-chan struct{}) {
 			// Increment counter of successful diagnosis generations by eventer.
 			eventerDiagnosisGenerationSuccessCount.Inc()
 		// Stop source manager on stop signal.
-		case <-stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}

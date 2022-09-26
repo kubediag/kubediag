@@ -149,11 +149,11 @@ func (p *Plugin) Run(kubeclient kubernetes.Interface, hostname string, cert *tls
 		return errors.Wrapf(err, "couldn't make secret for Job plugin %v", p.GetName())
 	}
 
-	if _, err := kubeclient.CoreV1().Secrets(p.Namespace).Create(secret); err != nil {
+	if _, err := kubeclient.CoreV1().Secrets(p.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrapf(err, "couldn't create TLS secret for job plugin %v", p.GetName())
 	}
 
-	if _, err := kubeclient.CoreV1().Pods(p.Namespace).Create(&job); err != nil {
+	if _, err := kubeclient.CoreV1().Pods(p.Namespace).Create(context.TODO(), &job, metav1.CreateOptions{}); err != nil {
 		return errors.Wrapf(err, "could not create Job resource for Job plugin %v", p.GetName())
 	}
 
@@ -173,7 +173,7 @@ func (p *Plugin) Monitor(ctx context.Context, kubeclient kubernetes.Interface, _
 		case <-ctx.Done():
 			switch {
 			case ctx.Err() == context.DeadlineExceeded:
-				logrus.Errorf("Timeout waiting for plugin %v", p.GetName())
+				logrus.Errorf("Timeout waiting for plugin %v. Try checking the pod logs and other data in the results tarball for more information.", p.GetName())
 				resultsCh <- utils.MakeErrorResult(
 					p.GetName(),
 					map[string]interface{}{"error": plugin.TimeoutErrMsg},
@@ -248,7 +248,8 @@ func (p *Plugin) Cleanup(kubeclient kubernetes.Interface) {
 	// want to make this a real Job, we still need to delete pods manually
 	// after deleting the job.
 	err := kubeclient.CoreV1().Pods(p.Namespace).DeleteCollection(
-		&deleteOptions,
+		context.TODO(),
+		deleteOptions,
 		listOptions,
 	)
 	if err != nil {
@@ -266,7 +267,7 @@ func (p *Plugin) listOptions() metav1.ListOptions {
 // search.  If no pod is found, or if multiple pods are found, returns an
 // error.
 func (p *Plugin) findPod(kubeclient kubernetes.Interface) (*v1.Pod, error) {
-	pods, err := kubeclient.CoreV1().Pods(p.Namespace).List(p.listOptions())
+	pods, err := kubeclient.CoreV1().Pods(p.Namespace).List(context.TODO(), p.listOptions())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

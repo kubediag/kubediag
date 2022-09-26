@@ -60,7 +60,7 @@ var (
 // CronScheduler generates diagnoses periodically at fixed times.
 type CronScheduler interface {
 	// Run runs the CronScheduler.
-	Run(<-chan struct{})
+	Run(context.Context)
 }
 
 // cronScheduler manages crons.
@@ -101,18 +101,18 @@ func NewCronScheduler(
 }
 
 // Run runs the cron scheduler.
-func (cs *cronScheduler) Run(stopCh <-chan struct{}) {
+func (cs *cronScheduler) Run(ctx context.Context) {
 	if !cs.cronSchedulerEnabled {
 		return
 	}
 
 	// Wait for all caches to sync before processing.
-	if !cs.cache.WaitForCacheSync(stopCh) {
+	if !cs.cache.WaitForCacheSync(ctx) {
 		return
 	}
 
-	go wait.Until(cs.sync, 1*time.Minute, stopCh)
-	<-stopCh
+	go wait.Until(cs.sync, 1*time.Minute, ctx.Done())
+	<-ctx.Done()
 	cs.Info("shutting down cron scheduler")
 }
 

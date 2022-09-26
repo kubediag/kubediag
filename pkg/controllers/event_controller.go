@@ -56,8 +56,7 @@ func NewEventReconciler(
 // +kubebuilder:rbac:groups=core,resources=events/status,verbs=get;update;patch
 
 // Reconcile synchronizes an Event object.
-func (r *EventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *EventReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("event", req.NamespacedName)
 
 	var event corev1.Event

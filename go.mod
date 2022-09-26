@@ -12,13 +12,13 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/elastic/go-elasticsearch/v7 v7.13.1
-	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/logr v0.3.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/joewalnes/websocketd v0.4.1
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/onsi/ginkgo v1.11.0
-	github.com/onsi/gomega v1.8.1
+	github.com/onsi/ginkgo v1.14.1
+	github.com/onsi/gomega v1.10.2
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1
@@ -28,24 +28,23 @@ require (
 	github.com/robfig/cron v1.2.0
 	github.com/segmentio/kafka-go v0.4.16
 	github.com/shirou/gopsutil v2.20.7+incompatible
-	github.com/spf13/cobra v0.0.5
+	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	github.com/vmware-tanzu/sonobuoy v0.18.4
+	github.com/vmware-tanzu/sonobuoy v0.53.0
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	gonum.org/v1/gonum v0.9.0
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.17.7
-	k8s.io/apimachinery v0.17.7
-	k8s.io/client-go v0.17.7
-	k8s.io/component-base v0.17.2
-	sigs.k8s.io/controller-runtime v0.5.0
+	k8s.io/api v0.20.6
+	k8s.io/apimachinery v0.20.6
+	k8s.io/client-go v0.19.2
+	k8s.io/component-base v0.19.2
+	sigs.k8s.io/controller-runtime v0.7.2
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.17.2
-	k8s.io/apimachinery => k8s.io/apimachinery v0.17.2
-	k8s.io/client-go => k8s.io/client-go v0.17.2
+	k8s.io/api => k8s.io/api v0.20.6
+	k8s.io/apimachinery => k8s.io/apimachinery v0.20.6
+	k8s.io/client-go => k8s.io/client-go v0.20.6
 )

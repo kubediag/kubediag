@@ -76,8 +76,7 @@ func WaitForOperationsetPath(c client.Client, operationSetName string, expectedP
 	var operationset diagnosisv1.OperationSet
 
 	err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-		var err error
-		err = c.Get(nil, client.ObjectKey{Name: operationSetName}, &operationset)
+		err := c.Get(nil, client.ObjectKey{Name: operationSetName}, &operationset)
 		if err != nil {
 			return false, nil
 		}
@@ -104,8 +103,7 @@ func WaitForOperationsetPath(c client.Client, operationSetName string, expectedP
 func WaitForDiagnosisPhaseSucceeded(c client.Client, diagnosisName, diagnosisNamespace string, pollInterval, pollTimeout time.Duration) error {
 	var diagnosis diagnosisv1.Diagnosis
 	err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-		var err error
-		err = c.Get(nil, client.ObjectKey{Name: diagnosisName, Namespace: diagnosisNamespace}, &diagnosis)
+		err := c.Get(nil, client.ObjectKey{Name: diagnosisName, Namespace: diagnosisNamespace}, &diagnosis)
 		if err != nil {
 			return false, nil
 		}

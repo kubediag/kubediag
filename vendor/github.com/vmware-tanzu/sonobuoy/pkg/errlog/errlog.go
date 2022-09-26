@@ -22,8 +22,53 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// DebugOutput controls whether to output the trace of every error
-var DebugOutput = false
+var (
+	// DebugOutput controls whether to output the trace of every error
+	DebugOutput = false
+
+	// loglevel used for sirupsen/logrus
+	LogLevel logLevelFlagType = "info"
+)
+
+type logLevelFlagType string
+
+func (l *logLevelFlagType) String() string { return string(*l) }
+func (l *logLevelFlagType) Type() string   { return "level" }
+func (l *logLevelFlagType) Set(str string) error {
+	*l = logLevelFlagType(str)
+	return SetLevel(str)
+}
+
+func SetLevel(s string) error {
+	// Just using debug to set log level for as long
+	// as we want to keep the deprecated flag.
+	if DebugOutput {
+		LogLevel = "debug"
+	}
+	switch s {
+	case "panic":
+		logrus.SetLevel(logrus.PanicLevel)
+	case "fatal":
+		logrus.SetLevel(logrus.FatalLevel)
+	case "error":
+		logrus.SetLevel(logrus.ErrorLevel)
+	case "warn":
+		logrus.SetLevel(logrus.WarnLevel)
+	case "info":
+		logrus.SetLevel(logrus.InfoLevel)
+	case "debug":
+		logrus.SetLevel(logrus.DebugLevel)
+		DebugOutput = true
+	case "trace":
+		logrus.SetLevel(logrus.TraceLevel)
+		DebugOutput = true
+	default:
+		return fmt.Errorf("unknown log level %q", s)
+	}
+
+	return nil
+
+}
 
 // LogError logs an error, optionally with a tracelog
 func LogError(err error) {

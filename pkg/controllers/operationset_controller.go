@@ -71,8 +71,7 @@ func NewOperationSetReconciler(
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=operationsets/status,verbs=get;update;patch
 
 // Reconcile synchronizes a OperationSet object.
-func (r *OperationSetReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *OperationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("operationSet", req.NamespacedName)
 
 	log.Info("reconciling OperationSet")

@@ -64,8 +64,7 @@ func NewTriggerReconciler(
 // +kubebuilder:rbac:groups=diagnosis.kubediag.org,resources=triggers/status,verbs=get;update;patch
 
 // Reconcile synchronizes a Trigger object.
-func (r *TriggerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("trigger", req.NamespacedName)
 	r.collectTriggerMetrics(ctx, log)
 

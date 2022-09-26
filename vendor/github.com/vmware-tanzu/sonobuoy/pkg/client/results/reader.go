@@ -23,12 +23,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/vmware-tanzu/sonobuoy/pkg/config"
 
@@ -54,12 +55,9 @@ const (
 	// Is written into the ErrorsDir directory.
 	DefaultErrFile = "error.json"
 
-	hostsDir                  = "hosts/"
 	namespacedResourcesDir    = "resources/ns/"
 	nonNamespacedResourcesDir = "resources/cluster/"
-	podLogs                   = "podlogs/"
 	metadataDir               = "meta/"
-	defaultServicesFile       = "Services.json"
 	defaultNodesFile          = "Nodes.json"
 	defaultServerVersionFile  = "serverversion.json"
 	defaultServerGroupsFile   = "servergroups.json"
@@ -213,7 +211,7 @@ func (r *Reader) WalkFiles(walkfn filepath.WalkFunc) error {
 			header.FileInfo(),
 			tr,
 		}
-		err = walkfn(filepath.Clean(header.Name), info, err)
+		err = walkfn(path.Clean(header.Name), info, err)
 	}
 
 	if err == errStopWalk || err == io.EOF {
@@ -293,7 +291,7 @@ func (r *Reader) Metadata() string {
 func (r *Reader) ServerVersionFile() string {
 	switch r.Version {
 	case VersionEight:
-		return "serverversion/serverversion.json"
+		return path.Join("serverversion", "serverversion.json")
 	default:
 		return defaultServerVersionFile
 	}
@@ -309,7 +307,7 @@ func (r *Reader) NamespacedResources() string {
 func (r *Reader) NonNamespacedResources() string {
 	switch r.Version {
 	case VersionEight:
-		return "resources/non-ns/"
+		return path.Join("resources", "non-ns")
 	default:
 		return nonNamespacedResourcesDir
 	}
@@ -318,7 +316,7 @@ func (r *Reader) NonNamespacedResources() string {
 // NodesFile returns the path to the file that lists the nodes of the Kubernetes
 // cluster.
 func (r *Reader) NodesFile() string {
-	return filepath.Join(r.NonNamespacedResources(), defaultNodesFile)
+	return path.Join(r.NonNamespacedResources(), defaultNodesFile)
 }
 
 // ServerGroupsFile returns the path to the groups the Kubernetes API supported at the time of the run.
@@ -333,7 +331,7 @@ func ConfigFile(version string) string {
 	case VersionEight:
 		return "config.json"
 	default:
-		return "meta/config.json"
+		return path.Join("meta", "config.json")
 	}
 }
 
@@ -375,7 +373,7 @@ func (r *Reader) FileReader(filename string) (io.Reader, error) {
 	found := false
 	err := r.WalkFiles(
 		func(path string, info os.FileInfo, err error) error {
-			if err != nil || found == true {
+			if err != nil || found {
 				return err
 			}
 

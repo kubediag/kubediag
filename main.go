@@ -212,7 +212,8 @@ func (opts *KubeDiagOptions) Run() error {
 		// Channel for queuing kubernetes events and operation sets.
 		eventChainCh := make(chan corev1.Event, 1000)
 		graphBuilderCh := make(chan diagnosisv1.OperationSet, 1000)
-		stopCh := SetupSignalHandler()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		// Run common event reaper for garbage collection.
 		commonEventReaper := garbagecollection.NewCommonEventReaper(
@@ -223,9 +224,9 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetCache(),
 			opts.CommonEventTTL,
 		)
-		go func(stopCh chan struct{}) {
-			commonEventReaper.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			commonEventReaper.Run(ctx)
+		}(ctx)
 
 		// Create graph builder for generating graph from operation set.
 		graphbuilder := graphbuilder.NewGraphBuilder(
@@ -237,9 +238,9 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetCache(),
 			graphBuilderCh,
 		)
-		go func(stopCh chan struct{}) {
-			graphbuilder.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			graphbuilder.Run(ctx)
+		}(ctx)
 
 		// Create alertmanager for managing prometheus alerts.
 		alertmanager := alertmanager.NewAlertmanager(
@@ -260,9 +261,9 @@ func (opts *KubeDiagOptions) Run() error {
 			eventChainCh,
 			featureGate.Enabled(features.Eventer),
 		)
-		go func(stopCh chan struct{}) {
-			eventer.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			eventer.Run(ctx)
+		}(ctx)
 
 		// Create pagerduty eventer for managing pagerduty events.
 		pagerdutyEventer := pagerdutyeventer.NewPagerDutyEventer(
@@ -285,9 +286,9 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetCache(),
 			featureGate.Enabled(features.CronScheduler),
 		)
-		go func(stopCh chan struct{}) {
-			cronscheduler.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			cronscheduler.Run(ctx)
+		}(ctx)
 
 		// Create kafka consumer for managing kafka messages.
 		if len(opts.KafkaBrokers) != 0 && opts.KafkaTopic != "" {
@@ -301,15 +302,16 @@ func (opts *KubeDiagOptions) Run() error {
 			)
 			if err != nil {
 				setupLog.Error(err, "unable to create kafka consumer")
+				cancel()
 				return fmt.Errorf("unable to create kafka consumer: %v", err)
 			}
-			go func(stopCh chan struct{}) {
-				kafkaConsumer.Run(stopCh)
-			}(stopCh)
+			go func(ctx context.Context) {
+				kafkaConsumer.Run(ctx.Done())
+			}(ctx)
 		}
 
 		// Start http server.
-		go func(stopCh chan struct{}) {
+		go func() {
 			r := mux.NewRouter()
 			r.HandleFunc("/api/v1/alerts", alertmanager.Handler)
 			r.HandleFunc("/pagerduty", pagerdutyEventer.Handler)
@@ -318,9 +320,9 @@ func (opts *KubeDiagOptions) Run() error {
 			r.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", opts.BindAddress, opts.Port), r); err != nil {
 				setupLog.Error(err, "unable to start http server")
-				close(stopCh)
+				cancel()
 			}
-		}(stopCh)
+		}()
 
 		// Setup reconcilers for Diagnosis, Trigger, Operation, OperationSet and Event.
 		if err = (controllers.NewDiagnosisReconciler(
@@ -394,7 +396,7 @@ func (opts *KubeDiagOptions) Run() error {
 		// +kubebuilder:scaffold:builder
 
 		setupLog.Info("starting manager")
-		if err := mgr.Start(stopCh); err != nil {
+		if err := mgr.Start(ctx); err != nil {
 			setupLog.Error(err, "problem running manager")
 			return fmt.Errorf("problem running manager: %v", err)
 		}
@@ -415,7 +417,8 @@ func (opts *KubeDiagOptions) Run() error {
 
 		// Channel for queuing Diagnoses to pipeline for executing operations.
 		executorCh := make(chan diagnosisv1.Diagnosis, 1000)
-		stopCh := SetupSignalHandler()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		// Run executor.
 		executor := executor.NewExecutor(
@@ -431,9 +434,9 @@ func (opts *KubeDiagOptions) Run() error {
 			opts.DataRoot,
 			executorCh,
 		)
-		go func(stopCh chan struct{}) {
-			executor.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			executor.Run(ctx)
+		}(ctx)
 
 		// Run diagnosis reaper for garbage collection.
 		diagnosisReaper := garbagecollection.NewDiagnosisReaper(
@@ -448,9 +451,9 @@ func (opts *KubeDiagOptions) Run() error {
 			opts.MaximumDiagnosesPerNode,
 			opts.DataRoot,
 		)
-		go func(stopCh chan struct{}) {
-			diagnosisReaper.Run(stopCh)
-		}(stopCh)
+		go func(ctx context.Context) {
+			diagnosisReaper.Run(ctx)
+		}(ctx)
 
 		router := mux.NewRouter()
 		router.HandleFunc("/healthz", HealthCheckHandler)
@@ -467,16 +470,17 @@ func (opts *KubeDiagOptions) Run() error {
 		err = register.RegisterProcessors(mgr, registryOpt, featureGate, router, setupLog)
 		if err != nil {
 			setupLog.Error(err, "unable to register processors")
+			cancel()
 			return fmt.Errorf("unable to register processors for Diagnosis: %v", err)
 		}
 
 		// Start http server.
-		go func(stopCh chan struct{}) {
+		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", opts.BindAddress, opts.Port), router); err != nil {
 				setupLog.Error(err, "unable to start http server")
-				close(stopCh)
+				cancel()
 			}
-		}(stopCh)
+		}()
 
 		// Setup reconcilers for Diagnosis and Operation.
 		if err = (controllers.NewDiagnosisReconciler(
@@ -504,7 +508,7 @@ func (opts *KubeDiagOptions) Run() error {
 		// +kubebuilder:scaffold:builder
 
 		setupLog.Info("starting manager")
-		if err := mgr.Start(stopCh); err != nil {
+		if err := mgr.Start(ctx); err != nil {
 			setupLog.Error(err, "problem running manager")
 			return fmt.Errorf("problem running manager: %v", err)
 		}

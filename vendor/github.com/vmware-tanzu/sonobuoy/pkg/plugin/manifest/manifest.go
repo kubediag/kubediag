@@ -43,6 +43,13 @@ type SonobuoyConfig struct {
 	// to avoid automatically targeting other files or failing to target this one due to heuristics.
 	ResultFiles []string `json:"result-files,omitempty"`
 
+	// Description is an optional, human-readable description for the plugin.
+	Description string `json:"description,omitempty"`
+
+	// SourceURL is an optional URL which describes the source of the plugin and where updates
+	// to the plugin source would be kept.
+	SourceURL string `json:"source-url,omitempty"`
+
 	objectKind
 }
 
@@ -60,21 +67,30 @@ func (s *SonobuoyConfig) DeepCopy() *SonobuoyConfig {
 
 // Manifest is the high-level manifest for a plugin
 type Manifest struct {
-	SonobuoyConfig SonobuoyConfig `json:"sonobuoy-config"`
-	Spec           Container      `json:"spec"`
-	ExtraVolumes   []Volume       `json:"extra-volumes,omitempty"`
-	PodSpec        *PodSpec       `json:"podSpec,omitempty"`
+	SonobuoyConfig SonobuoyConfig    `json:"sonobuoy-config"`
+	Spec           Container         `json:"spec"`
+	ExtraVolumes   []Volume          `json:"extra-volumes,omitempty"`
+	PodSpec        *PodSpec          `json:"podSpec,omitempty"`
+	ConfigMap      map[string]string `json:"config-map,omitempty"`
+
 	objectKind
 }
 
 // DeepCopyObject is required by runtime.Object
 func (m *Manifest) DeepCopyObject() kuberuntime.Object {
-	return &Manifest{
+	m2 := &Manifest{
 		SonobuoyConfig: *m.SonobuoyConfig.DeepCopy(),
 		Spec:           *m.Spec.DeepCopy(),
 		PodSpec:        m.PodSpec.DeepCopy(),
 		objectKind:     objectKind{m.gvk},
 	}
+	if m.ConfigMap != nil {
+		m2.ConfigMap = map[string]string{}
+		for k, v := range m.ConfigMap {
+			m2.ConfigMap[k] = v
+		}
+	}
+	return m2
 }
 
 // GetObjectKind is required by runtime.Object
