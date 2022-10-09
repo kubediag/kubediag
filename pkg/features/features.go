@@ -46,6 +46,12 @@ const (
 	// Owner: @huangjiuyuan
 	// Alpha: 0.2.3
 	PagerDutyEventer featuregate.Feature = "PagerDutyEventer"
+	// CommonEventer can handle valid pagerduty events.
+	//
+	// Mode: master
+	// Owner: @huangjiuyuan
+	// Alpha: 0.2.3
+	CommonEventer featuregate.Feature = "CommonEventer"
 	// CronScheduler generates diagnoses periodically at fixed times.
 	//
 	// Mode: master
@@ -184,6 +190,7 @@ var defaultKubeDiagFeatureGates = map[featuregate.Feature]featuregate.FeatureSpe
 	Alertmanager:                 {Default: true, PreRelease: featuregate.Alpha},
 	Eventer:                      {Default: false, PreRelease: featuregate.Alpha},
 	PagerDutyEventer:             {Default: true, PreRelease: featuregate.Alpha},
+	CommonEventer:                {Default: true, PreRelease: featuregate.Alpha},
 	CronScheduler:                {Default: true, PreRelease: featuregate.Alpha},
 	KafkaConsumer:                {Default: true, PreRelease: featuregate.Alpha},
 	PodCollector:                 {Default: true, PreRelease: featuregate.Alpha},

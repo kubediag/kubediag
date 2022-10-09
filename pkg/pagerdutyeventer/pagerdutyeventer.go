@@ -174,7 +174,7 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Store pagerduty event in the etcd of kubernetes.
-		name := fmt.Sprintf("%s.%s.%d", strings.ToLower(pagerDutyMessage.Payload.Group), strings.ToLower(pagerDutyMessage.Payload.Class), commonEventToSignature(*pagerDutyMessage.Payload))
+		name := fmt.Sprintf("%s.%s.%d", strings.ToLower(pagerDutyMessage.Payload.Group), strings.ToLower(pagerDutyMessage.Payload.Class), CommonEventToSignature(*pagerDutyMessage.Payload))
 		namespace := util.DefautlNamespace
 		now := metav1.Now()
 		namespacedName := types.NamespacedName{
@@ -272,6 +272,39 @@ func (pe *pagerdutyEventer) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CommonEventToSignature returns a signature for a given common event.
+func CommonEventToSignature(payload PagerDutyPayload) uint64 {
+	sum := hashNew()
+	sum = hashAdd(sum, payload.Summary)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Source)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Severity)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Timestamp)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Class)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Component)
+	sum = hashAddByte(sum, separatorByte)
+	sum = hashAdd(sum, payload.Group)
+	sum = hashAddByte(sum, separatorByte)
+
+	customDetailNames := make([]string, 0, len(payload.CustomDetails))
+	for customDetailName := range payload.CustomDetails {
+		customDetailNames = append(customDetailNames, customDetailName)
+	}
+	sort.Strings(customDetailNames)
+	for _, customDetailName := range customDetailNames {
+		sum = hashAdd(sum, customDetailName)
+		sum = hashAddByte(sum, separatorByte)
+		sum = hashAdd(sum, payload.CustomDetails[customDetailName])
+		sum = hashAddByte(sum, separatorByte)
+	}
+
+	return sum
+}
+
 // writePagerDutyMessageToWebhookReceiver writes a pagerduty message to kafka.
 func (pe *pagerdutyEventer) writePagerDutyMessageToWebhookReceiver(commonEvent diagnosisv1.CommonEvent) error {
 	body, err := json.Marshal(commonEvent.Spec)
@@ -319,39 +352,6 @@ func (pe *pagerdutyEventer) writePagerDutyMessageToKafka(topic string, partition
 	}
 
 	return nil
-}
-
-// commonEventToSignature returns a signature for a given common event.
-func commonEventToSignature(payload PagerDutyPayload) uint64 {
-	sum := hashNew()
-	sum = hashAdd(sum, payload.Summary)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Source)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Severity)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Timestamp)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Class)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Component)
-	sum = hashAddByte(sum, separatorByte)
-	sum = hashAdd(sum, payload.Group)
-	sum = hashAddByte(sum, separatorByte)
-
-	customDetailNames := make([]string, 0, len(payload.CustomDetails))
-	for customDetailName := range payload.CustomDetails {
-		customDetailNames = append(customDetailNames, customDetailName)
-	}
-	sort.Strings(customDetailNames)
-	for _, customDetailName := range customDetailNames {
-		sum = hashAdd(sum, customDetailName)
-		sum = hashAddByte(sum, separatorByte)
-		sum = hashAdd(sum, payload.CustomDetails[customDetailName])
-		sum = hashAddByte(sum, separatorByte)
-	}
-
-	return sum
 }
 
 // hashNew initializes a new fnv64a hash value.

@@ -655,6 +655,37 @@ spec:
             sourceTemplate:
               description: SourceTemplate is the template of trigger.
               properties:
+                commonEventTemplate:
+                  description: CommonEventTemplate specifies the template to create
+                    a diagnosis from a common event.
+                  properties:
+                    regexp:
+                      description: CommonEventTemplateRegexp is the regular expression
+                        for matching common event template. All regular expressions
+                        must be in the syntax accepted by RE2 and described at https://golang.org/s/re2syntax.
+                      properties:
+                        class:
+                          description: Class is the regular expression for matching
+                            "Class" of common event.
+                          type: string
+                        component:
+                          description: Component is the regular expression for matching
+                            "Component" of common event.
+                          type: string
+                        group:
+                          description: Group is the regular expression for matching
+                            "Group" of common event.
+                          type: string
+                        severity:
+                          description: Severity is the regular expression for matching
+                            "Severity" of common event.
+                          type: string
+                        source:
+                          description: Source is the regular expression for matching
+                            "Source" of common event.
+                          type: string
+                      type: object
+                  type: object
                 cronTemplate:
                   description: CronTemplate specifies the template to create a diagnosis
                     periodically at fixed times.
