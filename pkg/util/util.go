@@ -276,9 +276,9 @@ func IsDiagnosisCompleted(diagnosis diagnosisv1.Diagnosis) bool {
 }
 
 // IsDiagnosisNodeNameMatched checks if the diagnosis is on the specific node.
-// It returns true if node name of the diagnosis is empty or matches provided node name, otherwise false.
+// It returns true if current node name of the diagnosis matches provided NodeName field or the NodeName based on podReference field.
 func IsDiagnosisNodeNameMatched(diagnosis diagnosisv1.Diagnosis, nodeName string) bool {
-	return diagnosis.Spec.NodeName == "" || diagnosis.Spec.NodeName == nodeName
+	return diagnosis.Spec.NodeName == nodeName
 }
 
 // RetrievePodsOnNode retrieves all pods on the provided node.
