@@ -31,7 +31,8 @@ spec:
         - --port=8089
         - --metrics-port=10357
         - --enable-leader-election=true
-        image: hub.c.163.com/kubediag/kubediag:v0.2.2
+        - --repeat-interval=5m
+        image: hub.c.163.com/kubediag/kubediag:v0.3.0
         env:
         - name: POD_IP
           valueFrom:

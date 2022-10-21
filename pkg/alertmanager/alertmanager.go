@@ -32,6 +32,7 @@ import (
 	"github.com/prometheus/common/model"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -167,6 +168,11 @@ func (am *alertmanager) Handler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			err := am.createCommonEvent(alert)
+			if err != nil {
+				am.Error(err, "failed to create common event from alert")
+			}
+
 			triggers, err := am.listTriggers()
 			if err != nil {
 				am.Error(err, "failed to list Triggers")
@@ -293,6 +299,84 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 	}
 
 	return nil, nil
+}
+
+// createCommonEvent creates a common event according to the prometheus alert.
+func (am *alertmanager) createCommonEvent(alert *types.Alert) error {
+	var name string
+	if (*Alert)(alert).Source() != "" {
+		name = fmt.Sprintf("%s.%s.%d", (*Alert)(alert).Source(), strings.ToLower(alert.Name()), alert.Fingerprint())
+	} else {
+		name = fmt.Sprintf("kubediag.%s.%d", strings.ToLower(alert.Name()), alert.Fingerprint())
+	}
+	namespace := util.DefautlNamespace
+	now := metav1.Now()
+	namespacedName := apitypes.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	// Set common event annotations.
+	annotations := make(map[string]string)
+	for key, value := range alert.Annotations {
+		annotations[string(key)] = string(value)
+	}
+
+	// Set common event labels.
+	labels := make(map[string]string)
+	labels["source"] = (*Alert)(alert).Source()
+	labels["severity"] = (*Alert)(alert).Severity()
+	labels["class"] = alert.Name()
+	labels["component"] = (*Alert)(alert).Component()
+	labels["group"] = (*Alert)(alert).Group()
+	labels["resolved"] = ""
+	labels["diagnosed"] = ""
+	for key, value := range alert.Labels {
+		labels[string(key)] = string(value)
+	}
+
+	var commonEvent diagnosisv1.CommonEvent
+	if err := am.client.Get(am, namespacedName, &commonEvent); err != nil {
+		if apierrors.IsNotFound(err) {
+			commonEvent = diagnosisv1.CommonEvent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        name,
+					Namespace:   namespace,
+					Labels:      labels,
+					Annotations: annotations,
+				},
+				Spec: diagnosisv1.CommonEventSpec{
+					Summary:   (*Alert)(alert).Summary(),
+					Source:    (*Alert)(alert).Source(),
+					Severity:  (*Alert)(alert).Severity(),
+					Timestamp: alert.StartsAt.String(),
+					Class:     alert.Name(),
+					Component: (*Alert)(alert).Component(),
+					Group:     (*Alert)(alert).Group(),
+				},
+			}
+
+			err = am.client.Create(am, &commonEvent)
+			if err != nil {
+				am.Error(err, "unable to create CommonEvent")
+				return err
+			}
+		} else {
+			am.Error(err, "unable to fetch CommonEvent")
+			return err
+		}
+	}
+
+	if commonEvent.Status.LastUpdateTime == nil || commonEvent.Status.LastUpdateTime.Before(&now) {
+		commonEvent.Status.Count += 1
+		commonEvent.Status.LastUpdateTime = &now
+		if err := am.client.Status().Update(am, &commonEvent); err != nil {
+			am.Error(err, "unable to update CommonEvent")
+			return err
+		}
+	}
+
+	return nil
 }
 
 // matchPrometheusAlert reports whether the diagnosis contains all match of the regular expression pattern

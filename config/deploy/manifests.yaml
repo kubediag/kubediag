@@ -1288,6 +1288,7 @@ spec:
         - --port=8089
         - --metrics-port=10357
         - --enable-leader-election=true
+        - --repeat-interval=5m
         command:
         - /kubediag
         env:
