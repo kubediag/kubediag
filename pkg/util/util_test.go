@@ -426,7 +426,7 @@ func TestIsDiagnosisNodeNameMatched(t *testing.T) {
 				},
 			},
 			node:     "node1",
-			expected: true,
+			expected: false,
 			desc:     "empty node name",
 		},
 		{

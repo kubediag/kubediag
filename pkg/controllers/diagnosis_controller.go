@@ -185,6 +185,14 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					Namespace: diagnosis.Spec.PodReference.Namespace,
 				}, &pod); err != nil {
 					log.Error(err, "unable to fetch Pod")
+
+					diagnosis.Status.StartTime = metav1.Now()
+					diagnosis.Status.Phase = diagnosisv1.DiagnosisPending
+					if err := r.Status().Update(ctx, &diagnosis); err != nil {
+						log.Error(err, "unable to update Diagnosis")
+						return ctrl.Result{}, client.IgnoreNotFound(err)
+					}
+
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
 
