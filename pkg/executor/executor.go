@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -36,6 +37,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -111,6 +113,14 @@ var (
 		},
 	)
 )
+
+// DiagnosisBackoff is the recommended backoff for a failure when syncing diagnosis.
+var DiagnosisBackoff = wait.Backoff{
+	Steps:    4,
+	Duration: 30 * time.Second,
+	Factor:   2.0,
+	Jitter:   0.1,
+}
 
 // Executor changes the state of a diagnosis by executing operations.
 type Executor interface {
@@ -228,27 +238,57 @@ func (ex *executor) Run(stopCh <-chan struct{}) {
 
 			// Only process diagnosis on designated node.
 			if util.IsDiagnosisNodeNameMatched(diagnosis, ex.nodeName) {
-				diagnosis, err := ex.syncDiagnosis(diagnosis)
-				if err != nil {
-					ex.Error(err, "failed to sync Diagnosis", "diagnosis", client.ObjectKey{
+				go func() {
+					diagnosis, err := ex.SyncDiagnosisWithRetry(DiagnosisBackoff, diagnosis)
+					if err != nil {
+						ex.Error(err, "failed to sync Diagnosis", "diagnosis", client.ObjectKey{
+							Name:      diagnosis.Name,
+							Namespace: diagnosis.Namespace,
+						})
+						executorSyncErrorCount.Inc()
+						return
+					}
+
+					ex.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
 						Name:      diagnosis.Name,
 						Namespace: diagnosis.Namespace,
 					})
-					executorSyncErrorCount.Inc()
-					ex.addDiagnosisToExecutorQueue(diagnosis)
-					continue
-				}
-
-				ex.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
-					Name:      diagnosis.Name,
-					Namespace: diagnosis.Namespace,
-				})
+				}()
 			}
 		// Stop executor on stop signal.
 		case <-stopCh:
 			return
 		}
 	}
+}
+
+// SyncDiagnosisWithRetry syncs diagnoses with backoff.
+func (ex *executor) SyncDiagnosisWithRetry(backoff wait.Backoff, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+	err := errors.New("timed out waiting for the condition")
+	for backoff.Steps > 0 {
+		if diagnosis, err = ex.syncDiagnosis(diagnosis); err == nil {
+			return diagnosis, nil
+		}
+		if backoff.Steps == 1 {
+			break
+		}
+		time.Sleep(backoff.Step())
+	}
+
+	// Set phase to failed.
+	ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since sync diagnosis failed", diagnosis.Namespace, diagnosis.Name)
+	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
+	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+		Type:    diagnosisv1.DiagnosisAccepted,
+		Status:  corev1.ConditionTrue,
+		Reason:  "SyncDiagnosisFailed",
+		Message: err.Error(),
+	})
+	if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
+		return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+	}
+	executorSyncFailCount.Inc()
+	return diagnosis, err
 }
 
 // syncDiagnosis syncs diagnoses.
