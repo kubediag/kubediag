@@ -1,6 +1,15 @@
 # Changelog
 
 - [Changelog](#changelog)
+  - [v0.3.1](#v031)
+    - [Changes by Kind](#changes-by-kind)
+      - [API Change](#api-change)
+      - [Bug or Regression](#bug-or-regression)
+      - [Other](#other)
+    - [Dependencies](#dependencies)
+      - [Added](#added)
+      - [Changed](#changed)
+      - [Removed](#removed)
   - [v0.3.0](#v030)
     - [Changes by Kind](#changes-by-kind)
       - [API Change](#api-change)
@@ -100,6 +109,42 @@
       - [Added](#added-9)
       - [Changed](#changed-9)
       - [Removed](#removed-9)
+
+## v0.3.1
+
+### Changes by Kind
+
+#### API Change
+
+- Implement trigger template for CommonEvent. ([#164](https://github.com/kubediag/kubediag/pull/164))
+
+#### Bug or Regression
+
+- Fix CircleCI release image name. ([#156](https://github.com/kubediag/kubediag/pull/156))
+- Update diagnosis  enqueue with backoff. ([#169](https://github.com/kubediag/kubediag/pull/169))
+- Fix the empty state of diagnosis. ([#170](https://github.com/kubediag/kubediag/pull/170))
+
+#### Other
+
+- Set the latest tag enviroment in CircleCI build. ([#155](https://github.com/kubediag/kubediag/pull/155))
+- Send CommonEvent to webhook receiver. ([#157](https://github.com/kubediag/kubediag/pull/157))
+- Update CommonEvent status if it is recently created. ([#158](https://github.com/kubediag/kubediag/pull/158))
+- Add trigger template design document for CommonEvent. ([#163](https://github.com/kubediag/kubediag/pull/163))
+- Create a CommonEvent according to a received Prometheus alert. ([#167](https://github.com/kubediag/kubediag/pull/167))
+
+### Dependencies
+
+#### Added
+
+_Nothing has changed._
+
+#### Changed
+
+_Nothing has changed._
+
+#### Removed
+
+_Nothing has changed._
 
 ## v0.3.0
 
