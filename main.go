@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	dockerclient "github.com/docker/docker/client"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -106,8 +107,6 @@ type KubeDiagOptions struct {
 	FeatureGates map[string]bool
 	// DataRoot is root directory of persistent kubediag data.
 	DataRoot string
-	// Python3MainFilePath is the absolute path of main file for running python3 function.
-	Python3MainFilePath string
 	// SinkEventToKafka enables the pagerduty handler to write message to kafka cluster.
 	SinkEventToKafka bool
 	// KafkaAddress is the addresses used to connect to the kafka cluster.
@@ -190,6 +189,13 @@ func (opts *KubeDiagOptions) Run() error {
 		setupLog.Error(err, "unable to set feature gates")
 		return fmt.Errorf("unable to set feature gates: %v", err)
 	}
+
+	// Create a new docker client for Operation controller to run Function Processor.
+	dockerCli, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(opts.DockerEndpoint))
+	if err != nil {
+		return err
+	}
+	defer dockerCli.Close()
 
 	if opts.Mode == "master" {
 		setupLog.Info("kubediag is running in master mode")
@@ -351,7 +357,6 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetScheme(),
 			opts.Mode,
 			opts.DataRoot,
-			opts.Python3MainFilePath,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Operation")
 			return fmt.Errorf("unable to create controller for Operation: %v", err)
@@ -433,6 +438,7 @@ func (opts *KubeDiagOptions) Run() error {
 			context.Background(),
 			ctrl.Log.WithName("executor"),
 			mgr.GetClient(),
+			*dockerCli,
 			mgr.GetEventRecorderFor("kubediag/executor"),
 			mgr.GetScheme(),
 			mgr.GetCache(),
@@ -507,7 +513,6 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetScheme(),
 			opts.Mode,
 			opts.DataRoot,
-			opts.Python3MainFilePath,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Operation")
 			return fmt.Errorf("unable to create controller for Operation: %v", err)
@@ -547,7 +552,6 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
-	fs.StringVar(&opts.Python3MainFilePath, "python3-main-file", opts.Python3MainFilePath, "The main file for running python3 function.")
 	fs.BoolVar(&opts.SinkEventToKafka, "sink-event-to-kafka", opts.SinkEventToKafka, "Enables the pagerduty handler to write message to kafka cluster.")
 	fs.StringVar(&opts.KafkaAddress, "kafka-address", opts.KafkaAddress, "The addresses used to connect to the kafka cluster.")
 	fs.BoolVar(&opts.SinkEventToWebhookReceiver, "sink-event-to-webhook-receiver", opts.SinkEventToWebhookReceiver, "Enables the pagerduty handler to write message to a webhook receiver.")

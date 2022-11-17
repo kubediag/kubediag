@@ -21,11 +21,13 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -305,6 +307,24 @@ func RetrieveDiagnosesOnNode(diagnoses []diagnosisv1.Diagnosis, nodeName string)
 	return diagnosesOnNode
 }
 
+// GetOwnerReference returns ownerRef for appending to objects's metadata
+func GetOwnerReference(kind, apiVersion, name string, uid types.UID) ([]metav1.OwnerReference, error) {
+	if name == "" {
+		return []metav1.OwnerReference{}, fmt.Errorf("name can't be empty")
+	}
+	if uid == "" {
+		return []metav1.OwnerReference{}, fmt.Errorf("uid can't be empty")
+	}
+	return []metav1.OwnerReference{
+		{
+			Kind:       kind,
+			APIVersion: apiVersion,
+			Name:       name,
+			UID:        uid,
+		},
+	}, nil
+}
+
 // GetTotalBytes gets total bytes in filesystem.
 func GetTotalBytes(path string) uint64 {
 	var stat syscall.Statfs_t
@@ -381,6 +401,95 @@ func GetProgramPID(program string) ([]int, error) {
 	return pids, nil
 }
 
+// CopyFiles copys all files and directories within src to an dst directory.
+func CopyFiles(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return CopyDir(src, dst)
+	}
+	return CopyFile(src, dst)
+}
+
+// CopyDir recursively copy a directory to dst directory.
+func CopyDir(src string, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("error reading src stats: %s", err.Error())
+	}
+
+	if err := os.MkdirAll(dst, info.Mode()); err != nil {
+		return fmt.Errorf("error creating path: %s - %s", dst, err.Error())
+	}
+
+	infos, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, info := range infos {
+		if err := CopyFiles(
+			filepath.Join(src, info.Name()),
+			filepath.Join(dst, info.Name()),
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CopyFile copy a file to dst directory
+func CopyFile(src string, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("error reading src file stats: %s", err.Error())
+	}
+
+	err = ensureBaseDir(dst)
+	if err != nil {
+		return fmt.Errorf("error creating dest base directory: %s", err.Error())
+	}
+
+	f, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("error creating dest file: %s", err.Error())
+	}
+	defer f.Close()
+
+	if err = os.Chmod(f.Name(), info.Mode()); err != nil {
+		return fmt.Errorf("error setting dest file mode: %s", err.Error())
+	}
+
+	s, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("error opening src file: %s", err.Error())
+	}
+	defer s.Close()
+
+	_, err = io.Copy(f, s)
+	if err != nil {
+		return fmt.Errorf("Error copying dest file: %s\n" + err.Error())
+	}
+
+	return nil
+}
+
+// ensureBaseDir creates the base directory of the given file path, if needed.
+// For example, if fpath is 'build/extras/dictionary.txt`, ensureBaseDir will
+// make sure that the directory `buid/extras/` is created.
+func ensureBaseDir(fpath string) error {
+	baseDir := path.Dir(fpath)
+	info, err := os.Stat(baseDir)
+	if err == nil && info.IsDir() {
+		return nil
+	}
+	return os.MkdirAll(baseDir, 0755)
+}
+
 // MoveFiles moves all files within src to an output directory.
 func MoveFiles(src string, dst string) error {
 	files, err := ioutil.ReadDir(src)
@@ -417,6 +526,17 @@ func RemoveFile(path string) error {
 		return fmt.Errorf("execute command rm ($ rm -r -f) on path %s with error %v", path, err)
 	}
 
+	return nil
+}
+
+// RemoveFiles removes files and directories in given file paths.
+func RemoveFiles(filePaths ...string) error {
+	for _, filePath := range filePaths {
+		_, err := os.Stat(filePath)
+		if !os.IsNotExist(err) {
+			return os.RemoveAll(filePath)
+		}
+	}
 	return nil
 }
 
