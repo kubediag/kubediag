@@ -120,6 +120,9 @@ github.com/hpcloud/tail/winfile
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/jhoonb/archivex v0.0.0-20201016144719-6a343cdae81d
+## explicit
+github.com/jhoonb/archivex
 # github.com/joewalnes/websocketd v0.4.1
 ## explicit
 github.com/joewalnes/websocketd/libwebsocketd

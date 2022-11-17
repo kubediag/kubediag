@@ -15,6 +15,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gorilla/mux v1.7.4
+	github.com/jhoonb/archivex v0.0.0-20201016144719-6a343cdae81d
 	github.com/joewalnes/websocketd v0.4.1
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.11.0

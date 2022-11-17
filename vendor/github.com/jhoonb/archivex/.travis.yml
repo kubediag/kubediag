@@ -1,0 +1,17 @@
+arch:
+  - ppc64le
+  - amd64
+language: go
+
+go:
+  - 1.4
+  - tip
+# Excluding go: 1.4 as the same is not supported on Ubuntu16.04 for arch: ppc64le
+jobs: 
+ exclude:
+  - arch: ppc64le
+    go: 1.4
+
+install: go get -v ./...
+
+script: go test -v ./...
