@@ -6,22 +6,34 @@ spec:
   processor:
     function:
       codeSource:
-        function.py: |
-          from hello import hello
+        handler.py: |
+          from .hello import hello
+          import json
 
+          def handle(event, context):
+              data = dict()
+              if len(event.body) != 0:
+                  data = json.loads(event.body)
 
-          def handler(context):
               hello()
 
               result = dict()
-              for key in context:
-                  result[key] = context[key]
+              for key in data:
+                  result[key] = data[key]
               result["a"] = "1"
               result["b"] = "2"
 
-              return result
+              json_object = json.dumps(result)
+              return {
+                  "statusCode": 200,
+                  "body": json_object 
+              }
+
         hello.py: |
           def hello():
               print("Hello World")
-      runtime: Python3
+              
+        requirements.txt: |
+          requests
+      runtime: python3
     timeoutSeconds: 120

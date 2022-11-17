@@ -1363,7 +1363,6 @@ spec:
         - --metrics-port=10355
         - --data-root=/var/lib/kubediag
         - --node-name=$(NODE_NAME)
-        - --python3-main-file=/var/lib/kubediag/function-main/python3
         command:
         - /kubediag
         env:

@@ -45,14 +45,6 @@ RUN apt-get update -y && \
     apt-get install -y openjdk-11-jdk && \
     apt-get clean
 
-# Install Python3
-RUN apt-get update -y && \
-    apt-get install -y python3 python3.8 python3-pip && \
-    apt-get clean
-
-# Install Python pacakges
-RUN pip install requests
-
 WORKDIR /usr/bin/
 # Copy diagnosing tools
 COPY tools/ctr .
@@ -63,6 +55,9 @@ WORKDIR /
 COPY --from=builder /workspace/kubediag .
 # Add eclipse memory analyzer tool
 ADD tools/MemoryAnalyzer-1.10.0.20200225-linux.gtk.x86_64.tar .
+
+# Copy language runtime templates
+COPY templates/ templates/
 
 ENV PATH=$PATH:/usr/local/go/bin
 
