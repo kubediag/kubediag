@@ -14,6 +14,7 @@ The function API should meet the following needs:
 * An user does not need to manage the deployment of his or her operation.
 * The function could take in parameters from other operations.
 * The result of a function could be used as input of other operations.
+* The function is built as OCI-compatible container image.
 
 ### API Object
 
@@ -63,50 +64,109 @@ The `Function` processor is designed for users to define how should KubeDiag run
 
 To implement a function runtime, a developer should:
 
-* Define a main function.
-* Add controlling logics to manage the main file on node. It is completed by the reconciler of kubediag agent.
-* Invoke the main function by kubediag agent if the operation is defined as a function.
+* Define a template that contains a main function, Dockerfile and a 'function' directory to put handler function and requirements.
+* Mount the template directory (named by runtime) to kubediag agent.
 
-It is necessary to define a main function when implementing a function runtime. Context propagation depends on the details of main function. A simple main function in python is described below:
+It is necessary to define a main function and Dockerfile when implementing a function runtime. Each function will be built as OCI-compativle container images and works as a HTTP server. Context propagation depends on the details of main function. A example main function in python is described below:
 
 ```python
-import sys
-import json
+#!/usr/bin/env python
+from flask import Flask, request, jsonify
+from waitress import serve
+import os
+
 from function import handler
 
+app = Flask(__name__)
 
-def main():
-    # The last argument is the context in json format.
-    context_string = sys.argv[-1]
-    context = json.loads(context_string)
+class Event:
+    def __init__(self):
+        self.body = request.get_data()
+        self.headers = request.headers
+        self.method = request.method
+        self.query = request.args
+        self.path = request.path
 
-    # Call user defined handler.
-    result = handler(context)
+class Context:
+    def __init__(self):
+        self.hostname = os.getenv('HOSTNAME', 'localhost')
 
-    # Serialize result from user defined handler to a json formatted string.
-    json_object = json.dumps(result)
-    print("\n"+json_object)
+def format_status_code(resp):
+    if 'statusCode' in resp:
+        return resp['statusCode']
 
+    return 200
 
-if __name__ == "__main__":
-    sys.exit(main())
+def format_body(resp):
+    if 'body' not in resp:
+        return ""
+    elif type(resp['body']) == dict:
+        return jsonify(resp['body'])
+    else:
+        return str(resp['body'])
+
+def format_headers(resp):
+    if 'headers' not in resp:
+        return []
+    elif type(resp['headers']) == dict:
+        headers = []
+        for key in resp['headers'].keys():
+            header_tuple = (key, resp['headers'][key])
+            headers.append(header_tuple)
+        return headers
+
+    return resp['headers']
+
+def format_response(resp):
+    if resp == None:
+        return ('', 200)
+
+    statusCode = format_status_code(resp)
+    body = format_body(resp)
+    headers = format_headers(resp)
+
+    return (body, statusCode, headers)
+
+@app.route('/', defaults={'path': ''}, methods=['GET', 'PUT', 'POST', 'PATCH', 'DELETE'])
+@app.route('/<path:path>', methods=['GET', 'PUT', 'POST', 'PATCH', 'DELETE'])
+def call_handler(path):
+    event = Event()
+    context = Context()
+    response_data = handler.handle(event, context)
+
+    resp = format_response(response_data)
+    return resp
+
+if __name__ == '__main__':
+    serve(app, host='0.0.0.0', port=5000)
 ```
 
 The main function is invoked by the kubediag agent during a diagnosis execution. The context is passed as arguments in the main function. A handler is required to complete the function:
 
 ```python
-def handler(context):
-    result = dict()
-    for key in context:
-        result[key] = context[key]
-    result["a"] = "1"
-    result["b"] = "2"
+handler.py: |
+    from .hello import hello
+    import json
+    def handle(event, context):
+        data = dict()
+        if len(event.body) != 0:
+            data = json.loads(event.body)
 
-    return result
+        result = dict()
+        for key in data:
+            result[key] = data[key]
+        result["a"] = "1"
+        result["b"] = "2"
+        json_object = json.dumps(result)
+        return {
+            "statusCode": 200,
+            "body": json_object 
+        }
 ```
 
-The following is a typical function invoke sequence:
+The following explains function invocations and lifecycle:
 
-* The kubediag agent runs the main function of specific runtime.
+* In a kubediag diagnosis, the kubediag agent build container image for function and deploy function as a Kubernetes Pod.
+* Functions will be invoked through HTTP requests by kubediag agent.
 * The main file invokes user defined handler function.
-* The kubediag agent get the return object from the main function.
+* The kubediag agent get HTTP response from the main function.
