@@ -22,7 +22,9 @@ import (
 
 const (
 	// Python3FunctionRuntime is the runtime for running python3 functions
-	Python3FunctionRuntime FunctionRuntime = "Python3"
+	Python3FunctionRuntime FunctionRuntime = "python3"
+	// GolangFunctionRuntime is the runtime for running golang functions
+	GolangFunctionRuntime FunctionRuntime = "golang-http"
 )
 
 // OperationSpec defines the desired state of Operation.

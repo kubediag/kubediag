@@ -17,7 +17,6 @@ limitations under the License.
 package executor
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -31,11 +30,14 @@ import (
 	"strings"
 	"time"
 
+	dockerclient "github.com/docker/docker/client"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
@@ -45,6 +47,7 @@ import (
 
 	diagnosisv1 "github.com/kubediag/kubediag/api/v1"
 	"github.com/kubediag/kubediag/pkg/controllers"
+	"github.com/kubediag/kubediag/pkg/function"
 	"github.com/kubediag/kubediag/pkg/util"
 )
 
@@ -67,6 +70,9 @@ const (
 	ContainerTelemetryKey = "container"
 	// NodeTelemetryKey is the telemetry key of node.
 	NodeTelemetryKey = "node"
+
+	// DefaultFunctionNamepace is the dafault namespace for k8s object created by function processor.
+	DefaultFunctionNamespace = "kubediag"
 )
 
 var (
@@ -141,6 +147,8 @@ type executor struct {
 
 	// client knows how to perform CRUD operations on Kubernetes objects.
 	client client.Client
+	// dockerClient is the API client that performs all operations against a docker server.
+	dockerClient dockerclient.Client
 	// eventRecorder knows how to record events on behalf of an EventSource.
 	eventRecorder record.EventRecorder
 	// scheme defines methods for serializing and deserializing API objects.
@@ -166,6 +174,7 @@ func NewExecutor(
 	ctx context.Context,
 	logger logr.Logger,
 	cli client.Client,
+	dockerClient dockerclient.Client,
 	eventRecorder record.EventRecorder,
 	scheme *runtime.Scheme,
 	cache cache.Cache,
@@ -196,6 +205,7 @@ func NewExecutor(
 		Context:       ctx,
 		Logger:        logger,
 		client:        cli,
+		dockerClient:  dockerClient,
 		eventRecorder: eventRecorder,
 		scheme:        scheme,
 		cache:         cache,
@@ -680,54 +690,170 @@ func (ex *executor) runFunctionWithContext(operation diagnosisv1.Operation, data
 		return false, nil, fmt.Errorf("function not specified")
 	}
 
-	// This could be implemented as an interface if more runtimes are supported in the future.
-	if operation.Spec.Processor.Function.Runtime == diagnosisv1.Python3FunctionRuntime {
-		return ex.runPython3Function(operation, data)
+	imageName, tag := function.GetImageNameAndTag(&operation)
+	// Check if exist the image in local host.
+	if !function.ImageExists(ex.dockerClient, imageName, tag) {
+		ex.Info("image does not exist, try to build image", "image", imageName+":"+tag)
+		// imageBuildMessage stores information returned by docker server after building an image.
+		imageBuildMessage := new(bytes.Buffer)
+		err := function.BuildFunctionImage(ex.dockerClient, &operation, string(operation.Spec.Processor.Function.Runtime), imageBuildMessage)
+		if err != nil {
+			ex.Error(err, "failed to build docker image for function processor")
+			return false, nil, err
+		}
+		ex.Info(imageBuildMessage.String())
 	}
 
-	return false, nil, fmt.Errorf("runtime not supported")
-}
-
-// runPython3Function runs a python3 function.
-func (ex *executor) runPython3Function(operation diagnosisv1.Operation, data map[string]string) (bool, map[string]string, error) {
-	context, err := json.Marshal(data)
+	namespacedName, err := ex.EnsureK8sResource(&operation)
 	if err != nil {
-		ex.Error(err, "failed to marshal context", "context", data)
+		return false, nil, fmt.Errorf("failed to ensure k8s object (Pod) for function processor")
+	}
+
+	pod := corev1.Pod{}
+	err = ex.client.Get(ex, namespacedName, &pod)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get Pod for processing function")
+	}
+
+	var host string
+	var port int32
+	host = pod.Status.PodIP
+	port = pod.Spec.Containers[0].Ports[0].ContainerPort
+	path := "/"
+	scheme := "http"
+	url := util.FormatURL(scheme, host, strconv.Itoa(int(port)), path)
+	timeout := time.Duration(*operation.Spec.Processor.TimeoutSeconds) * time.Second
+	cli := &http.Client{
+		Timeout:   timeout,
+		Transport: ex.transport,
+	}
+
+	// Marshal request body and construct http request.
+	body, err := json.Marshal(data)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to marshal request body: %s", err)
+	}
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(body))
+	if err != nil {
 		return false, nil, err
 	}
 
-	functionFilePath := filepath.Join(ex.dataRoot, controllers.FunctionSubDirectory, operation.Name, "main.py")
-	command := []string{"python3", functionFilePath, string(context)}
-	output, err := util.BlockingRunCommandWithTimeout(command, *operation.Spec.Processor.TimeoutSeconds)
-
-	// Update function execution result with output and error.
-	var result map[string]string
-	if output != nil {
-		reader := bytes.NewReader(output)
-		scanner := bufio.NewScanner(reader)
-		scanner.Split(util.ScanLastNonEmptyLine)
-
-		var last string
-		for scanner.Scan() {
-			last = scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			ex.Error(err, "Invalid output", "error", err)
-			return false, nil, nil
-		}
-
-		err = json.Unmarshal([]byte(last), &result)
-		if err != nil {
-			ex.Error(err, "failed to unmarshal function result", "result", last)
-			return false, nil, nil
-		}
-	}
+	// Send the http request.
+	res, err := cli.Do(req)
 	if err != nil {
-		key := strings.Join([]string{"function", operation.Name, "error"}, ".")
-		result[key] = err.Error()
+		return false, nil, err
+	}
+	defer res.Body.Close()
+	body, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		ex.Error(err, "failed to read http response body", "response", string(body))
+		return false, nil, err
+	}
+
+	// Return an error if response body size exceeds max data size.
+	if len(body) > MaxDataSize {
+		return false, nil, fmt.Errorf("response body size %d exceeds max data size %d", len(body), MaxDataSize)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		ex.Info("http response with erroneous status", "status", res.Status, "response", string(body))
+		return false, nil, nil
+	}
+
+	var result map[string]string
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		ex.Error(err, "failed to unmarshal response body", "response", string(body))
+		// If response code is 200 but body is not a string-map, we think this processor is finished but failed and will not return error
+		return false, nil, nil
 	}
 
 	return true, result, nil
+}
+
+// ensureK8sResource creates/updates k8s object (pod) for the operation.
+func (ex *executor) EnsureK8sResource(operation *diagnosisv1.Operation) (namespacedName types.NamespacedName, err error) {
+	namespacedName = types.NamespacedName{
+		Namespace: DefaultFunctionNamespace,
+		Name:      operation.Name,
+	}
+
+	or, err := util.GetOwnerReference(operation.Kind, operation.APIVersion, operation.Name, operation.UID)
+	if err != nil {
+		return
+	}
+
+	labels := getDefaultLabel(nil)
+
+	imageName, tag := function.GetImageNameAndTag(operation)
+
+	pod := corev1.Pod{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            operation.Name,
+			Namespace:       DefaultFunctionNamespace,
+			OwnerReferences: or,
+			Labels:          labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "function",
+					Image: imageName + ":" + tag,
+					// Use local image created by Operation Controller.
+					ImagePullPolicy: corev1.PullNever,
+					Ports: []corev1.ContainerPort{
+						{
+							ContainerPort: 8080,
+						},
+					},
+				},
+			},
+			NodeName: ex.nodeName,
+		},
+	}
+
+	ctx := context.Background()
+	err = ex.client.Create(ctx, &pod)
+	if err != nil && apierrors.IsAlreadyExists(err) {
+		// In case the Pod is already exists
+		// update just certain fields
+		newPod := &corev1.Pod{}
+		err = ex.client.Get(ctx, namespacedName, newPod)
+		if err != nil {
+			return
+		}
+		if !hasDefaultLabel(newPod.ObjectMeta.Labels) {
+			err = fmt.Errorf("found a conflicting pod object %s/%s. Aborting", namespacedName.Namespace, namespacedName.Name)
+			return
+		}
+
+		// A merge patch will preserve other fields modified at runtime.
+		patch := client.MergeFrom(newPod.DeepCopy())
+		newPod.ObjectMeta.Labels = labels
+		newPod.ObjectMeta.OwnerReferences = or
+		newPod.Spec.Containers[0].Image = pod.Spec.Containers[0].Image
+		err = ex.client.Patch(ctx, newPod, patch)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func getDefaultLabel(labels map[string]string) map[string]string {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels["created-by"] = "kubediag"
+	return labels
+}
+
+func hasDefaultLabel(labels map[string]string) bool {
+	if labels == nil || labels["created-by"] != "kubediag" {
+		return false
+	}
+	return true
 }
 
 // addDiagnosisToExecutorQueue adds Diagnosis to the queue processed by executor.

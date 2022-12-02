@@ -58,9 +58,8 @@ type OperationReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	mode                string
-	dataRoot            string
-	python3MainFilePath string
+	mode     string
+	dataRoot string
 }
 
 // NewOperationReconciler creates a new OperationReconciler.
@@ -70,7 +69,6 @@ func NewOperationReconciler(
 	scheme *runtime.Scheme,
 	mode string,
 	dataRoot string,
-	python3MainFilePath string,
 ) *OperationReconciler {
 	if mode == "master" {
 		metrics.Registry.MustRegister(
@@ -79,12 +77,11 @@ func NewOperationReconciler(
 	}
 
 	return &OperationReconciler{
-		Client:              cli,
-		Log:                 log,
-		Scheme:              scheme,
-		mode:                mode,
-		dataRoot:            dataRoot,
-		python3MainFilePath: python3MainFilePath,
+		Client:   cli,
+		Log:      log,
+		Scheme:   scheme,
+		mode:     mode,
+		dataRoot: dataRoot,
 	}
 }
 
@@ -111,16 +108,6 @@ func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					err := os.RemoveAll(scriptFilePath)
 					if err != nil {
 						log.Error(err, "failed to remove script file", "filepath", scriptFilePath)
-						return ctrl.Result{}, nil
-					}
-				}
-
-				functionDirectory := filepath.Join(r.dataRoot, FunctionSubDirectory, req.Name)
-				_, err = os.Stat(functionDirectory)
-				if !os.IsNotExist(err) {
-					err = os.RemoveAll(functionDirectory)
-					if err != nil {
-						log.Error(err, "failed to remove function directory", "filepath", functionDirectory)
 						return ctrl.Result{}, nil
 					}
 				}
@@ -176,126 +163,6 @@ func (r *OperationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err != nil {
 				log.Error(err, "failed to change file mode", "filepath", scriptFilePath)
 				return ctrl.Result{}, err
-			}
-		} else if operation.Spec.Processor.Function != nil {
-			// Create function directory if not exists.
-			functionDirectory := filepath.Join(r.dataRoot, FunctionSubDirectory, operation.Name)
-			_, err := os.Stat(functionDirectory)
-			if os.IsNotExist(err) {
-				err := os.MkdirAll(functionDirectory, os.ModePerm)
-				if err != nil {
-					log.Error(err, "failed to create function directory", "filepath", functionDirectory)
-					return ctrl.Result{}, err
-				}
-			}
-
-			// Read content of python3 main file template.
-			mainFileTemplate, err := ioutil.ReadFile(r.python3MainFilePath)
-			if err != nil {
-				log.Error(err, "failed to read python3 main file template", "filepath", r.python3MainFilePath)
-				return ctrl.Result{}, err
-			}
-
-			// Update content in main file.
-			mainFilePath := filepath.Join(functionDirectory, "main.py")
-			_, err = os.Stat(mainFilePath)
-			if os.IsNotExist(err) {
-				err := util.CreateFile(mainFilePath, string(mainFileTemplate))
-				if err != nil {
-					log.Error(err, "failed to create main file", "filepath", mainFilePath)
-					return ctrl.Result{}, err
-				}
-			} else {
-				// Get the content of existing main file.
-				content, err := ioutil.ReadFile(mainFilePath)
-				if err != nil {
-					log.Error(err, "failed to read main file", "filepath", mainFilePath)
-					return ctrl.Result{}, err
-				}
-
-				// Remove the existing main file if it is not equal to main file template.
-				// Create a new main file according to main file template.
-				if !reflect.DeepEqual(string(content), string(mainFileTemplate)) {
-					err = os.RemoveAll(mainFilePath)
-					if err != nil {
-						log.Error(err, "failed to remove file", "filepath", mainFilePath)
-						return ctrl.Result{}, err
-					}
-
-					err := util.CreateFile(mainFilePath, string(mainFileTemplate))
-					if err != nil {
-						log.Error(err, "failed to create main file", "filepath", mainFilePath)
-						return ctrl.Result{}, err
-					}
-				}
-			}
-
-			files, err := ioutil.ReadDir(functionDirectory)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			// Update all function files with defined code source.
-			for key, value := range operation.Spec.Processor.Function.CodeSource {
-				found := false
-				for _, file := range files {
-					filename := file.Name()
-					functionFilePath := filepath.Join(functionDirectory, filename)
-
-					// Continue if the file name is "main.py".
-					if filename == "main.py" {
-						continue
-					}
-
-					// Delete the existing function file if it is not found in code source.
-					if _, ok := operation.Spec.Processor.Function.CodeSource[filename]; !ok {
-						// Continue if the file does not exist.
-						_, err := os.Stat(functionFilePath)
-						if os.IsNotExist(err) {
-							continue
-						}
-
-						err = os.RemoveAll(functionFilePath)
-						if err != nil {
-							log.Error(err, "failed to remove file", "filepath", functionFilePath)
-							return ctrl.Result{}, err
-						}
-						continue
-					}
-
-					// Continue if the key does not match file name.
-					if filename != key {
-						continue
-					}
-
-					// Get the content of existing function file.
-					content, err := ioutil.ReadFile(functionFilePath)
-					if err != nil {
-						log.Error(err, "failed to read function file", "filepath", functionFilePath)
-						return ctrl.Result{}, err
-					}
-
-					// Remove the existing function file if it is not equal to the defined code source.
-					if !reflect.DeepEqual(string(content), operation.Spec.Processor.Function.CodeSource[filename]) {
-						err = os.RemoveAll(functionFilePath)
-						if err != nil {
-							log.Error(err, "failed to remove file", "filepath", functionFilePath)
-							return ctrl.Result{}, err
-						}
-					} else {
-						found = true
-					}
-				}
-
-				// Create the function file if the code source is not found in function directory.
-				if !found {
-					functionFilePath := filepath.Join(functionDirectory, key)
-					err := util.CreateFile(functionFilePath, value)
-					if err != nil {
-						log.Error(err, "failed to create function file", "filepath", functionFilePath)
-						return ctrl.Result{}, err
-					}
-				}
 			}
 		}
 	}

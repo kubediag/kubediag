@@ -1,0 +1,14 @@
+language: golang-http
+fprocess: ./handler
+welcome_message: |
+  You have created a new function which uses Go 1.18 and Alpine
+  Linux as its base image.
+
+  To disable the go module, for private vendor code, please use
+  "--build-arg GO111MODULE=off" with faas-cli build or configure this
+  via your stack.yml file.
+
+  See more: https://docs.openfaas.com/cli/templates/
+
+  For the template's repo and more examples:
+  https://github.com/openfaas/golang-http-template

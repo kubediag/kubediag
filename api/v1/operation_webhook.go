@@ -120,7 +120,7 @@ func (r *Operation) validateOperation() error {
 			}
 		}
 	} else if r.Spec.Processor.Function != nil {
-		if r.Spec.Processor.Function.Runtime != Python3FunctionRuntime {
+		if r.Spec.Processor.Function.Runtime != Python3FunctionRuntime && r.Spec.Processor.Function.Runtime != GolangFunctionRuntime {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("processor").Child("function").Child("runtime"),
 				r.Spec.Processor.Function.Runtime, "must be supported function runtime"))
 		}
