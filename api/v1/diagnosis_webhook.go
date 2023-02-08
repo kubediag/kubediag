@@ -91,10 +91,6 @@ func (r *Diagnosis) validateDiagnosis() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("operationSet"),
 			r.Spec.OperationSet, "must not be empty"))
 	}
-	if r.Spec.NodeName == "" && r.Spec.PodReference == nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("nodeName"),
-			r.Spec.NodeName, "must not be empty if podReference is empty"))
-	}
 	if len(allErrs) == 0 {
 		return nil
 	}

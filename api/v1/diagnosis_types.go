@@ -37,8 +37,6 @@ const (
 	// to an error in communicating with the host of the diagnosis.
 	DiagnosisUnknown DiagnosisPhase = "Unknown"
 
-	// DiagnosisAccepted means that the diagnosis has been accepted by kubediag agent.
-	DiagnosisAccepted DiagnosisConditionType = "Accepted"
 	// DiagnosisComplete means the diagnosis has completed its execution.
 	DiagnosisComplete DiagnosisConditionType = "Complete"
 	// OperationSetChanged means the operation set specification has been changed during diagnosis execution.
@@ -47,42 +45,31 @@ const (
 	OperationSetNotReady DiagnosisConditionType = "OperationSetNotReady"
 	// OperationSetNotFound means the operation set is not found when running Diagnosis.
 	OperationSetNotFound DiagnosisConditionType = "OperationSetNotFound"
-	// OperationNotFound means the operation is not found when running Diagnosis.
-	OperationNotFound DiagnosisConditionType = "OperationNotFound"
 )
 
 // DiagnosisSpec defines the desired state of Diagnosis.
 type DiagnosisSpec struct {
 	// OperationSet is the name of operation set which represents diagnosis pipeline to be executed.
 	OperationSet string `json:"operationSet"`
-	// One of NodeName and PodReference must be specified.
-	// NodeName is a specific node which the diagnosis is on.
-	// +optional
-	NodeName string `json:"nodeName,omitempty"`
-	// PodReference contains details of the target pod.
-	// +optional
-	PodReference *PodReference `json:"podReference,omitempty"`
-	// Parameters is a set of the parameters to be passed to opreations.
+	// Parameters is a set of the parameters to be passed to operations.
 	// Parameters and OperationResults are encoded into a json object and sent to operation processor when
 	// running diagnosis.
 	// +optional
 	Parameters map[string]string `json:"parameters,omitempty"`
+	// TargetSelector contains information to calculate target node to schedule tasks on.
+	TargetSelector *TargetSelector `json:"targetSelector,omitempty"`
 }
 
-// PodReference contains details of the target pod.
-type PodReference struct {
-	NamespacedName `json:",inline"`
-	// Container specifies name of the target container.
-	// +optional
-	Container string `json:"container,omitempty"`
-}
-
-// NamespacedName represents a kubernetes api resource.
-type NamespacedName struct {
-	// Namespace specifies the namespace of a kubernetes api resource.
-	Namespace string `json:"namespace"`
-	// Name specifies the name of a kubernetes api resource.
-	Name string `json:"name"`
+// TargetSelector contains information to calculate target node to schedule tasks on.
+type TargetSelector struct {
+	// NodeSelector queries over a set of nodes. Tasks will be scheduled on the result nodes of matched nodes.
+	NodeSelector *metav1.LabelSelector `json:"nodeSelector,omitempty"`
+	// NodeNames specifies nodes which tasks should be scheduled on.
+	NodeNames []string `json:"nodeNames,omitempty"`
+	// PodSelector queries over a set of pods. A tasks will be scheduled on the node which any matched pod is on.
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
+	// PodReferences specifies pods which tasks should be scheduled on the same node.
+	PodReferences []PodReference `json:"podReferences,omitempty"`
 }
 
 // DiagnosisStatus defines the observed state of Diagnosis.
@@ -109,6 +96,8 @@ type DiagnosisStatus struct {
 	// StartTime is RFC 3339 date and time at which the object was acknowledged by the system.
 	// +optional
 	StartTime metav1.Time `json:"startTime,omitempty"`
+	// NodeNames contains all nodes which tasks should be scheduled on.
+	NodeNames []string `json:"nodeNames,omitempty"`
 	// FailedPaths contains all failed paths in diagnosis pipeline.
 	// The last node in the path is the one which fails to execute operation.
 	// +optional
@@ -116,14 +105,12 @@ type DiagnosisStatus struct {
 	// SucceededPath is the succeeded paths in diagnosis pipeline.
 	// +optional
 	SucceededPath Path `json:"succeededPath,omitempty"`
-	// OperationResults contains results of operations.
-	// Parameters and OperationResults are encoded into a json object and sent to operation processor when
-	// running diagnosis.
-	// +optional
-	OperationResults map[string]string `json:"operationResults,omitempty"`
 	// Checkpoint is the checkpoint for resuming unfinished diagnosis.
 	// +optional
 	Checkpoint *Checkpoint `json:"checkpoint,omitempty"`
+	// Context stores all information generated during the diagnosis execution.
+	// +optional
+	Context *DiagnosisContext `json:"context,omitempty"`
 }
 
 // DiagnosisCondition contains details for the current condition of this diagnosis.
@@ -151,7 +138,33 @@ type Checkpoint struct {
 	PathIndex int `json:"pathIndex"`
 	// NodeIndex is the index of current node in path.
 	NodeIndex int `json:"nodeIndex"`
+	// The number of desired tasks.
+	Desired int `json:"desired"`
+	// The number of pending and running tasks.
+	Active int `json:"active"`
+	// The number of tasks which reached phase Failed.
+	Succeeded int `json:"succeeded"`
+	// The number of tasks which reached phase Succeeded.
+	Failed int `json:"failed"`
+	// SynchronizedTasks contains a list of synchronized task of current checkpoint.
+	SynchronizedTasks []string `json:"synchronizedTasks,omitempty"`
 }
+
+// DiagnosisContext stores all information generated during the diagnosis execution.
+type DiagnosisContext struct {
+	// Parameters is a set of the parameters defined in the spec.
+	// +optional
+	Parameters map[string]string `json:"parameters,omitempty"`
+	// Operations contains the results of a diagnosis.
+	// +optional
+	Operations map[string]OperationContext `json:"operations,omitempty"`
+}
+
+// OperationContext contains the results of an operation.
+type OperationContext map[string]TaskContext
+
+// TaskContext contains the results of a task.
+type TaskContext map[string]string
 
 // DiagnosisPhase is a label for the condition of a diagnosis at the current time.
 type DiagnosisPhase string
@@ -162,10 +175,6 @@ type DiagnosisConditionType string
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=".spec.operationSet",name=OperationSet,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.nodeName",name=NodeName,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.podReference.namespace",name=PodNamespace,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.podReference.name",name=PodName,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.podReference.container",name=PodContainer,type=string
 // +kubebuilder:printcolumn:JSONPath=".status.phase",name=Phase,type=string
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
