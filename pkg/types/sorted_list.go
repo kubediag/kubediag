@@ -29,20 +29,47 @@ import (
 type SortedDiagnosisListByStartTime []diagnosisv1.Diagnosis
 
 // Len is the number of elements in SortedDiagnosisListByStartTime.
-func (al SortedDiagnosisListByStartTime) Len() int {
-	return len(al)
+func (l SortedDiagnosisListByStartTime) Len() int {
+	return len(l)
 }
 
 // Less reports whether the element with index i should sort before the element with index j.
-func (al SortedDiagnosisListByStartTime) Less(i, j int) bool {
-	if i > len(al) || j > len(al) {
+func (l SortedDiagnosisListByStartTime) Less(i, j int) bool {
+	if i > len(l) || j > len(l) {
 		return false
 	}
 
-	return al[i].Status.StartTime.Before(&al[j].Status.StartTime)
+	return l[i].Status.StartTime.Before(&l[j].Status.StartTime)
 }
 
 // Swap swaps the elements with indexes i and j.
-func (al SortedDiagnosisListByStartTime) Swap(i, j int) {
-	al[i], al[j] = al[j], al[i]
+func (l SortedDiagnosisListByStartTime) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
+// SortedTaskListByStartTime contains sorted tasks by StartTime in ascending order.
+// It satisfies sort.Interface by implemeting the following methods:
+//
+// Len() int
+// Less(i, j int) bool
+// Swap(i, j int)
+type SortedTaskListByStartTime []diagnosisv1.Task
+
+// Len is the number of elements in SortedDiagnosisListByStartTime.
+func (l SortedTaskListByStartTime) Len() int {
+	return len(l)
+}
+
+// Less reports whether the element with index i should sort before the element with index j.
+func (l SortedTaskListByStartTime) Less(i, j int) bool {
+	if i > len(l) || j > len(l) {
+		return false
+	}
+
+	return l[i].Status.StartTime.Before(&l[j].Status.StartTime)
+}
+
+// Swap swaps the elements with indexes i and j.
+func (l SortedTaskListByStartTime) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
 }

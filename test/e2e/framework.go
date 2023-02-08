@@ -202,7 +202,7 @@ func (f *Framework) NewDiagnosis(name, ns, nodeName, operationSet string) *diagn
 				f.SelectorKey: name,
 			},
 		},
-		Spec:   diagnosisv1.DiagnosisSpec{NodeName: nodeName, OperationSet: operationSet},
+		Spec:   diagnosisv1.DiagnosisSpec{TargetSelector: &diagnosisv1.TargetSelector{NodeNames: []string{nodeName}}, OperationSet: operationSet},
 		Status: diagnosisv1.DiagnosisStatus{},
 	}
 }

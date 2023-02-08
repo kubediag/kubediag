@@ -31,7 +31,7 @@ func TestUpdateDiagnosisCondition(t *testing.T) {
 	diagnosisStatus := diagnosisv1.DiagnosisStatus{
 		Conditions: []diagnosisv1.DiagnosisCondition{
 			{
-				Type:    diagnosisv1.DiagnosisAccepted,
+				Type:    diagnosisv1.OperationSetNotReady,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
 				Message: "sync diagnosis successfully",
@@ -48,7 +48,7 @@ func TestUpdateDiagnosisCondition(t *testing.T) {
 		{
 			status: &diagnosisStatus,
 			condition: diagnosisv1.DiagnosisCondition{
-				Type:    diagnosisv1.DiagnosisAccepted,
+				Type:    diagnosisv1.OperationSetNotReady,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
 				Message: "sync diagnosis successfully",
@@ -70,7 +70,7 @@ func TestUpdateDiagnosisCondition(t *testing.T) {
 		{
 			status: &diagnosisStatus,
 			condition: diagnosisv1.DiagnosisCondition{
-				Type:    diagnosisv1.DiagnosisAccepted,
+				Type:    diagnosisv1.OperationSetNotReady,
 				Status:  corev1.ConditionFalse,
 				Reason:  "successfully",
 				Message: "sync diagnosis successfully",
@@ -100,7 +100,7 @@ func TestGetDiagnosisCondition(t *testing.T) {
 	}{
 		{
 			status:   nil,
-			condType: diagnosisv1.DiagnosisAccepted,
+			condType: diagnosisv1.OperationSetNotReady,
 			expected: expectedStruct{-1, nil},
 			desc:     "status nil, not found",
 		},
@@ -108,7 +108,7 @@ func TestGetDiagnosisCondition(t *testing.T) {
 			status: &diagnosisv1.DiagnosisStatus{
 				Conditions: nil,
 			},
-			condType: diagnosisv1.DiagnosisAccepted,
+			condType: diagnosisv1.OperationSetNotReady,
 			expected: expectedStruct{-1, nil},
 			desc:     "conditions nil, not found",
 		},
@@ -116,16 +116,16 @@ func TestGetDiagnosisCondition(t *testing.T) {
 			status: &diagnosisv1.DiagnosisStatus{
 				Conditions: []diagnosisv1.DiagnosisCondition{
 					{
-						Type:    diagnosisv1.DiagnosisAccepted,
+						Type:    diagnosisv1.OperationSetNotReady,
 						Status:  corev1.ConditionTrue,
 						Reason:  "successfully",
 						Message: "sync diagnosis successfully",
 					},
 				},
 			},
-			condType: diagnosisv1.DiagnosisAccepted,
+			condType: diagnosisv1.OperationSetNotReady,
 			expected: expectedStruct{0, &diagnosisv1.DiagnosisCondition{
-				Type:    diagnosisv1.DiagnosisAccepted,
+				Type:    diagnosisv1.OperationSetNotReady,
 				Status:  corev1.ConditionTrue,
 				Reason:  "successfully",
 				Message: "sync diagnosis successfully"},
@@ -414,14 +414,14 @@ func TestFormatURL(t *testing.T) {
 
 func TestIsDiagnosisNodeNameMatched(t *testing.T) {
 	tests := []struct {
-		diagnosis diagnosisv1.Diagnosis
-		node      string
-		expected  bool
-		desc      string
+		task     diagnosisv1.Task
+		node     string
+		expected bool
+		desc     string
 	}{
 		{
-			diagnosis: diagnosisv1.Diagnosis{
-				Spec: diagnosisv1.DiagnosisSpec{
+			task: diagnosisv1.Task{
+				Spec: diagnosisv1.TaskSpec{
 					NodeName: "",
 				},
 			},
@@ -430,8 +430,8 @@ func TestIsDiagnosisNodeNameMatched(t *testing.T) {
 			desc:     "empty node name",
 		},
 		{
-			diagnosis: diagnosisv1.Diagnosis{
-				Spec: diagnosisv1.DiagnosisSpec{
+			task: diagnosisv1.Task{
+				Spec: diagnosisv1.TaskSpec{
 					NodeName: "node1",
 				},
 			},
@@ -442,7 +442,7 @@ func TestIsDiagnosisNodeNameMatched(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		matched := IsDiagnosisNodeNameMatched(test.diagnosis, test.node)
+		matched := IsTaskNodeNameMatched(test.task, test.node)
 		assert.Equal(t, test.expected, matched, test.desc)
 	}
 }
@@ -518,24 +518,24 @@ func TestRetrievePodsOnNode(t *testing.T) {
 
 func TestRetrieveDiagnosesOnNode(t *testing.T) {
 	tests := []struct {
-		diagnoses []diagnosisv1.Diagnosis
-		nodeName  string
-		expected  []diagnosisv1.Diagnosis
-		desc      string
+		tasks    []diagnosisv1.Task
+		nodeName string
+		expected []diagnosisv1.Task
+		desc     string
 	}{
 		{
-			diagnoses: []diagnosisv1.Diagnosis{},
-			nodeName:  "node1",
-			expected:  []diagnosisv1.Diagnosis{},
-			desc:      "empty slice",
+			tasks:    []diagnosisv1.Task{},
+			nodeName: "node1",
+			expected: []diagnosisv1.Task{},
+			desc:     "empty slice",
 		},
 		{
-			diagnoses: []diagnosisv1.Diagnosis{
+			tasks: []diagnosisv1.Task{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "diagnosis1",
 					},
-					Spec: diagnosisv1.DiagnosisSpec{
+					Spec: diagnosisv1.TaskSpec{
 						NodeName: "node1",
 					},
 				},
@@ -543,7 +543,7 @@ func TestRetrieveDiagnosesOnNode(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "diagnosis2",
 					},
-					Spec: diagnosisv1.DiagnosisSpec{
+					Spec: diagnosisv1.TaskSpec{
 						NodeName: "node2",
 					},
 				},
@@ -551,18 +551,18 @@ func TestRetrieveDiagnosesOnNode(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "diagnosis3",
 					},
-					Spec: diagnosisv1.DiagnosisSpec{
+					Spec: diagnosisv1.TaskSpec{
 						NodeName: "node1",
 					},
 				},
 			},
 			nodeName: "node1",
-			expected: []diagnosisv1.Diagnosis{
+			expected: []diagnosisv1.Task{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "diagnosis1",
 					},
-					Spec: diagnosisv1.DiagnosisSpec{
+					Spec: diagnosisv1.TaskSpec{
 						NodeName: "node1",
 					},
 				},
@@ -570,17 +570,17 @@ func TestRetrieveDiagnosesOnNode(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "diagnosis3",
 					},
-					Spec: diagnosisv1.DiagnosisSpec{
+					Spec: diagnosisv1.TaskSpec{
 						NodeName: "node1",
 					},
 				},
 			},
-			desc: "diagnoses not on provided node removed",
+			desc: "tasks not on provided node removed",
 		},
 	}
 
 	for _, test := range tests {
-		resultDiagnoses := RetrieveDiagnosesOnNode(test.diagnoses, test.nodeName)
+		resultDiagnoses := RetrieveTasksOnNode(test.tasks, test.nodeName)
 		assert.Equal(t, test.expected, resultDiagnoses, test.desc)
 	}
 }
@@ -723,5 +723,39 @@ func TestScanLastNonEmptyLine(t *testing.T) {
 		}
 		assert.Equal(t, test.expected.advance, advance, test.desc)
 		assert.Equal(t, test.expected.token, token, test.desc)
+	}
+}
+
+func TestRemoveDuplicateStrings(t *testing.T) {
+	tests := []struct {
+		slice    []string
+		expected []string
+		desc     string
+	}{
+		{
+			slice:    nil,
+			expected: nil,
+			desc:     "nil slice",
+		},
+		{
+			slice:    []string{},
+			expected: []string{},
+			desc:     "empty slice",
+		},
+		{
+			slice:    []string{"a", "b", "c", "d"},
+			expected: []string{"a", "b", "c", "d"},
+			desc:     "slice without deplicated occurances",
+		},
+		{
+			slice:    []string{"a", "b", "c", "d", "c", "b"},
+			expected: []string{"a", "b", "c", "d"},
+			desc:     "duplicated strings",
+		},
+	}
+
+	for _, test := range tests {
+		dedup := RemoveDuplicateStrings(test.slice)
+		assert.Equal(t, test.expected, dedup, test.desc)
 	}
 }

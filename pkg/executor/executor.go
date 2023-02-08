@@ -56,6 +56,12 @@ const (
 	// It is the message size limitation in grpc: https://github.com/grpc/grpc-go/blob/v1.30.0/clientconn.go#L95.
 	MaxDataSize = 1024 * 1024 * 2
 
+	// TaskUIDTelemetryKey is the telemetry key of task object uid.
+	TaskUIDTelemetryKey = "task.uid"
+	// TaskNamespaceTelemetryKey is the telemetry key of task namespace.
+	TaskNamespaceTelemetryKey = "task.namespace"
+	// TaskNameTelemetryKey is the telemetry key of task name.
+	TaskNameTelemetryKey = "task.name"
 	// DiagnosisUIDTelemetryKey is the telemetry key of diagnosis object uid.
 	DiagnosisUIDTelemetryKey = "diagnosis.uid"
 	// DiagnosisNamespaceTelemetryKey is the telemetry key of diagnosis namespace.
@@ -120,8 +126,8 @@ var (
 	)
 )
 
-// DiagnosisBackoff is the recommended backoff for a failure when syncing diagnosis.
-var DiagnosisBackoff = wait.Backoff{
+// TaskBackoff is the recommended backoff for a failure when syncing diagnosis.
+var TaskBackoff = wait.Backoff{
 	Steps:    4,
 	Duration: 30 * time.Second,
 	Factor:   2.0,
@@ -165,8 +171,8 @@ type executor struct {
 	port int
 	// dataRoot is root directory of persistent kubediag data.
 	dataRoot string
-	// executorCh is a channel for queuing Diagnoses to be processed by executor.
-	executorCh chan diagnosisv1.Diagnosis
+	// taskCh is a channel for queuing Tasks to be processed by executor.
+	taskCh chan diagnosisv1.Task
 }
 
 // NewExecutor creates a new executor.
@@ -182,7 +188,7 @@ func NewExecutor(
 	bindAddress string,
 	port int,
 	dataRoot string,
-	executorCh chan diagnosisv1.Diagnosis,
+	taskCh chan diagnosisv1.Task,
 ) Executor {
 	metrics.Registry.MustRegister(
 		executorSyncSuccessCount,
@@ -214,7 +220,7 @@ func NewExecutor(
 		bindAddress:   bindAddress,
 		port:          port,
 		dataRoot:      dataRoot,
-		executorCh:    executorCh,
+		taskCh:        taskCh,
 	}
 }
 
@@ -228,40 +234,40 @@ func (ex *executor) Run(stopCh <-chan struct{}) {
 	for {
 		select {
 		// Process diagnoses queuing in executor channel.
-		case diagnosis := <-ex.executorCh:
+		case task := <-ex.taskCh:
 			err := ex.client.Get(ex, client.ObjectKey{
-				Name:      diagnosis.Name,
-				Namespace: diagnosis.Namespace,
-			}, &diagnosis)
+				Name:      task.Name,
+				Namespace: task.Namespace,
+			}, &task)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					continue
 				}
-				ex.addDiagnosisToExecutorQueue(diagnosis)
+				ex.addTaskToExecutorQueue(task)
 				continue
 			}
 
-			// Only process diagnosis in DiagnosisRunning phase.
-			if diagnosis.Status.Phase != diagnosisv1.DiagnosisRunning {
+			// Only process task in DiagnosisRunning phase.
+			if task.Status.Phase != diagnosisv1.TaskRunning {
 				continue
 			}
 
 			// Only process diagnosis on designated node.
-			if util.IsDiagnosisNodeNameMatched(diagnosis, ex.nodeName) {
+			if util.IsTaskNodeNameMatched(task, ex.nodeName) {
 				go func() {
-					diagnosis, err := ex.SyncDiagnosisWithRetry(DiagnosisBackoff, diagnosis)
+					task, err := ex.SyncTaskWithRetry(TaskBackoff, task)
 					if err != nil {
-						ex.Error(err, "failed to sync Diagnosis", "diagnosis", client.ObjectKey{
-							Name:      diagnosis.Name,
-							Namespace: diagnosis.Namespace,
+						ex.Error(err, "failed to sync Task", "task", client.ObjectKey{
+							Name:      task.Name,
+							Namespace: task.Namespace,
 						})
 						executorSyncErrorCount.Inc()
 						return
 					}
 
-					ex.Info("syncing Diagnosis successfully", "diagnosis", client.ObjectKey{
-						Name:      diagnosis.Name,
-						Namespace: diagnosis.Namespace,
+					ex.Info("syncing Task successfully", "task", client.ObjectKey{
+						Name:      task.Name,
+						Namespace: task.Namespace,
 					})
 				}()
 			}
@@ -272,12 +278,12 @@ func (ex *executor) Run(stopCh <-chan struct{}) {
 	}
 }
 
-// SyncDiagnosisWithRetry syncs diagnoses with backoff.
-func (ex *executor) SyncDiagnosisWithRetry(backoff wait.Backoff, diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
+// SyncTaskWithRetry syncs diagnoses with backoff.
+func (ex *executor) SyncTaskWithRetry(backoff wait.Backoff, task diagnosisv1.Task) (diagnosisv1.Task, error) {
 	err := errors.New("timed out waiting for the condition")
 	for backoff.Steps > 0 {
-		if diagnosis, err = ex.syncDiagnosis(diagnosis); err == nil {
-			return diagnosis, nil
+		if task, err = ex.syncTask(task); err == nil {
+			return task, nil
 		}
 		if backoff.Steps == 1 {
 			break
@@ -286,184 +292,71 @@ func (ex *executor) SyncDiagnosisWithRetry(backoff wait.Backoff, diagnosis diagn
 	}
 
 	// Set phase to failed.
-	ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since sync diagnosis failed", diagnosis.Namespace, diagnosis.Name)
-	diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-	util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-		Type:    diagnosisv1.DiagnosisAccepted,
+	ex.eventRecorder.Eventf(&task, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run task %s/%s since sync task failed", task.Namespace, task.Name)
+	task.Status.Phase = diagnosisv1.TaskFailed
+	util.UpdateTaskCondition(&task.Status, &diagnosisv1.TaskCondition{
+		Type:    diagnosisv1.TaskAccepted,
 		Status:  corev1.ConditionTrue,
-		Reason:  "SyncDiagnosisFailed",
+		Reason:  "SyncTaskFailed",
 		Message: err.Error(),
 	})
-	if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-		return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+	if err := ex.client.Status().Update(ex, &task); err != nil {
+		return task, fmt.Errorf("unable to update Diagnosis: %s", err)
 	}
 	executorSyncFailCount.Inc()
-	return diagnosis, err
+	return task, err
 }
 
-// syncDiagnosis syncs diagnoses.
-// TODO: Control the logic to enqueue a diagnosis on failure. For example, A diagnosis with max data size should not be enqueued.
-func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.Diagnosis, error) {
-	ex.Info("starting to sync Diagnosis", "diagnosis", client.ObjectKey{
-		Name:      diagnosis.Name,
-		Namespace: diagnosis.Namespace,
+// syncTask syncs tasks.
+// TODO: Control the logic to enqueue a task on failure. For example, A task with max data size should not be enqueued.
+func (ex *executor) syncTask(task diagnosisv1.Task) (diagnosisv1.Task, error) {
+	ex.Info("starting to sync Task", "task", client.ObjectKey{
+		Name:      task.Name,
+		Namespace: task.Namespace,
 	})
-
-	// Fetch operationSet according to diagnosis.
-	var operationset diagnosisv1.OperationSet
-	err := ex.client.Get(ex, client.ObjectKey{
-		Name: diagnosis.Spec.OperationSet,
-	}, &operationset)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			ex.Info("operation set is not found", "operationset", diagnosis.Spec.OperationSet, "diagnosis", client.ObjectKey{
-				Name:      diagnosis.Name,
-				Namespace: diagnosis.Namespace,
-			})
-
-			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set is not found", diagnosis.Namespace, diagnosis.Name)
-			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-				Type:    diagnosisv1.OperationSetNotFound,
-				Status:  corev1.ConditionTrue,
-				Reason:  "OperationSetNotFound",
-				Message: fmt.Sprintf("OperationSet %s is not found", diagnosis.Spec.OperationSet),
-			})
-			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-			}
-			executorSyncFailCount.Inc()
-			return diagnosis, nil
-		}
-
-		return diagnosis, err
-	}
-
-	// Validate the operation set is ready.
-	if !operationset.Status.Ready {
-		ex.Info("the graph has not been updated according to the latest specification")
-
-		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set is not ready", diagnosis.Namespace, diagnosis.Name)
-		diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-			Type:    diagnosisv1.OperationSetNotReady,
-			Status:  corev1.ConditionTrue,
-			Reason:  "OperationSetNotReady",
-			Message: fmt.Sprintf("OperationSet is not ready because the graph has not been updated according to the latest specification"),
-		})
-		if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-		}
-		executorSyncFailCount.Inc()
-		return diagnosis, nil
-	}
-
-	// Update hash value calculated from adjacency list of operation set.
-	diagnosisLabels := diagnosis.GetLabels()
-	if diagnosisLabels == nil {
-		diagnosisLabels = make(map[string]string)
-	}
-	diagnosisAdjacencyListHash, ok := diagnosisLabels[util.OperationSetUniqueLabelKey]
-	if !ok {
-		diagnosisLabels[util.OperationSetUniqueLabelKey] = util.ComputeHash(operationset.Spec.AdjacencyList)
-		diagnosis.SetLabels(diagnosisLabels)
-		if err := ex.client.Update(ex, &diagnosis); err != nil {
-			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-		}
-
-		ex.Info("hash value of adjacency list calculated")
-		return diagnosis, nil
-	}
-
-	// Validate the graph defined by operation set is not changed.
-	operationSetLabels := operationset.GetLabels()
-	if operationSetLabels == nil {
-		operationSetLabels = make(map[string]string)
-	}
-	operationSetAdjacencyListHash := operationSetLabels[util.OperationSetUniqueLabelKey]
-	if operationSetAdjacencyListHash != diagnosisAdjacencyListHash {
-		ex.Info("hash value caculated from adjacency list has been changed", "new", operationSetAdjacencyListHash, "old", diagnosisAdjacencyListHash)
-
-		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation set has been changed during execution", diagnosis.Namespace, diagnosis.Name)
-		diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-		util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-			Type:    diagnosisv1.OperationSetChanged,
-			Status:  corev1.ConditionTrue,
-			Reason:  "OperationSetChanged",
-			Message: fmt.Sprintf("OperationSet specification has been changed during diagnosis execution"),
-		})
-		if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-			return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-		}
-		executorSyncFailCount.Inc()
-		return diagnosis, nil
-	}
-
-	// Set initial checkpoint before operation execution.
-	if diagnosis.Status.Checkpoint == nil {
-		diagnosis.Status.Checkpoint = &diagnosisv1.Checkpoint{
-			PathIndex: 0,
-			NodeIndex: 0,
-		}
-	}
-
-	// Retrieve operation node information.
-	checkpoint := diagnosis.Status.Checkpoint
-	paths := operationset.Status.Paths
-	if checkpoint.PathIndex >= len(paths) {
-		return diagnosis, fmt.Errorf("invalid path index %d of length %d", checkpoint.PathIndex, len(paths))
-	}
-	path := paths[checkpoint.PathIndex]
-	if checkpoint.NodeIndex >= len(path) {
-		return diagnosis, fmt.Errorf("invalid node index %d of length %d", checkpoint.NodeIndex, len(path))
-	}
-	node := path[checkpoint.NodeIndex]
 
 	// Fetch operation according to operation node information.
 	var operation diagnosisv1.Operation
-	err = ex.client.Get(ex, client.ObjectKey{
-		Name: node.Operation,
+	err := ex.client.Get(ex, client.ObjectKey{
+		Name: task.Spec.Operation,
 	}, &operation)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			ex.Info("operation is not found", "operation", node.Operation, "operationset", diagnosis.Spec.OperationSet, "diagnosis", client.ObjectKey{
-				Name:      diagnosis.Name,
-				Namespace: diagnosis.Namespace,
+			ex.Info("operation is not found", "operation", operation.Name, "task", client.ObjectKey{
+				Name:      task.Name,
+				Namespace: task.Namespace,
 			})
 
-			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s since operation is not found", diagnosis.Namespace, diagnosis.Name)
-			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
+			ex.eventRecorder.Eventf(&task, corev1.EventTypeWarning, "TaskFailed", "Failed to run task %s/%s since operation is not found", task.Namespace, task.Name)
+			task.Status.Phase = diagnosisv1.TaskFailed
+			util.UpdateTaskCondition(&task.Status, &diagnosisv1.TaskCondition{
 				Type:    diagnosisv1.OperationNotFound,
 				Status:  corev1.ConditionTrue,
 				Reason:  "OperationNotFound",
-				Message: fmt.Sprintf("Operation %s is not found", node.Operation),
+				Message: fmt.Sprintf("Operation %s is not found", operation.Name),
 			})
-			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
+			if err := ex.client.Status().Update(ex, &task); err != nil {
+				return task, fmt.Errorf("unable to update Task: %s", err)
 			}
 			executorSyncFailCount.Inc()
-			return diagnosis, nil
+			return task, nil
 		}
 
-		return diagnosis, err
+		return task, err
 	}
 
 	// Construct request data for current operation by adding contexts and operation results.
 	// The request data is a map[string]string which contains key value pairs.
 	data := make(map[string]string)
-	for key, value := range diagnosis.Spec.Parameters {
+	for key, value := range task.Spec.Parameters {
 		data[key] = value
 	}
-	for key, value := range diagnosis.Status.OperationResults {
-		data[key] = value
-	}
-	updateDiagnosisContext(data, diagnosis)
+	updateTaskContext(data, task)
 
-	ex.Info("running operation", "diagnosis", client.ObjectKey{
-		Name:      diagnosis.Name,
-		Namespace: diagnosis.Namespace,
-	}, "node", node, "operationset", operationset.Name, "path", path)
+	ex.Info("running operation", "task", client.ObjectKey{
+		Name:      task.Name,
+		Namespace: task.Namespace,
+	}, "operation", operation.Name)
 
 	// Execute the operation by sending http request to the processor or running predefined script.
 	var succeeded bool
@@ -472,108 +365,60 @@ func (ex *executor) syncDiagnosis(diagnosis diagnosisv1.Diagnosis) (diagnosisv1.
 		succeeded, result, err = ex.doHTTPRequestWithContext(operation, data)
 		if err != nil {
 			executorOperationErrorCounter.Inc()
-			return diagnosis, err
+			return task, err
 		}
 	} else if operation.Spec.Processor.ScriptRunner != nil {
 		succeeded, result, err = ex.runScriptWithContext(operation, data)
 		if err != nil {
 			executorOperationErrorCounter.Inc()
-			return diagnosis, err
+			return task, err
 		}
 	} else if operation.Spec.Processor.Function != nil {
 		succeeded, result, err = ex.runFunctionWithContext(operation, data)
 		if err != nil {
 			executorOperationErrorCounter.Inc()
-			return diagnosis, err
+			return task, err
 		}
 	}
 
-	// Update the operation result into diagnosis status.
+	// Update the operation result into task status.
 	if succeeded {
-		ex.Info("operation executed successfully", "diagnosis", client.ObjectKey{
-			Name:      diagnosis.Name,
-			Namespace: diagnosis.Namespace,
-		}, "node", node, "operationset", operationset.Name, "path", path)
-		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "OperationSucceeded", "Operation %s executed successfully", operation.Name)
+		ex.Info("operation executed successfully", "task", client.ObjectKey{
+			Name:      task.Name,
+			Namespace: task.Namespace,
+		}, "operation", operation.Name)
+		ex.eventRecorder.Eventf(&task, corev1.EventTypeNormal, "OperationSucceeded", "Operation %s executed successfully", operation.Name)
 		executorOperationSuccessCounter.Inc()
 
 		// Set operation result according to response from operaton processor.
-		if diagnosis.Status.OperationResults == nil {
-			diagnosis.Status.OperationResults = make(map[string]string)
+		if task.Status.Results == nil {
+			task.Status.Results = make(map[string]string)
 		}
 		for key, value := range result {
-			diagnosis.Status.OperationResults[key] = value
+			task.Status.Results[key] = value
 		}
 
-		// Set current path as succeeded path if current operation is succeeded.
-		if diagnosis.Status.SucceededPath == nil {
-			diagnosis.Status.SucceededPath = make(diagnosisv1.Path, 0, len(path))
+		task.Status.Phase = diagnosisv1.TaskSucceeded
+		if err := ex.client.Status().Update(ex, &task); err != nil {
+			return task, fmt.Errorf("unable to update Task: %s", err)
 		}
-		diagnosis.Status.SucceededPath = append(diagnosis.Status.SucceededPath, node)
-
-		// Set phase to succeeded if current path has been finished and all operations are succeeded.
-		if checkpoint.NodeIndex == len(path)-1 {
-			ex.Info("running diagnosis successfully", "diagnosis", client.ObjectKey{
-				Name:      diagnosis.Name,
-				Namespace: diagnosis.Namespace,
-			})
-			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeNormal, "DiagnosisSucceeded", "Running %s/%s diagnosis successfully", diagnosis.Namespace, diagnosis.Name)
-
-			util.UpdateDiagnosisCondition(&diagnosis.Status, &diagnosisv1.DiagnosisCondition{
-				Type:    diagnosisv1.DiagnosisComplete,
-				Status:  corev1.ConditionTrue,
-				Reason:  "DiagnosisComplete",
-				Message: fmt.Sprintf("Diagnosis is completed"),
-			})
-			diagnosis.Status.Phase = diagnosisv1.DiagnosisSucceeded
-			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-			}
-			executorSyncSuccessCount.Inc()
-			return diagnosis, nil
-		}
-
-		// Increment node index if path has remaining operations to executed.
-		checkpoint.NodeIndex++
+		executorSyncSuccessCount.Inc()
+		return task, nil
 	} else {
-		ex.Info("failed to execute operation", "diagnosis", client.ObjectKey{
-			Name:      diagnosis.Name,
-			Namespace: diagnosis.Namespace,
-		}, "node", node, "operationset", operationset.Name, "path", path)
-		ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "OperationFailed", "Failed to execute operation %s", operation.Name)
+		ex.Info("failed to execute operation", "task", client.ObjectKey{
+			Name:      task.Name,
+			Namespace: task.Namespace,
+		}, "operation", operation.Name)
+		ex.eventRecorder.Eventf(&task, corev1.EventTypeWarning, "OperationFailed", "Failed to execute operation %s", operation.Name)
 		executorOperationFailCounter.Inc()
 
-		// Set current path as failed path and clear succeeded path if current operation is failed.
-		if diagnosis.Status.FailedPaths == nil {
-			diagnosis.Status.FailedPaths = make([]diagnosisv1.Path, 0, len(paths))
+		task.Status.Phase = diagnosisv1.TaskFailed
+		if err := ex.client.Status().Update(ex, &task); err != nil {
+			return task, fmt.Errorf("unable to update Diagnosis: %s", err)
 		}
-		diagnosis.Status.FailedPaths = append(diagnosis.Status.FailedPaths, path)
-		diagnosis.Status.SucceededPath = nil
-
-		// Set phase to failed if all paths are failed.
-		if checkpoint.PathIndex == len(paths)-1 {
-			ex.Info("failed to run diagnosis", "diagnosis", client.ObjectKey{
-				Name:      diagnosis.Name,
-				Namespace: diagnosis.Namespace,
-			})
-			ex.eventRecorder.Eventf(&diagnosis, corev1.EventTypeWarning, "DiagnosisFailed", "Failed to run diagnosis %s/%s", diagnosis.Namespace, diagnosis.Name)
-			diagnosis.Status.Phase = diagnosisv1.DiagnosisFailed
-			if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-				return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-			}
-			executorSyncFailCount.Inc()
-			return diagnosis, nil
-		}
-
-		// Increment path index if paths has remaining paths to executed.
-		checkpoint.PathIndex++
+		executorSyncFailCount.Inc()
+		return task, nil
 	}
-
-	if err := ex.client.Status().Update(ex, &diagnosis); err != nil {
-		return diagnosis, fmt.Errorf("unable to update Diagnosis: %s", err)
-	}
-
-	return diagnosis, nil
 }
 
 // doHTTPRequestWithContext sends a http request to the operation processor with payload.
@@ -856,28 +701,28 @@ func hasDefaultLabel(labels map[string]string) bool {
 	return true
 }
 
-// addDiagnosisToExecutorQueue adds Diagnosis to the queue processed by executor.
-func (ex *executor) addDiagnosisToExecutorQueue(diagnosis diagnosisv1.Diagnosis) {
-	err := util.QueueDiagnosis(ex, ex.executorCh, diagnosis)
+// addTaskToExecutorQueue adds Task to the queue processed by executor.
+func (ex *executor) addTaskToExecutorQueue(task diagnosisv1.Task) {
+	err := util.QueueTask(ex, ex.taskCh, task)
 	if err != nil {
-		ex.Error(err, "failed to send diagnosis to executor queue", "diagnosis", client.ObjectKey{
-			Name:      diagnosis.Name,
-			Namespace: diagnosis.Namespace,
+		ex.Error(err, "failed to send task to executor queue", "task", client.ObjectKey{
+			Name:      task.Name,
+			Namespace: task.Namespace,
 		})
 	}
 }
 
-// updateDiagnosisContext updates data with diagnosis contexts.
-func updateDiagnosisContext(data map[string]string, diagnosis diagnosisv1.Diagnosis) {
-	data[DiagnosisNamespaceTelemetryKey] = diagnosis.Namespace
-	data[DiagnosisNameTelemetryKey] = diagnosis.Name
-	data[DiagnosisUIDTelemetryKey] = string(diagnosis.UID)
-	data[NodeTelemetryKey] = diagnosis.Spec.NodeName
-	if diagnosis.Spec.PodReference != nil {
-		data[PodNamespaceTelemetryKey] = diagnosis.Spec.PodReference.Namespace
-		data[PodNameTelemetryKey] = diagnosis.Spec.PodReference.Name
-		if diagnosis.Spec.PodReference.Container != "" {
-			data[ContainerTelemetryKey] = diagnosis.Spec.PodReference.Container
+// updateTaskContext updates data with task contexts.
+func updateTaskContext(data map[string]string, task diagnosisv1.Task) {
+	data[TaskNamespaceTelemetryKey] = task.Namespace
+	data[TaskNameTelemetryKey] = task.Name
+	data[TaskUIDTelemetryKey] = string(task.UID)
+	data[NodeTelemetryKey] = task.Spec.NodeName
+	if task.Spec.PodReference != nil {
+		data[PodNamespaceTelemetryKey] = task.Spec.PodReference.Namespace
+		data[PodNameTelemetryKey] = task.Spec.PodReference.Name
+		if task.Spec.PodReference.Container != "" {
+			data[ContainerTelemetryKey] = task.Spec.PodReference.Container
 		}
 	}
 }

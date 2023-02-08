@@ -183,19 +183,20 @@ func (ce *commonEventer) createDiagnosisFromCommonEvent(triggers []diagnosisv1.T
 						Annotations: annotations,
 					},
 					Spec: diagnosisv1.DiagnosisSpec{
-						OperationSet: trigger.Spec.OperationSet,
+						OperationSet:   trigger.Spec.OperationSet,
+						TargetSelector: &diagnosisv1.TargetSelector{},
 					},
 				}
 				// Determine node for new diagnosis
 				if trigger.Spec.NodeName != "" {
-					diagnosis.Spec.NodeName = trigger.Spec.NodeName
+					diagnosis.Spec.TargetSelector.NodeNames = []string{trigger.Spec.NodeName}
 				} else {
 					ce.Info(trigger.Name, "trigger no node specified")
 					continue
 				}
 
 				// Skip if pod reference and node name cannot be determined.
-				if diagnosis.Spec.PodReference == nil && diagnosis.Spec.NodeName == "" {
+				if len(diagnosis.Spec.TargetSelector.PodReferences) == 0 && len(diagnosis.Spec.TargetSelector.NodeNames) == 0 {
 					ce.Info("pod reference and node name cannot be determined for commonevent and trigger", "commonevent", commonEventInfo)
 					continue
 				}

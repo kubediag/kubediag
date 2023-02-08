@@ -135,6 +135,61 @@ func GetDiagnosisConditionFromList(conditions []diagnosisv1.DiagnosisCondition, 
 	return -1, nil
 }
 
+// UpdateDiagnosisCondition updates existing task condition or creates a new one. Sets
+// LastTransitionTime to now if the status has changed.
+// Returns true if task condition has changed or has been added.
+func UpdateTaskCondition(status *diagnosisv1.TaskStatus, condition *diagnosisv1.TaskCondition) bool {
+	condition.LastTransitionTime = metav1.Now()
+	// Try to find this task condition.
+	conditionIndex, oldCondition := GetTaskCondition(status, condition.Type)
+
+	if oldCondition == nil {
+		// We are adding new task condition.
+		status.Conditions = append(status.Conditions, *condition)
+		return true
+	}
+
+	// We are updating an existing condition, so we need to check if it has changed.
+	if condition.Status == oldCondition.Status {
+		condition.LastTransitionTime = oldCondition.LastTransitionTime
+	}
+
+	isEqual := condition.Status == oldCondition.Status &&
+		condition.Reason == oldCondition.Reason &&
+		condition.Message == oldCondition.Message &&
+		condition.LastTransitionTime.Equal(&oldCondition.LastTransitionTime)
+
+	status.Conditions[conditionIndex] = *condition
+
+	// Return true if one of the fields have changed.
+	return !isEqual
+}
+
+// GetTaskCondition extracts the provided condition from the given status.
+// Returns -1 and nil if the condition is not present, otherwise returns the index of the located condition.
+func GetTaskCondition(status *diagnosisv1.TaskStatus, conditionType diagnosisv1.TaskConditionType) (int, *diagnosisv1.TaskCondition) {
+	if status == nil {
+		return -1, nil
+	}
+
+	return GetTaskConditionFromList(status.Conditions, conditionType)
+}
+
+// GetTaskConditionFromList extracts the provided condition from the given list of condition and
+// returns the index of the condition and the condition. Returns -1 and nil if the condition is not present.
+func GetTaskConditionFromList(conditions []diagnosisv1.TaskCondition, conditionType diagnosisv1.TaskConditionType) (int, *diagnosisv1.TaskCondition) {
+	if conditions == nil {
+		return -1, nil
+	}
+	for i := range conditions {
+		if conditions[i].Type == conditionType {
+			return i, &conditions[i]
+		}
+	}
+
+	return -1, nil
+}
+
 // GetPodUnhealthyReason extracts the reason of terminated or waiting container in the pod if the pod is
 // not ready. The parameter must be an unhealthy pod.
 // It returns the reason of the first terminated or waiting container.
@@ -248,6 +303,18 @@ func QueueDiagnosis(ctx context.Context, channel chan diagnosisv1.Diagnosis, dia
 	}
 }
 
+// QueueTask sends a task to a channel. It returns an error if the channel is blocked.
+func QueueTask(ctx context.Context, channel chan diagnosisv1.Task, task diagnosisv1.Task) error {
+	select {
+	case <-ctx.Done():
+		return nil
+	case channel <- task:
+		return nil
+	default:
+		return fmt.Errorf("channel is blocked")
+	}
+}
+
 // QueueOperationSet sends an operation set to a channel. It returns an error if the channel is blocked.
 func QueueOperationSet(ctx context.Context, channel chan diagnosisv1.OperationSet, operationSet diagnosisv1.OperationSet) error {
 	select {
@@ -277,10 +344,10 @@ func IsDiagnosisCompleted(diagnosis diagnosisv1.Diagnosis) bool {
 	return diagnosis.Status.Phase == diagnosisv1.DiagnosisSucceeded || diagnosis.Status.Phase == diagnosisv1.DiagnosisFailed
 }
 
-// IsDiagnosisNodeNameMatched checks if the diagnosis is on the specific node.
-// It returns true if current node name of the diagnosis matches provided NodeName field or the NodeName based on podReference field.
-func IsDiagnosisNodeNameMatched(diagnosis diagnosisv1.Diagnosis, nodeName string) bool {
-	return diagnosis.Spec.NodeName == nodeName
+// IsTaskNodeNameMatched checks if the task is on the specific node.
+// It returns true if current node name of the task matches provided NodeName field or the NodeName based on podReference field.
+func IsTaskNodeNameMatched(task diagnosisv1.Task, nodeName string) bool {
+	return task.Spec.NodeName == nodeName
 }
 
 // RetrievePodsOnNode retrieves all pods on the provided node.
@@ -295,16 +362,16 @@ func RetrievePodsOnNode(pods []corev1.Pod, nodeName string) []corev1.Pod {
 	return podsOnNode
 }
 
-// RetrieveDiagnosesOnNode retrieves all diagnoses on the provided node.
-func RetrieveDiagnosesOnNode(diagnoses []diagnosisv1.Diagnosis, nodeName string) []diagnosisv1.Diagnosis {
-	diagnosesOnNode := make([]diagnosisv1.Diagnosis, 0)
-	for _, diagnosis := range diagnoses {
-		if diagnosis.Spec.NodeName == nodeName {
-			diagnosesOnNode = append(diagnosesOnNode, diagnosis)
+// RetrieveTasksOnNode retrieves all tasks on the provided node.
+func RetrieveTasksOnNode(tasks []diagnosisv1.Task, nodeName string) []diagnosisv1.Task {
+	tasksOnNode := make([]diagnosisv1.Task, 0)
+	for _, task := range tasks {
+		if task.Spec.NodeName == nodeName {
+			tasksOnNode = append(tasksOnNode, task)
 		}
 	}
 
-	return diagnosesOnNode
+	return tasksOnNode
 }
 
 // GetOwnerReference returns ownerRef for appending to objects's metadata
@@ -695,4 +762,34 @@ func ScanLastNonEmptyLine(data []byte, eof bool) (advance int, token []byte, err
 
 	token = data[bytes.LastIndexAny(data, "\n\r")+1:]
 	return advance, token, nil
+}
+
+// RemoveDuplicateStrings removes duplicated strings from a string slice
+func RemoveDuplicateStrings(stringSlice []string) []string {
+	if len(stringSlice) == 0 {
+		return stringSlice
+	}
+
+	keys := make(map[string]bool)
+	list := []string{}
+
+	for _, entry := range stringSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+
+	return list
+}
+
+// Contains returns true if a string slice contains specific string.
+func Contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
