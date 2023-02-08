@@ -12,18 +12,6 @@ spec:
   - JSONPath: .spec.operationSet
     name: OperationSet
     type: string
-  - JSONPath: .spec.nodeName
-    name: NodeName
-    type: string
-  - JSONPath: .spec.podReference.namespace
-    name: PodNamespace
-    type: string
-  - JSONPath: .spec.podReference.name
-    name: PodName
-    type: string
-  - JSONPath: .spec.podReference.container
-    name: PodContainer
-    type: string
   - JSONPath: .status.phase
     name: Phase
     type: string
@@ -58,10 +46,6 @@ spec:
         spec:
           description: DiagnosisSpec defines the desired state of Diagnosis.
           properties:
-            nodeName:
-              description: One of NodeName and PodReference must be specified. NodeName
-                is a specific node which the diagnosis is on.
-              type: string
             operationSet:
               description: OperationSet is the name of operation set which represents
                 diagnosis pipeline to be executed.
@@ -69,26 +53,131 @@ spec:
             parameters:
               additionalProperties:
                 type: string
-              description: Parameters is a set of the parameters to be passed to opreations.
+              description: Parameters is a set of the parameters to be passed to operations.
                 Parameters and OperationResults are encoded into a json object and
                 sent to operation processor when running diagnosis.
               type: object
-            podReference:
-              description: PodReference contains details of the target pod.
+            targetSelector:
+              description: TargetSelector contains information to calculate target
+                node to schedule tasks on.
               properties:
-                container:
-                  description: Container specifies name of the target container.
-                  type: string
-                name:
-                  description: Name specifies the name of a kubernetes api resource.
-                  type: string
-                namespace:
-                  description: Namespace specifies the namespace of a kubernetes api
-                    resource.
-                  type: string
-              required:
-              - name
-              - namespace
+                nodeNames:
+                  description: NodeNames specifies nodes which tasks should be scheduled
+                    on.
+                  items:
+                    type: string
+                  type: array
+                nodeSelector:
+                  description: NodeSelector queries over a set of nodes. Tasks will
+                    be scheduled on the result nodes of matched nodes.
+                  properties:
+                    matchExpressions:
+                      description: matchExpressions is a list of label selector requirements.
+                        The requirements are ANDed.
+                      items:
+                        description: A label selector requirement is a selector that
+                          contains values, a key, and an operator that relates the
+                          key and values.
+                        properties:
+                          key:
+                            description: key is the label key that the selector applies
+                              to.
+                            type: string
+                          operator:
+                            description: operator represents a key's relationship
+                              to a set of values. Valid operators are In, NotIn, Exists
+                              and DoesNotExist.
+                            type: string
+                          values:
+                            description: values is an array of string values. If the
+                              operator is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. This array is replaced during a
+                              strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - key
+                        - operator
+                        type: object
+                      type: array
+                    matchLabels:
+                      additionalProperties:
+                        type: string
+                      description: matchLabels is a map of {key,value} pairs. A single
+                        {key,value} in the matchLabels map is equivalent to an element
+                        of matchExpressions, whose key field is "key", the operator
+                        is "In", and the values array contains only "value". The requirements
+                        are ANDed.
+                      type: object
+                  type: object
+                podReferences:
+                  description: PodReferences specifies pods which tasks should be
+                    scheduled on the same node.
+                  items:
+                    description: PodReference contains details of the target pod.
+                    properties:
+                      container:
+                        description: Container specifies name of the target container.
+                        type: string
+                      name:
+                        description: Name specifies the name of a kubernetes api resource.
+                        type: string
+                      namespace:
+                        description: Namespace specifies the namespace of a kubernetes
+                          api resource.
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  type: array
+                podSelector:
+                  description: PodSelector queries over a set of pods. A tasks will
+                    be scheduled on the node which any matched pod is on.
+                  properties:
+                    matchExpressions:
+                      description: matchExpressions is a list of label selector requirements.
+                        The requirements are ANDed.
+                      items:
+                        description: A label selector requirement is a selector that
+                          contains values, a key, and an operator that relates the
+                          key and values.
+                        properties:
+                          key:
+                            description: key is the label key that the selector applies
+                              to.
+                            type: string
+                          operator:
+                            description: operator represents a key's relationship
+                              to a set of values. Valid operators are In, NotIn, Exists
+                              and DoesNotExist.
+                            type: string
+                          values:
+                            description: values is an array of string values. If the
+                              operator is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. This array is replaced during a
+                              strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - key
+                        - operator
+                        type: object
+                      type: array
+                    matchLabels:
+                      additionalProperties:
+                        type: string
+                      description: matchLabels is a map of {key,value} pairs. A single
+                        {key,value} in the matchLabels map is equivalent to an element
+                        of matchExpressions, whose key field is "key", the operator
+                        is "In", and the values array contains only "value". The requirements
+                        are ANDed.
+                      type: object
+                  type: object
               type: object
           required:
           - operationSet
@@ -99,6 +188,15 @@ spec:
             checkpoint:
               description: Checkpoint is the checkpoint for resuming unfinished diagnosis.
               properties:
+                active:
+                  description: The number of pending and running tasks.
+                  type: integer
+                desired:
+                  description: The number of desired tasks.
+                  type: integer
+                failed:
+                  description: The number of tasks which reached phase Succeeded.
+                  type: integer
                 nodeIndex:
                   description: NodeIndex is the index of current node in path.
                   type: integer
@@ -106,9 +204,22 @@ spec:
                   description: PathIndex is the index of current path in operation
                     set status.
                   type: integer
+                succeeded:
+                  description: The number of tasks which reached phase Failed.
+                  type: integer
+                synchronizedTasks:
+                  description: SynchronizedTasks contains a list of synchronized task
+                    of current checkpoint.
+                  items:
+                    type: string
+                  type: array
               required:
+              - active
+              - desired
+              - failed
               - nodeIndex
               - pathIndex
+              - succeeded
               type: object
             conditions:
               description: Conditions contains current service state of diagnosis.
@@ -141,6 +252,28 @@ spec:
                 - type
                 type: object
               type: array
+            context:
+              description: Context stores all information generated during the diagnosis
+                execution.
+              properties:
+                operations:
+                  additionalProperties:
+                    additionalProperties:
+                      additionalProperties:
+                        type: string
+                      description: TaskContext contains the results of a task.
+                      type: object
+                    description: OperationContext contains the results of an operation.
+                    type: object
+                  description: Operations contains the results of a diagnosis.
+                  type: object
+                parameters:
+                  additionalProperties:
+                    type: string
+                  description: Parameters is a set of the parameters defined in the
+                    spec.
+                  type: object
+              type: object
             failedPaths:
               description: FailedPaths contains all failed paths in diagnosis pipeline.
                 The last node in the path is the one which fails to execute operation.
@@ -173,13 +306,12 @@ spec:
                   type: object
                 type: array
               type: array
-            operationResults:
-              additionalProperties:
+            nodeNames:
+              description: NodeNames contains all nodes which tasks should be scheduled
+                on.
+              items:
                 type: string
-              description: OperationResults contains results of operations. Parameters
-                and OperationResults are encoded into a json object and sent to operation
-                processor when running diagnosis.
-              type: object
+              type: array
             phase:
               description: "Phase is a simple, high-level summary of where the diagnosis
                 is in its lifecycle. The conditions array, the reason and message
