@@ -1,0 +1,166 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: tasks.diagnosis.kubediag.org
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.operation
+    name: Operation
+    type: string
+  - JSONPath: .spec.nodeName
+    name: NodeName
+    type: string
+  - JSONPath: .spec.podReference.namespace
+    name: PodNamespace
+    type: string
+  - JSONPath: .spec.podReference.name
+    name: PodName
+    type: string
+  - JSONPath: .spec.podReference.container
+    name: PodContainer
+    type: string
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: diagnosis.kubediag.org
+  names:
+    kind: Task
+    listKind: TaskList
+    plural: tasks
+    singular: task
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Task is the Schema for the tasks API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: TaskSpec defines the desired state of Task.
+          properties:
+            nodeName:
+              description: One of NodeName and PodReference must be specified. NodeName
+                is a specific node which the task is on.
+              type: string
+            operation:
+              description: Operation is the name of operation which represents task
+                to be executed.
+              type: string
+            parameters:
+              additionalProperties:
+                type: string
+              description: Parameters is a set of the parameters to be passed to opreations.
+                Parameters and Results are encoded into a json object and sent to
+                operation processor when running a task.
+              type: object
+            podReference:
+              description: PodReference contains details of the target pod.
+              properties:
+                container:
+                  description: Container specifies name of the target container.
+                  type: string
+                name:
+                  description: Name specifies the name of a kubernetes api resource.
+                  type: string
+                namespace:
+                  description: Namespace specifies the namespace of a kubernetes api
+                    resource.
+                  type: string
+              required:
+              - name
+              - namespace
+              type: object
+          required:
+          - operation
+          type: object
+        status:
+          description: TaskStatus defines the observed state of Task
+          properties:
+            conditions:
+              description: Conditions contains current service state of task.
+              items:
+                description: TaskCondition contains details for the current condition
+                  of this diagnosis.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime specifies last time the condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human readable message indicating details
+                      about last transition.
+                    type: string
+                  reason:
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition. Can be True,
+                      False, Unknown.
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            phase:
+              description: "Phase is a simple, high-level summary of where the task
+                is in its lifecycle. The conditions array, the reason and message
+                fields contain more detail about the pod's status. There are five
+                possible phase values: \n TaskPending: The task has been accepted
+                by the system, but no operation has been started. TaskRunning: The
+                task has been bound to a node and the operation has been started.
+                TaskSucceeded: The task has voluntarily terminated a response code
+                of 200. TaskFailed: The task has terminated in a failure. TaskUnknown:
+                For some reason the state of the task could not be obtained, typically
+                due to an error in communicating with the host of the task."
+              type: string
+            results:
+              additionalProperties:
+                type: string
+              description: Results contains results of a task. Parameters and Results
+                are encoded into a json object and sent to operation processor when
+                running task.
+              type: object
+            startTime:
+              description: StartTime is RFC 3339 date and time at which the object
+                was acknowledged by the system.
+              format: date-time
+              type: string
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

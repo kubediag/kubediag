@@ -94,12 +94,12 @@ type KubeDiagOptions struct {
 	KafkaTopic string
 	// DockerEndpoint specifies the docker endpoint.
 	DockerEndpoint string
-	// DiagnosisTTL is amount of time to retain diagnoses.
-	DiagnosisTTL time.Duration
-	// MinimumDiagnosisTTLDuration is minimum age for a finished diagnosis before it is garbage collected.
-	MinimumDiagnosisTTLDuration time.Duration
-	// MaximumDiagnosesPerNode is maximum number of finished diagnoses to retain per node.
-	MaximumDiagnosesPerNode int32
+	// TaskTTL is amount of time to retain tasks.
+	TaskTTL time.Duration
+	// MinimumTaskTTLDuration is minimum age for a finished task before it is garbage collected.
+	MinimumTaskTTLDuration time.Duration
+	// MaximumTasksPerNode is maximum number of finished tasks to retain per node.
+	MaximumTasksPerNode int32
 	// CommonEventTTL is amount of time to retain common events.
 	CommonEventTTL time.Duration
 	// FeatureGates is a map of feature names to bools that enable or disable features. This field modifies
@@ -161,21 +161,21 @@ of an Diagnosis.`,
 // NewKubeDiagOptions creates a new KubeDiagOptions with a default config.
 func NewKubeDiagOptions() (*KubeDiagOptions, error) {
 	return &KubeDiagOptions{
-		Mode:                        "agent",
-		BindAddress:                 "0.0.0.0",
-		Port:                        8090,
-		MetricsPort:                 10357,
-		EnableLeaderElection:        false,
-		WebhookPort:                 9443,
-		CertDir:                     defaultCertDir,
-		AlertmanagerRepeatInterval:  6 * time.Hour,
-		DiagnosisTTL:                240 * time.Hour,
-		MinimumDiagnosisTTLDuration: 30 * time.Minute,
-		MaximumDiagnosesPerNode:     20,
-		CommonEventTTL:              2400 * time.Hour,
-		DataRoot:                    defaultDataRoot,
-		SinkEventToKafka:            false,
-		SinkEventToWebhookReceiver:  false,
+		Mode:                       "agent",
+		BindAddress:                "0.0.0.0",
+		Port:                       8090,
+		MetricsPort:                10357,
+		EnableLeaderElection:       false,
+		WebhookPort:                9443,
+		CertDir:                    defaultCertDir,
+		AlertmanagerRepeatInterval: 6 * time.Hour,
+		TaskTTL:                    240 * time.Hour,
+		MinimumTaskTTLDuration:     30 * time.Minute,
+		MaximumTasksPerNode:        50,
+		CommonEventTTL:             2400 * time.Hour,
+		DataRoot:                   defaultDataRoot,
+		SinkEventToKafka:           false,
+		SinkEventToWebhookReceiver: false,
 	}, nil
 }
 
@@ -218,6 +218,7 @@ func (opts *KubeDiagOptions) Run() error {
 
 		// Channel for queuing kubernetes events and operation sets.
 		eventChainCh := make(chan corev1.Event, 1000)
+		diagnosisCh := make(chan diagnosisv1.Diagnosis, 1000)
 		graphBuilderCh := make(chan diagnosisv1.OperationSet, 1000)
 		stopCh := SetupSignalHandler()
 
@@ -344,9 +345,9 @@ func (opts *KubeDiagOptions) Run() error {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
 			mgr.GetScheme(),
-			opts.Mode,
+			mgr.GetEventRecorderFor("kubediag/diagnosisreconciler"),
 			opts.NodeName,
-			nil,
+			diagnosisCh,
 		)).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
 			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
@@ -407,6 +408,14 @@ func (opts *KubeDiagOptions) Run() error {
 			setupLog.Error(err, "unable to create webhook", "webhook", "OperationSet")
 			return fmt.Errorf("unable to create webhook for OperationSet: %v", err)
 		}
+		if err = (&controllers.TaskReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("Task"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Task")
+			os.Exit(1)
+		}
 		// +kubebuilder:scaffold:builder
 
 		setupLog.Info("starting manager")
@@ -430,7 +439,7 @@ func (opts *KubeDiagOptions) Run() error {
 		}
 
 		// Channel for queuing Diagnoses to pipeline for executing operations.
-		executorCh := make(chan diagnosisv1.Diagnosis, 1000)
+		taskCh := make(chan diagnosisv1.Task, 2000)
 		stopCh := SetupSignalHandler()
 
 		// Run executor.
@@ -446,27 +455,27 @@ func (opts *KubeDiagOptions) Run() error {
 			opts.BindAddress,
 			opts.Port,
 			opts.DataRoot,
-			executorCh,
+			taskCh,
 		)
 		go func(stopCh chan struct{}) {
 			executor.Run(stopCh)
 		}(stopCh)
 
 		// Run diagnosis reaper for garbage collection.
-		diagnosisReaper := garbagecollection.NewDiagnosisReaper(
+		taskReaper := garbagecollection.NewTaskReaper(
 			context.Background(),
 			ctrl.Log.WithName("diagnosisreaper"),
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetCache(),
 			opts.NodeName,
-			opts.DiagnosisTTL,
-			opts.MinimumDiagnosisTTLDuration,
-			opts.MaximumDiagnosesPerNode,
+			opts.TaskTTL,
+			opts.MinimumTaskTTLDuration,
+			opts.MaximumTasksPerNode,
 			opts.DataRoot,
 		)
 		go func(stopCh chan struct{}) {
-			diagnosisReaper.Run(stopCh)
+			taskReaper.Run(stopCh)
 		}(stopCh)
 
 		router := mux.NewRouter()
@@ -495,17 +504,16 @@ func (opts *KubeDiagOptions) Run() error {
 			}
 		}(stopCh)
 
-		// Setup reconcilers for Diagnosis and Operation.
-		if err = (controllers.NewDiagnosisReconciler(
+		// Setup reconcilers for Task and Operation.
+		if err = (controllers.NewTaskReconciler(
 			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("Diagnosis"),
+			ctrl.Log.WithName("controllers").WithName("Task"),
 			mgr.GetScheme(),
-			opts.Mode,
 			opts.NodeName,
-			executorCh,
+			taskCh,
 		)).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Diagnosis")
-			return fmt.Errorf("unable to create controller for Diagnosis: %v", err)
+			setupLog.Error(err, "unable to create controller", "controller", "Task")
+			os.Exit(1)
 		}
 		if err = (controllers.NewOperationReconciler(
 			mgr.GetClient(),
@@ -546,10 +554,10 @@ func (opts *KubeDiagOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&opts.AlertmanagerRepeatInterval, "repeat-interval", opts.AlertmanagerRepeatInterval, "How long to wait before sending a notification again if it has already been sent successfully for an alert.")
 	fs.StringSliceVar(&opts.KafkaBrokers, "kafka-brokers", opts.KafkaBrokers, "The list of broker addresses used to connect to the kafka cluster.")
 	fs.StringVar(&opts.KafkaTopic, "kafka-topic", opts.KafkaTopic, "The topic to read messages from.")
-	fs.DurationVar(&opts.DiagnosisTTL, "diagnosis-ttl", opts.DiagnosisTTL, "Amount of time to retain diagnoses.")
-	fs.DurationVar(&opts.MinimumDiagnosisTTLDuration, "minimum-diagnosis-ttl-duration", opts.MinimumDiagnosisTTLDuration, "Minimum age for a finished diagnosis before it is garbage collected.")
+	fs.DurationVar(&opts.TaskTTL, "task-ttl", opts.TaskTTL, "Amount of time to retain tasks.")
+	fs.DurationVar(&opts.MinimumTaskTTLDuration, "minimum-task-ttl-duration", opts.MinimumTaskTTLDuration, "Minimum age for a finished task before it is garbage collected.")
 	fs.DurationVar(&opts.CommonEventTTL, "common-event-ttl", opts.CommonEventTTL, "Amount of time to retain common events.")
-	fs.Int32Var(&opts.MaximumDiagnosesPerNode, "maximum-diagnoses-per-node", opts.MaximumDiagnosesPerNode, "Maximum number of finished diagnoses to retain per node.")
+	fs.Int32Var(&opts.MaximumTasksPerNode, "maximum-tasks-per-node", opts.MaximumTasksPerNode, "Maximum number of finished diagnoses to retain per node.")
 	fs.Var(flag.NewMapStringBool(&opts.FeatureGates), "feature-gates", "A map of feature names to bools that enable or disable features. Options are:\n"+strings.Join(features.NewFeatureGate().KnownFeatures(), "\n"))
 	fs.StringVar(&opts.DataRoot, "data-root", opts.DataRoot, "Root directory of persistent kubediag data.")
 	fs.BoolVar(&opts.SinkEventToKafka, "sink-event-to-kafka", opts.SinkEventToKafka, "Enables the pagerduty handler to write message to kafka cluster.")

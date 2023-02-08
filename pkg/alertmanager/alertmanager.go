@@ -244,11 +244,12 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 						Annotations: annotations,
 					},
 					Spec: diagnosisv1.DiagnosisSpec{
-						OperationSet: trigger.Spec.OperationSet,
+						OperationSet:   trigger.Spec.OperationSet,
+						TargetSelector: &diagnosisv1.TargetSelector{},
 					},
 				}
 
-				podReference := new(diagnosisv1.PodReference)
+				podReference := diagnosisv1.PodReference{}
 				if sourceTemplate.PrometheusAlertTemplate.PodNamespaceReferenceLabel != "" {
 					podReference.Namespace = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.PodNamespaceReferenceLabel])
 				}
@@ -259,17 +260,17 @@ func (am *alertmanager) createDiagnosisFromPrometheusAlert(triggers []diagnosisv
 					podReference.Container = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.ContainerReferenceLabel])
 				}
 				if podReference.Namespace != "" && podReference.Name != "" {
-					diagnosis.Spec.PodReference = podReference
+					diagnosis.Spec.TargetSelector.PodReferences = []diagnosisv1.PodReference{podReference}
 				}
 
 				if sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel != "" {
-					diagnosis.Spec.NodeName = string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])
+					diagnosis.Spec.TargetSelector.NodeNames = []string{string(alert.Labels[sourceTemplate.PrometheusAlertTemplate.NodeNameReferenceLabel])}
 				} else if trigger.Spec.NodeName != "" {
-					diagnosis.Spec.NodeName = trigger.Spec.NodeName
+					diagnosis.Spec.TargetSelector.NodeNames = []string{trigger.Spec.NodeName}
 				}
 
 				// Skip if pod reference and node name cannot be determined.
-				if diagnosis.Spec.PodReference == nil && diagnosis.Spec.NodeName == "" {
+				if len(diagnosis.Spec.TargetSelector.PodReferences) == 0 && len(diagnosis.Spec.TargetSelector.NodeNames) == 0 {
 					am.Info("pod reference and node name cannot be determined for alert", "alert", alert.String())
 					continue
 				}

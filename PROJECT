@@ -28,4 +28,7 @@ resources:
 - group: diagnosis
   kind: CommonEvent
   version: v1
+- group: diagnosis
+  kind: Task
+  version: v1
 version: "2"

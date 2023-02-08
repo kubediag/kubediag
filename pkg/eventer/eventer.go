@@ -195,18 +195,19 @@ func (ev *eventer) createDiagnosisFromKubernetesEvent(triggers []diagnosisv1.Tri
 						Annotations: annotations,
 					},
 					Spec: diagnosisv1.DiagnosisSpec{
-						OperationSet: trigger.Spec.OperationSet,
+						OperationSet:   trigger.Spec.OperationSet,
+						TargetSelector: &diagnosisv1.TargetSelector{},
 					},
 				}
 
 				if event.Source.Host != "" {
-					diagnosis.Spec.NodeName = event.Source.Host
+					diagnosis.Spec.TargetSelector.NodeNames = []string{event.Source.Host}
 				} else if trigger.Spec.NodeName != "" {
-					diagnosis.Spec.NodeName = trigger.Spec.NodeName
+					diagnosis.Spec.TargetSelector.NodeNames = []string{trigger.Spec.NodeName}
 				}
 
 				// Skip if node name cannot be determined.
-				if diagnosis.Spec.NodeName == "" {
+				if len(diagnosis.Spec.TargetSelector.NodeNames) == 0 {
 					ev.Info("node name cannot be determined for event", "event", client.ObjectKey{
 						Name:      event.Name,
 						Namespace: event.Namespace,

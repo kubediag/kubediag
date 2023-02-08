@@ -216,11 +216,13 @@ func (c *consumer) createDiagnosisFromMessageValue(message kafkago.Message) (*di
 		},
 		Spec: diagnosisv1.DiagnosisSpec{
 			OperationSet: operationSet,
-			NodeName:     node,
+			TargetSelector: &diagnosisv1.TargetSelector{
+				NodeNames: []string{node},
+			},
 		},
 	}
 
-	podReference := new(diagnosisv1.PodReference)
+	podReference := diagnosisv1.PodReference{}
 	if namespace, ok := data[KafkaMessagePodNamespaceKey]; ok {
 		podReference.Namespace = namespace
 	}
@@ -231,7 +233,7 @@ func (c *consumer) createDiagnosisFromMessageValue(message kafkago.Message) (*di
 		podReference.Container = container
 	}
 	if podReference.Namespace != "" && podReference.Name != "" {
-		diagnosis.Spec.PodReference = podReference
+		diagnosis.Spec.TargetSelector.PodReferences = []diagnosisv1.PodReference{podReference}
 	}
 	diagnosis.Spec.Parameters = data
 

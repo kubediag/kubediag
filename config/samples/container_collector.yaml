@@ -14,6 +14,8 @@ apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: container-collector
-spec: 
+spec:
+  targetSelector:
+    nodeNames:
+    - minikube
   operationSet: container-collector
-  nodeName: my-node

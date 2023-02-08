@@ -14,6 +14,8 @@ apiVersion: diagnosis.kubediag.org/v1
 kind: Diagnosis
 metadata:
   name: process-collector
-spec: 
+spec:
+  targetSelector:
+    nodeNames:
+    - minikube
   operationSet: process-collector
-  nodeName: my-node

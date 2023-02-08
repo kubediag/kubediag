@@ -152,6 +152,26 @@ rules:
 - apiGroups:
   - diagnosis.kubediag.org
   resources:
+  - tasks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
+  - tasks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - diagnosis.kubediag.org
+  resources:
   - triggers
   verbs:
   - create
