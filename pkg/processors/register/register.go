@@ -10,14 +10,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kubediag/kubediag/pkg/features"
-	kubecollector "github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
-	logcollector "github.com/kubediag/kubediag/pkg/processors/collector/log"
-	runtimecollector "github.com/kubediag/kubediag/pkg/processors/collector/runtime"
-	systemcollector "github.com/kubediag/kubediag/pkg/processors/collector/system"
-	diagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser"
-	kubediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/kubernetes"
-	runtimediagnoser "github.com/kubediag/kubediag/pkg/processors/diagnoser/runtime"
-	kuberecover "github.com/kubediag/kubediag/pkg/processors/recover/kubernetes"
+	"github.com/kubediag/kubediag/pkg/processors/collector"
+	"github.com/kubediag/kubediag/pkg/processors/diagnoser"
+	"github.com/kubediag/kubediag/pkg/processors/recoverer"
 )
 
 // RegistryOption contains options of all kinds of Processors, it might be append in the future.
@@ -39,21 +34,21 @@ func RegisterProcessors(mgr manager.Manager,
 	router *mux.Router,
 	setupLog logr.Logger) error {
 	// Setup operation processors.
-	podListCollector := kubecollector.NewPodListCollector(
+	podListCollector := collector.NewPodListCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/podListCollector"),
 		mgr.GetCache(),
 		opts.NodeName,
 		featureGate.Enabled(features.PodCollector),
 	)
-	podDetailCollector := kubecollector.NewPodDetailCollector(
+	podDetailCollector := collector.NewPodDetailCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/podDetailCollector"),
 		mgr.GetCache(),
 		opts.NodeName,
 		featureGate.Enabled(features.PodCollector),
 	)
-	containerCollector, err := kubecollector.NewContainerCollector(
+	containerCollector, err := collector.NewContainerCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/containerCollector"),
 		opts.DockerEndpoint,
@@ -63,12 +58,12 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "containerCollector")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
-	processCollector := systemcollector.NewProcessCollector(
+	processCollector := collector.NewProcessCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/processCollector"),
 		featureGate.Enabled(features.ProcessCollector),
 	)
-	dockerInfoCollector, err := kubecollector.NewDockerInfoCollector(
+	dockerInfoCollector, err := collector.NewDockerInfoCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/dockerInfoCollector"),
 		opts.DockerEndpoint,
@@ -78,32 +73,35 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "dockerInfoCollector")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
-	dockerdGoroutineCollector := runtimecollector.NewDockerdGoroutineCollector(
+	dockerdGoroutineCollector := collector.NewDockerdGoroutineCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/dockerdGoroutineCollector"),
 		opts.DataRoot,
 		featureGate.Enabled(features.DockerdGoroutineCollector),
 	)
-	containerdGoroutineCollector := runtimecollector.NewContainerdGoroutineCollector(
+	containerdGoroutineCollector := collector.NewContainerdGoroutineCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/containerdGoroutineCollector"),
 		featureGate.Enabled(features.ContainerdGoroutineCollector),
 	)
-	mountInfoCollector := systemcollector.NewMountInfoCollector(
+	mountInfoCollector := collector.NewMountInfoCollector(
 		context.Background(),
 		ctrl.Log.WithName("processor/mountInfoCollector"),
 		featureGate.Enabled(features.MountInfoCollector),
 	)
-
-	nodeCordon := kuberecover.NewNodeCordon(
+	elasticsearchCollector := collector.NewElasticsearchCollector(
 		context.Background(),
-		ctrl.Log.WithName("processor/nodeCordon"),
-		mgr.GetClient(),
-		opts.NodeName,
-		featureGate.Enabled(features.NodeCordon),
+		ctrl.Log.WithName("processor/elasticsearchCollector"),
+		featureGate.Enabled(features.ElasticsearchCollector),
+	)
+	statefulsetDetailCollector := collector.NewStatefuSetDetailCollector(
+		context.Background(),
+		ctrl.Log.WithName("/processor/statefulsetDetailCollector"),
+		mgr.GetCache(),
+		featureGate.Enabled(features.StatefulSetDetailCollector),
 	)
 
-	goProfiler := runtimediagnoser.NewGoProfiler(
+	goProfiler := diagnoser.NewGoProfiler(
 		context.Background(),
 		ctrl.Log.WithName("processor/goProfiler"),
 		mgr.GetCache(),
@@ -111,7 +109,7 @@ func RegisterProcessors(mgr manager.Manager,
 		opts.BindAddress,
 		featureGate.Enabled(features.GoProfiler),
 	)
-	coreFileProfiler, err := runtimediagnoser.NewCoreFileProfiler(
+	coreFileProfiler, err := diagnoser.NewCoreFileProfiler(
 		context.Background(),
 		ctrl.Log.WithName("processor/coreFileProfiler"),
 		opts.DockerEndpoint,
@@ -121,7 +119,7 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "coreFileProfiler")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
-	tcpdumpProfiler, err := runtimediagnoser.NewTcpdumpProfiler(
+	tcpdumpProfiler, err := diagnoser.NewTcpdumpProfiler(
 		context.Background(),
 		ctrl.Log.WithName("processor/tcpdumpProfiler"),
 		opts.DockerEndpoint,
@@ -133,25 +131,12 @@ func RegisterProcessors(mgr manager.Manager,
 		setupLog.Error(err, "unable to create processor", "processors", "tcpdumpProfiler")
 		return fmt.Errorf("unable to create processor: %v", err)
 	}
-
-	subpathRemountDiagnoser := kubediagnoser.NewSubPathRemountDiagnoser(
+	subpathRemountDiagnoser := diagnoser.NewSubPathRemountDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("processor/subpathRemountDiagnoser"),
 		mgr.GetCache(),
 		featureGate.Enabled(features.SubpathRemountDiagnoser),
 	)
-
-	subpathRemountRecover := kuberecover.NewSubPathRemountRecover(
-		context.Background(),
-		ctrl.Log.WithName("processor/subpathRemountRecover"),
-		featureGate.Enabled(features.SubpathRemountDiagnoser),
-	)
-	elasticsearchCollector := logcollector.NewElasticsearchCollector(
-		context.Background(),
-		ctrl.Log.WithName("processor/elasticsearchCollector"),
-		featureGate.Enabled(features.ElasticsearchCollector),
-	)
-
 	sonobuoyResultDiagnoser := diagnoser.NewSonobuoyResultDiagnoser(
 		context.Background(),
 		ctrl.Log.WithName("processor/sonobuoyResultDiagnoser"),
@@ -159,13 +144,21 @@ func RegisterProcessors(mgr manager.Manager,
 		opts.BindAddress,
 		featureGate.Enabled(features.SonobuoyResultDiagnoser),
 	)
-	statefulsetDetailCollector := kubecollector.NewStatefuSetDetailCollector(
+
+	subpathRemountRecover := recoverer.NewSubPathRemountRecover(
 		context.Background(),
-		ctrl.Log.WithName("/processor/statefulsetDetailCollector"),
-		mgr.GetCache(),
-		featureGate.Enabled(features.StatefulSetDetailCollector),
+		ctrl.Log.WithName("processor/subpathRemountRecover"),
+		featureGate.Enabled(features.SubpathRemountDiagnoser),
 	)
-	statefulsetStuck := kuberecover.NewStatefuSetStuck(
+
+	nodeCordon := recoverer.NewNodeCordon(
+		context.Background(),
+		ctrl.Log.WithName("processor/nodeCordon"),
+		mgr.GetClient(),
+		opts.NodeName,
+		featureGate.Enabled(features.NodeCordon),
+	)
+	statefulsetStuck := recoverer.NewStatefuSetStuck(
 		context.Background(),
 		ctrl.Log.WithName("/processor/statefulsetStuck"),
 		mgr.GetClient(),

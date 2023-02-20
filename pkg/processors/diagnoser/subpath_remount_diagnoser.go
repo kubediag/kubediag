@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kubernetes
+package diagnoser
 
 import (
 	"context"
@@ -29,8 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/kubediag/kubediag/pkg/processors"
-	"github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
-	"github.com/kubediag/kubediag/pkg/processors/collector/system"
+	"github.com/kubediag/kubediag/pkg/processors/collector"
 	"github.com/kubediag/kubediag/pkg/processors/utils"
 )
 
@@ -87,13 +86,13 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if contexts[kubernetes.ContextKeyPodDetail] == "" || contexts[system.ContextKeyMountInfo] == "" {
-			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", kubernetes.ContextKeyPodDetail, system.ContextKeyMountInfo))
+		if contexts[collector.ContextKeyPodDetail] == "" || contexts[collector.ContextKeyMountInfo] == "" {
+			srd.Error(err, fmt.Sprintf("need %s and %s in extract contexts", collector.ContextKeyPodDetail, collector.ContextKeyMountInfo))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		pod := corev1.Pod{}
-		err = json.Unmarshal([]byte(contexts[kubernetes.ContextKeyPodDetail]), &pod)
+		err = json.Unmarshal([]byte(contexts[collector.ContextKeyPodDetail]), &pod)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to unmarshal pod: %v", err), http.StatusInternalServerError)
 			return
@@ -160,7 +159,7 @@ func (srd *subPathRemountDiagnoser) Handler(w http.ResponseWriter, r *http.Reque
 		}
 		srd.Info("get mount source path", "path", sourcePath)
 
-		mountInfos := strings.Split(contexts[system.ContextKeyMountInfo], "\n")
+		mountInfos := strings.Split(contexts[collector.ContextKeyMountInfo], "\n")
 		var mountLine string
 		for _, line := range mountInfos {
 			if strings.Contains(line, sourcePath) {
