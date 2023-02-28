@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kubernetes
+package recoverer
 
 import (
 	"context"
@@ -28,8 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubediag/kubediag/pkg/processors"
-	"github.com/kubediag/kubediag/pkg/processors/collector/kubernetes"
-	"github.com/kubediag/kubediag/pkg/processors/collector/system"
+	"github.com/kubediag/kubediag/pkg/processors/collector"
 	"github.com/kubediag/kubediag/pkg/processors/utils"
 )
 
@@ -84,26 +83,26 @@ func (ss *StatefuSetStuck) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Get StatefuSet info
-		if contexts[kubernetes.ContextKeyStatefuSetDetailResult] == "" {
-			ss.Error(err, fmt.Sprintf("need %s and %s in extract contexts", kubernetes.ContextKeyPodDetail, system.ContextKeyMountInfo))
+		if contexts[collector.ContextKeyStatefuSetDetailResult] == "" {
+			ss.Error(err, fmt.Sprintf("need %s and %s in extract contexts", collector.ContextKeyPodDetail, collector.ContextKeyMountInfo))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		statefulset := appsv1.StatefulSet{}
-		err = json.Unmarshal([]byte(contexts[kubernetes.ContextKeyStatefuSetDetailResult]), &statefulset)
+		err = json.Unmarshal([]byte(contexts[collector.ContextKeyStatefuSetDetailResult]), &statefulset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to unmarshal statefulset: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Get Pod Info
-		if contexts[kubernetes.ContextKeyPodDetail] == "" {
-			ss.Error(err, fmt.Sprintf("need %s in extract contexts", kubernetes.ContextKeyPodDetail))
+		if contexts[collector.ContextKeyPodDetail] == "" {
+			ss.Error(err, fmt.Sprintf("need %s in extract contexts", collector.ContextKeyPodDetail))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		pod := corev1.Pod{}
-		err = json.Unmarshal([]byte(contexts[kubernetes.ContextKeyPodDetail]), &pod)
+		err = json.Unmarshal([]byte(contexts[collector.ContextKeyPodDetail]), &pod)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to unmarshal pod: %v", err), http.StatusInternalServerError)
 			return

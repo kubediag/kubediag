@@ -252,9 +252,6 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		diagnosis.Status.Phase = diagnosisv1.DiagnosisRunning
 		diagnosis.Status.NodeNames = nodeNames
-		if diagnosis.Spec.Parameters != nil {
-			diagnosis.Status.Context.Parameters = diagnosis.Spec.Parameters
-		}
 		if err := r.Status().Update(ctx, &diagnosis); err != nil {
 			log.Error(err, "unable to update Diagnosis")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
