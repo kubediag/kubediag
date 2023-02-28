@@ -423,8 +423,9 @@ func (r *DiagnosisReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 						OwnerReferences: owner,
 					},
 					Spec: diagnosisv1.TaskSpec{
-						Operation: node.Operation,
-						NodeName:  nodeName,
+						Operation:  node.Operation,
+						NodeName:   nodeName,
+						Parameters: diagnosis.Spec.Parameters,
 					},
 				}
 
